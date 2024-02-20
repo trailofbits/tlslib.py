@@ -226,7 +226,9 @@ class OpenSSLClientContext(ClientContext):
         ossl_context = _init_context_client(self._configuration)
 
         return OpenSSLTLSSocket._create(
-            parent_context=self, ssl_context=ossl_context, address=address,
+            parent_context=self,
+            ssl_context=ossl_context,
+            address=address,
         )
 
 

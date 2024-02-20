@@ -20,7 +20,6 @@ requires-python = ">=3.8"
 doc = []
 test = ["pytest", "pytest-cov", "pretend", "coverage[toml]"]
 lint = [
-    "black ~= 23.0",
     # NOTE: ruff is under active development, so we pin conservatively here
     # and let Dependabot periodically perform this update.
     "ruff < 0.0.293",
@@ -40,9 +39,6 @@ Source = "https://github.com/trailofbits/tlslib"
 
 [tool.flit.module]
 name = "tlslib"
-
-[tool.black]
-line-length = 100
 
 [tool.coverage.run]
 # don't attempt code coverage for the CLI entrypoints

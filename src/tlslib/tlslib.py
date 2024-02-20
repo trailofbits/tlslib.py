@@ -4,23 +4,36 @@ from abc import ABCMeta, abstractmethod
 from enum import Enum, IntEnum
 
 __all__ = [
-    "TLSServerConfiguration", "TLSClientConfiguration", "ClientContext", "ServerContext",
-    "CipherSuite", "NextProtocol", "TLSVersion",
-    "TLSError", "WantWriteError", "WantReadError", "RaggedEOF", "Backend",
+    "TLSServerConfiguration",
+    "TLSClientConfiguration",
+    "ClientContext",
+    "ServerContext",
+    "CipherSuite",
+    "NextProtocol",
+    "TLSVersion",
+    "TLSError",
+    "WantWriteError",
+    "WantReadError",
+    "RaggedEOF",
+    "Backend",
 ]
+
 
 class _TLSBaseConfiguration:
     __slots__ = (
-        "_ciphers", "_inner_protocols", "_lowest_supported_version",
+        "_ciphers",
+        "_inner_protocols",
+        "_lowest_supported_version",
         "_highest_supported_version",
     )
 
-    def __init__(self,
-                 ciphers=None,
-                 inner_protocols=None,
-                 lowest_supported_version=None,
-                 highest_supported_version=None) -> None:
-
+    def __init__(
+        self,
+        ciphers=None,
+        inner_protocols=None,
+        lowest_supported_version=None,
+        highest_supported_version=None,
+    ) -> None:
         if ciphers is None:
             ciphers = DEFAULT_CIPHER_LIST
 
@@ -68,21 +81,21 @@ class _TLSBaseConfiguration:
         """
         return self._highest_supported_version
 
-class TLSServerConfiguration(_TLSBaseConfiguration):
-    __slots__ = (
-        "_certificate_chain"
-    )
-    def __init__(self,
-                 ciphers=None,
-                 inner_protocols=None,
-                 lowest_supported_version=None,
-                 highest_supported_version=None,
-                 certificate_chain = None) -> None:
 
-        super().__init__(ciphers,
-                         inner_protocols,
-                         lowest_supported_version,
-                         highest_supported_version)
+class TLSServerConfiguration(_TLSBaseConfiguration):
+    __slots__ = "_certificate_chain"
+
+    def __init__(
+        self,
+        ciphers=None,
+        inner_protocols=None,
+        lowest_supported_version=None,
+        highest_supported_version=None,
+        certificate_chain=None,
+    ) -> None:
+        super().__init__(
+            ciphers, inner_protocols, lowest_supported_version, highest_supported_version
+        )
         self._certificate_chain = certificate_chain
 
     @property
@@ -97,17 +110,19 @@ class TLSServerConfiguration(_TLSBaseConfiguration):
         """
         return self._certificate_chain
 
-class TLSClientConfiguration(_TLSBaseConfiguration):
-    def __init__(self,
-                 ciphers=None,
-                 inner_protocols=None,
-                 lowest_supported_version=None,
-                 highest_supported_version=None) -> None:
 
-        super().__init__(ciphers,
-                         inner_protocols,
-                         lowest_supported_version,
-                         highest_supported_version)
+class TLSClientConfiguration(_TLSBaseConfiguration):
+    def __init__(
+        self,
+        ciphers=None,
+        inner_protocols=None,
+        lowest_supported_version=None,
+        highest_supported_version=None,
+    ) -> None:
+        super().__init__(
+            ciphers, inner_protocols, lowest_supported_version, highest_supported_version
+        )
+
 
 class _BaseContext:
     __metaclass__ = ABCMeta
@@ -123,7 +138,6 @@ class _BaseContext:
 
 
 class ClientContext(_BaseContext):
-
     @abstractmethod
     def connect(self, address):
         """Creates a TLSSocket that behaves like a socket.socket, and
@@ -133,13 +147,13 @@ class ClientContext(_BaseContext):
 
 
 class ServerContext(_BaseContext):
-
     @abstractmethod
     def connect(self, address):
         """Creates a TLSSocket that behaves like a socket.socket, and
         contains information about the TLS exchange
         (cipher, negotiated_protocol, negotiated_tls_version, etc.).
         """
+
 
 class TLSSocket:
     __metaclass__ = ABCMeta
@@ -201,119 +215,120 @@ class TLSSocket:
     def negotiated_tls_version(self):
         """The version of TLS that has been negotiated on this connection."""
 
+
 class CipherSuite(IntEnum):
     TLS_RSA_WITH_RC4_128_SHA = 0x0005
     TLS_RSA_WITH_IDEA_CBC_SHA = 0x0007
-    TLS_RSA_WITH_3DES_EDE_CBC_SHA = 0x000a
+    TLS_RSA_WITH_3DES_EDE_CBC_SHA = 0x000A
     TLS_DH_RSA_WITH_3DES_EDE_CBC_SHA = 0x0010
     TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA = 0x0016
-    TLS_RSA_WITH_AES_128_CBC_SHA = 0x002f
+    TLS_RSA_WITH_AES_128_CBC_SHA = 0x002F
     TLS_DH_RSA_WITH_AES_128_CBC_SHA = 0x0031
     TLS_DHE_RSA_WITH_AES_128_CBC_SHA = 0x0033
     TLS_RSA_WITH_AES_256_CBC_SHA = 0x0035
     TLS_DH_RSA_WITH_AES_256_CBC_SHA = 0x0037
     TLS_DHE_RSA_WITH_AES_256_CBC_SHA = 0x0039
-    TLS_RSA_WITH_AES_128_CBC_SHA256 = 0x003c
-    TLS_RSA_WITH_AES_256_CBC_SHA256 = 0x003d
-    TLS_DH_RSA_WITH_AES_128_CBC_SHA256 = 0x003f
+    TLS_RSA_WITH_AES_128_CBC_SHA256 = 0x003C
+    TLS_RSA_WITH_AES_256_CBC_SHA256 = 0x003D
+    TLS_DH_RSA_WITH_AES_128_CBC_SHA256 = 0x003F
     TLS_RSA_WITH_CAMELLIA_128_CBC_SHA = 0x0041
     TLS_DH_RSA_WITH_CAMELLIA_128_CBC_SHA = 0x0043
     TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA = 0x0045
     TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 = 0x0067
     TLS_DH_RSA_WITH_AES_256_CBC_SHA256 = 0x0069
-    TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 = 0x006b
+    TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 = 0x006B
     TLS_RSA_WITH_CAMELLIA_256_CBC_SHA = 0x0084
     TLS_DH_RSA_WITH_CAMELLIA_256_CBC_SHA = 0x0086
     TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA = 0x0088
     TLS_RSA_WITH_SEED_CBC_SHA = 0x0096
     TLS_DH_RSA_WITH_SEED_CBC_SHA = 0x0098
-    TLS_DHE_RSA_WITH_SEED_CBC_SHA = 0x009a
-    TLS_RSA_WITH_AES_128_GCM_SHA256 = 0x009c
-    TLS_RSA_WITH_AES_256_GCM_SHA384 = 0x009d
-    TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 = 0x009e
-    TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 = 0x009f
-    TLS_DH_RSA_WITH_AES_128_GCM_SHA256 = 0x00a0
-    TLS_DH_RSA_WITH_AES_256_GCM_SHA384 = 0x00a1
-    TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256 = 0x00ba
-    TLS_DH_RSA_WITH_CAMELLIA_128_CBC_SHA256 = 0x00bc
-    TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256 = 0x00be
-    TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256 = 0x00c0
-    TLS_DH_RSA_WITH_CAMELLIA_256_CBC_SHA256 = 0x00c2
-    TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 = 0x00c4
+    TLS_DHE_RSA_WITH_SEED_CBC_SHA = 0x009A
+    TLS_RSA_WITH_AES_128_GCM_SHA256 = 0x009C
+    TLS_RSA_WITH_AES_256_GCM_SHA384 = 0x009D
+    TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 = 0x009E
+    TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 = 0x009F
+    TLS_DH_RSA_WITH_AES_128_GCM_SHA256 = 0x00A0
+    TLS_DH_RSA_WITH_AES_256_GCM_SHA384 = 0x00A1
+    TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256 = 0x00BA
+    TLS_DH_RSA_WITH_CAMELLIA_128_CBC_SHA256 = 0x00BC
+    TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256 = 0x00BE
+    TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256 = 0x00C0
+    TLS_DH_RSA_WITH_CAMELLIA_256_CBC_SHA256 = 0x00C2
+    TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 = 0x00C4
     TLS_AES_128_GCM_SHA256 = 0x1301
     TLS_AES_256_GCM_SHA384 = 0x1302
     TLS_CHACHA20_POLY1305_SHA256 = 0x1303
     TLS_AES_128_CCM_SHA256 = 0x1304
     TLS_AES_128_CCM_8_SHA256 = 0x1305
-    TLS_ECDH_ECDSA_WITH_RC4_128_SHA = 0xc002
-    TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA = 0xc003
-    TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA = 0xc004
-    TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA = 0xc005
-    TLS_ECDHE_ECDSA_WITH_RC4_128_SHA = 0xc007
-    TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA = 0xc008
-    TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA = 0xc009
-    TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA = 0xc00a
-    TLS_ECDH_RSA_WITH_RC4_128_SHA = 0xc00c
-    TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA = 0xc00d
-    TLS_ECDH_RSA_WITH_AES_128_CBC_SHA = 0xc00e
-    TLS_ECDH_RSA_WITH_AES_256_CBC_SHA = 0xc00f
-    TLS_ECDHE_RSA_WITH_RC4_128_SHA = 0xc011
-    TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA = 0xc012
-    TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA = 0xc013
-    TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA = 0xc014
-    TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 = 0xc023
-    TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384 = 0xc024
-    TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256 = 0xc025
-    TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384 = 0xc026
-    TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 = 0xc027
-    TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384 = 0xc028
-    TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256 = 0xc029
-    TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384 = 0xc02a
-    TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 = 0xc02b
-    TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 = 0xc02c
-    TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256 = 0xc02d
-    TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384 = 0xc02e
-    TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 = 0xc02f
-    TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 = 0xc030
-    TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256 = 0xc031
-    TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384 = 0xc032
-    TLS_ECDHE_ECDSA_WITH_CAMELLIA_128_CBC_SHA256 = 0xc072
-    TLS_ECDHE_ECDSA_WITH_CAMELLIA_256_CBC_SHA384 = 0xc073
-    TLS_ECDH_ECDSA_WITH_CAMELLIA_128_CBC_SHA256 = 0xc074
-    TLS_ECDH_ECDSA_WITH_CAMELLIA_256_CBC_SHA384 = 0xc075
-    TLS_ECDHE_RSA_WITH_CAMELLIA_128_CBC_SHA256 = 0xc076
-    TLS_ECDHE_RSA_WITH_CAMELLIA_256_CBC_SHA384 = 0xc077
-    TLS_ECDH_RSA_WITH_CAMELLIA_128_CBC_SHA256 = 0xc078
-    TLS_ECDH_RSA_WITH_CAMELLIA_256_CBC_SHA384 = 0xc079
-    TLS_RSA_WITH_CAMELLIA_128_GCM_SHA256 = 0xc07a
-    TLS_RSA_WITH_CAMELLIA_256_GCM_SHA384 = 0xc07b
-    TLS_DHE_RSA_WITH_CAMELLIA_128_GCM_SHA256 = 0xc07c
-    TLS_DHE_RSA_WITH_CAMELLIA_256_GCM_SHA384 = 0xc07d
-    TLS_DH_RSA_WITH_CAMELLIA_128_GCM_SHA256 = 0xc07e
-    TLS_DH_RSA_WITH_CAMELLIA_256_GCM_SHA384 = 0xc07f
-    TLS_ECDHE_ECDSA_WITH_CAMELLIA_128_GCM_SHA256 = 0xc086
-    TLS_ECDHE_ECDSA_WITH_CAMELLIA_256_GCM_SHA384 = 0xc087
-    TLS_ECDH_ECDSA_WITH_CAMELLIA_128_GCM_SHA256 = 0xc088
-    TLS_ECDH_ECDSA_WITH_CAMELLIA_256_GCM_SHA384 = 0xc089
-    TLS_ECDHE_RSA_WITH_CAMELLIA_128_GCM_SHA256 = 0xc08a
-    TLS_ECDHE_RSA_WITH_CAMELLIA_256_GCM_SHA384 = 0xc08b
-    TLS_ECDH_RSA_WITH_CAMELLIA_128_GCM_SHA256 = 0xc08c
-    TLS_ECDH_RSA_WITH_CAMELLIA_256_GCM_SHA384 = 0xc08d
-    TLS_RSA_WITH_AES_128_CCM = 0xc09c
-    TLS_RSA_WITH_AES_256_CCM = 0xc09d
-    TLS_DHE_RSA_WITH_AES_128_CCM = 0xc09e
-    TLS_DHE_RSA_WITH_AES_256_CCM = 0xc09f
-    TLS_RSA_WITH_AES_128_CCM_8 = 0xc0a0
-    TLS_RSA_WITH_AES_256_CCM_8 = 0xc0a1
-    TLS_DHE_RSA_WITH_AES_128_CCM_8 = 0xc0a2
-    TLS_DHE_RSA_WITH_AES_256_CCM_8 = 0xc0a3
-    TLS_ECDHE_ECDSA_WITH_AES_128_CCM = 0xc0ac
-    TLS_ECDHE_ECDSA_WITH_AES_256_CCM = 0xc0ad
-    TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 = 0xc0ae
-    TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8 = 0xc0af
-    TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 = 0xcca8
-    TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 = 0xcca9
-    TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256 = 0xccaa
+    TLS_ECDH_ECDSA_WITH_RC4_128_SHA = 0xC002
+    TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA = 0xC003
+    TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA = 0xC004
+    TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA = 0xC005
+    TLS_ECDHE_ECDSA_WITH_RC4_128_SHA = 0xC007
+    TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA = 0xC008
+    TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA = 0xC009
+    TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA = 0xC00A
+    TLS_ECDH_RSA_WITH_RC4_128_SHA = 0xC00C
+    TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA = 0xC00D
+    TLS_ECDH_RSA_WITH_AES_128_CBC_SHA = 0xC00E
+    TLS_ECDH_RSA_WITH_AES_256_CBC_SHA = 0xC00F
+    TLS_ECDHE_RSA_WITH_RC4_128_SHA = 0xC011
+    TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA = 0xC012
+    TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA = 0xC013
+    TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA = 0xC014
+    TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 = 0xC023
+    TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384 = 0xC024
+    TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256 = 0xC025
+    TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384 = 0xC026
+    TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 = 0xC027
+    TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384 = 0xC028
+    TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256 = 0xC029
+    TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384 = 0xC02A
+    TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 = 0xC02B
+    TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 = 0xC02C
+    TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256 = 0xC02D
+    TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384 = 0xC02E
+    TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 = 0xC02F
+    TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 = 0xC030
+    TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256 = 0xC031
+    TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384 = 0xC032
+    TLS_ECDHE_ECDSA_WITH_CAMELLIA_128_CBC_SHA256 = 0xC072
+    TLS_ECDHE_ECDSA_WITH_CAMELLIA_256_CBC_SHA384 = 0xC073
+    TLS_ECDH_ECDSA_WITH_CAMELLIA_128_CBC_SHA256 = 0xC074
+    TLS_ECDH_ECDSA_WITH_CAMELLIA_256_CBC_SHA384 = 0xC075
+    TLS_ECDHE_RSA_WITH_CAMELLIA_128_CBC_SHA256 = 0xC076
+    TLS_ECDHE_RSA_WITH_CAMELLIA_256_CBC_SHA384 = 0xC077
+    TLS_ECDH_RSA_WITH_CAMELLIA_128_CBC_SHA256 = 0xC078
+    TLS_ECDH_RSA_WITH_CAMELLIA_256_CBC_SHA384 = 0xC079
+    TLS_RSA_WITH_CAMELLIA_128_GCM_SHA256 = 0xC07A
+    TLS_RSA_WITH_CAMELLIA_256_GCM_SHA384 = 0xC07B
+    TLS_DHE_RSA_WITH_CAMELLIA_128_GCM_SHA256 = 0xC07C
+    TLS_DHE_RSA_WITH_CAMELLIA_256_GCM_SHA384 = 0xC07D
+    TLS_DH_RSA_WITH_CAMELLIA_128_GCM_SHA256 = 0xC07E
+    TLS_DH_RSA_WITH_CAMELLIA_256_GCM_SHA384 = 0xC07F
+    TLS_ECDHE_ECDSA_WITH_CAMELLIA_128_GCM_SHA256 = 0xC086
+    TLS_ECDHE_ECDSA_WITH_CAMELLIA_256_GCM_SHA384 = 0xC087
+    TLS_ECDH_ECDSA_WITH_CAMELLIA_128_GCM_SHA256 = 0xC088
+    TLS_ECDH_ECDSA_WITH_CAMELLIA_256_GCM_SHA384 = 0xC089
+    TLS_ECDHE_RSA_WITH_CAMELLIA_128_GCM_SHA256 = 0xC08A
+    TLS_ECDHE_RSA_WITH_CAMELLIA_256_GCM_SHA384 = 0xC08B
+    TLS_ECDH_RSA_WITH_CAMELLIA_128_GCM_SHA256 = 0xC08C
+    TLS_ECDH_RSA_WITH_CAMELLIA_256_GCM_SHA384 = 0xC08D
+    TLS_RSA_WITH_AES_128_CCM = 0xC09C
+    TLS_RSA_WITH_AES_256_CCM = 0xC09D
+    TLS_DHE_RSA_WITH_AES_128_CCM = 0xC09E
+    TLS_DHE_RSA_WITH_AES_256_CCM = 0xC09F
+    TLS_RSA_WITH_AES_128_CCM_8 = 0xC0A0
+    TLS_RSA_WITH_AES_256_CCM_8 = 0xC0A1
+    TLS_DHE_RSA_WITH_AES_128_CCM_8 = 0xC0A2
+    TLS_DHE_RSA_WITH_AES_256_CCM_8 = 0xC0A3
+    TLS_ECDHE_ECDSA_WITH_AES_128_CCM = 0xC0AC
+    TLS_ECDHE_ECDSA_WITH_AES_256_CCM = 0xC0AD
+    TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 = 0xC0AE
+    TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8 = 0xC0AF
+    TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 = 0xCCA8
+    TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 = 0xCCA9
+    TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256 = 0xCCAA
 
 
 DEFAULT_CIPHER_LIST = [
@@ -364,6 +379,7 @@ DEFAULT_CIPHER_LIST = [
     CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA,
 ]
 
+
 class NextProtocol(Enum):
     H2 = b"h2"
     H2C = b"h2c"
@@ -384,6 +400,7 @@ class TLSVersion(Enum):
     TLSv1_2 = "TLSv1.2"
     TLSv1_3 = "TLSv1.3"
     MAXIMUM_SUPPORTED = "MAXIMUM_SUPPORTED"
+
 
 class TLSError(Exception):
     """The base exception for all TLS related errors from any backend.
@@ -433,19 +450,19 @@ class RaggedEOF(TLSError):
     attack and so can ignore this exception.
     """
 
+
 class Backend:
     """An object representing the collection of classes that implement the
     PEP 543 abstract TLS API for a specific TLS implementation.
     """
 
     __slots__ = (
-        "_client_context", "_server_context", "_tls_socket",
+        "_client_context",
+        "_server_context",
+        "_tls_socket",
     )
 
-    def __init__(self,
-                 client_context,
-                 server_context,
-                 tls_socket) -> None:
+    def __init__(self, client_context, server_context, tls_socket) -> None:
         self._client_context = client_context
         self._server_context = server_context
         self._tls_socket = tls_socket
@@ -470,4 +487,3 @@ class Backend:
         by this TLS backend.
         """
         return self._tls_socket
-
