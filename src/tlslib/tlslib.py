@@ -1,28 +1,25 @@
-# -*- coding: utf-8 -*-
-"""
-Abstract interface to TLS for Python
-"""
+"""Abstract interface to TLS for Python."""
 
-from abc import ABCMeta, abstractmethod, abstractproperty
+from abc import ABCMeta, abstractmethod
 from enum import Enum, IntEnum
 
 __all__ = [
-    'TLSServerConfiguration', 'TLSClientConfiguration', 'ClientContext', 'ServerContext', 
-    'CipherSuite', 'NextProtocol', 'TLSVersion',
-    'TLSError', 'WantWriteError', 'WantReadError', 'RaggedEOF', 'Backend'
+    "TLSServerConfiguration", "TLSClientConfiguration", "ClientContext", "ServerContext",
+    "CipherSuite", "NextProtocol", "TLSVersion",
+    "TLSError", "WantWriteError", "WantReadError", "RaggedEOF", "Backend",
 ]
 
-class _TLSBaseConfiguration(object):   
+class _TLSBaseConfiguration:
     __slots__ = (
-        '_ciphers', '_inner_protocols', '_lowest_supported_version',
-        '_highest_supported_version'
+        "_ciphers", "_inner_protocols", "_lowest_supported_version",
+        "_highest_supported_version",
     )
 
     def __init__(self,
                  ciphers=None,
                  inner_protocols=None,
                  lowest_supported_version=None,
-                 highest_supported_version=None):
+                 highest_supported_version=None) -> None:
 
         if ciphers is None:
             ciphers = DEFAULT_CIPHER_LIST
@@ -43,16 +40,14 @@ class _TLSBaseConfiguration(object):
 
     @property
     def ciphers(self):
-        """
-        The available ciphers for TLS connections created with this
+        """The available ciphers for TLS connections created with this
         configuration, in priority order.
         """
         return self._ciphers
 
     @property
     def inner_protocols(self):
-        """
-        Protocols that connections created with this configuration should
+        """Protocols that connections created with this configuration should
         advertise as supported during the TLS handshake. These may be
         advertised using either or both of ALPN or NPN. This list of
         protocols is ordered by preference.
@@ -61,41 +56,38 @@ class _TLSBaseConfiguration(object):
 
     @property
     def lowest_supported_version(self):
-        """
-        The minimum version of TLS that is allowed on TLS connections using
+        """The minimum version of TLS that is allowed on TLS connections using
         this configuration.
         """
         return self._lowest_supported_version
 
     @property
     def highest_supported_version(self):
-        """
-        The maximum version of TLS that will be allowed on TLS connections
+        """The maximum version of TLS that will be allowed on TLS connections
         using this configuration.
         """
         return self._highest_supported_version
 
 class TLSServerConfiguration(_TLSBaseConfiguration):
     __slots__ = (
-        '_certificate_chain'
+        "_certificate_chain"
     )
     def __init__(self,
                  ciphers=None,
                  inner_protocols=None,
                  lowest_supported_version=None,
                  highest_supported_version=None,
-                 certificate_chain = None):
-        
-        super().__init__(ciphers, 
-                         inner_protocols, 
-                         lowest_supported_version, 
+                 certificate_chain = None) -> None:
+
+        super().__init__(ciphers,
+                         inner_protocols,
+                         lowest_supported_version,
                          highest_supported_version)
         self._certificate_chain = certificate_chain
-    
+
     @property
     def certificate_chain(self):
-        """
-        The certificate, intermediate certificates, and the corresponding
+        """The certificate, intermediate certificates, and the corresponding
         private key for the leaf certificate. These certificates will be
         offered to the remote peer during the handshake if required.
 
@@ -110,90 +102,77 @@ class TLSClientConfiguration(_TLSBaseConfiguration):
                  ciphers=None,
                  inner_protocols=None,
                  lowest_supported_version=None,
-                 highest_supported_version=None):
-        
-        super().__init__(ciphers, 
-                         inner_protocols, 
-                         lowest_supported_version, 
-                         highest_supported_version)        
+                 highest_supported_version=None) -> None:
 
-class _BaseContext(object):
+        super().__init__(ciphers,
+                         inner_protocols,
+                         lowest_supported_version,
+                         highest_supported_version)
+
+class _BaseContext:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def __init__(self, configuration):
-        """
-        Create a new context object from a given TLS configuration.
-        """
+    def __init__(self, configuration) -> None:
+        """Create a new context object from a given TLS configuration."""
 
     @property
     @abstractmethod
     def configuration(self):
-        """
-        Returns the TLS configuration that was used to create the context.
-        """
+        """Returns the TLS configuration that was used to create the context."""
 
 
 class ClientContext(_BaseContext):
-    
+
     @abstractmethod
     def connect(self, address):
-        """
-        Creates a TLSSocket that behaves like a socket.socket, and
+        """Creates a TLSSocket that behaves like a socket.socket, and
         contains information about the TLS exchange
-        (cipher, negotiated_protocol, negotiated_tls_version, etc.)
+        (cipher, negotiated_protocol, negotiated_tls_version, etc.).
         """
 
 
 class ServerContext(_BaseContext):
-    
+
     @abstractmethod
     def connect(self, address):
-        """
-        Creates a TLSSocket that behaves like a socket.socket, and
+        """Creates a TLSSocket that behaves like a socket.socket, and
         contains information about the TLS exchange
-        (cipher, negotiated_protocol, negotiated_tls_version, etc.)
+        (cipher, negotiated_protocol, negotiated_tls_version, etc.).
         """
 
-class TLSSocket(object):
+class TLSSocket:
     __metaclass__ = ABCMeta
     """This class implements a subtype of socket.socket that wraps
     the underlying OS socket in an SSL context when necessary, and
     provides read and write methods over that channel. """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
+        msg = f"{self.__class__.__name__} does not have a public constructor. Instances are returned by ClientContext.connect() or ServerContext.connect()."
         raise TypeError(
-            f"{self.__class__.__name__} does not have a public "
-            f"constructor. Instances are returned by "
-            f"ClientContext.connect() or ServerContext.connect()."
+            msg,
         )
-    
+
     @classmethod
     @abstractmethod
     def _create(address):
-        """
-        Creates a TLSSocket. Only to be used by 
+        """Creates a TLSSocket. Only to be used by
         ClientContext.connect() and ServerContext.connect().
         """
 
     @property
     @abstractmethod
     def context(self):
-        """
-        The ``Context`` object this buffer is tied to.
-        """
+        """The ``Context`` object this buffer is tied to."""
 
     @property
     @abstractmethod
     def socket(self):
-        """
-        The socket-like object to be used by the user.
-        """
+        """The socket-like object to be used by the user."""
 
     @abstractmethod
     def cipher(self):
-        """
-        Returns the CipherSuite entry for the cipher that has been
+        """Returns the CipherSuite entry for the cipher that has been
         negotiated on the connection. If no connection has been negotiated,
         returns ``None``. If the cipher negotiated is not defined in
         CipherSuite, returns the 16-bit integer representing that cipher
@@ -202,8 +181,7 @@ class TLSSocket(object):
 
     @abstractmethod
     def negotiated_protocol(self):
-        """
-        Returns the protocol that was selected during the TLS handshake.
+        """Returns the protocol that was selected during the TLS handshake.
         This selection may have been made using ALPN, NPN, or some future
         negotiation mechanism.
 
@@ -217,13 +195,11 @@ class TLSSocket(object):
         not support any of the peer's proposed protocols, or if the
         handshake has not happened yet, ``None`` is returned.
         """
-    
+
     @property
     @abstractmethod
     def negotiated_tls_version(self):
-        """
-        The version of TLS that has been negotiated on this connection.
-        """
+        """The version of TLS that has been negotiated on this connection."""
 
 class CipherSuite(IntEnum):
     TLS_RSA_WITH_RC4_128_SHA = 0x0005
@@ -389,37 +365,35 @@ DEFAULT_CIPHER_LIST = [
 ]
 
 class NextProtocol(Enum):
-    H2 = b'h2'
-    H2C = b'h2c'
-    HTTP1 = b'http/1.1'
-    WEBRTC = b'webrtc'
-    C_WEBRTC = b'c-webrtc'
-    FTP = b'ftp'
-    STUN = b'stun.nat-discovery'
-    TURN = b'stun.turn'
+    H2 = b"h2"
+    H2C = b"h2c"
+    HTTP1 = b"http/1.1"
+    WEBRTC = b"webrtc"
+    C_WEBRTC = b"c-webrtc"
+    FTP = b"ftp"
+    STUN = b"stun.nat-discovery"
+    TURN = b"stun.turn"
 
 
 class TLSVersion(Enum):
-    MINIMUM_SUPPORTED = 'MINIMUM_SUPPORTED'
-    SSLv2 = 'SSLv2'
-    SSLv3 = 'SSLv3'
-    TLSv1 = 'TLSv1'
-    TLSv1_1 = 'TLSv1.1'
-    TLSv1_2 = 'TLSv1.2'
-    TLSv1_3 = 'TLSv1.3'
-    MAXIMUM_SUPPORTED = 'MAXIMUM_SUPPORTED'
+    MINIMUM_SUPPORTED = "MINIMUM_SUPPORTED"
+    SSLv2 = "SSLv2"
+    SSLv3 = "SSLv3"
+    TLSv1 = "TLSv1"
+    TLSv1_1 = "TLSv1.1"
+    TLSv1_2 = "TLSv1.2"
+    TLSv1_3 = "TLSv1.3"
+    MAXIMUM_SUPPORTED = "MAXIMUM_SUPPORTED"
 
 class TLSError(Exception):
-    """
-    The base exception for all TLS related errors from any backend.
+    """The base exception for all TLS related errors from any backend.
     Catching this error should be sufficient to catch *all* TLS errors,
     regardless of what backend is used.
     """
 
 
 class WantWriteError(TLSError):
-    """
-    A special signaling exception used only when non-blocking or
+    """A special signaling exception used only when non-blocking or
     buffer-only I/O is used. This error signals that the requested
     operation cannot complete until more data is written to the network,
     or until the output buffer is drained.
@@ -431,8 +405,7 @@ class WantWriteError(TLSError):
 
 
 class WantReadError(TLSError):
-    """
-    A special signaling exception used only when non-blocking or
+    """A special signaling exception used only when non-blocking or
     buffer-only I/O is used. This error signals that the requested
     operation cannot complete until more data is read from the network, or
     until more data is available in the input buffer.
@@ -444,8 +417,7 @@ class WantReadError(TLSError):
 
 
 class RaggedEOF(TLSError):
-    """
-    A special signaling exception used when a TLS connection has been
+    """A special signaling exception used when a TLS connection has been
     closed gracelessly: that is, when a TLS CloseNotify was not received
     from the peer before the underlying TCP socket reached EOF. This is a
     so-called "ragged EOF".
@@ -461,43 +433,40 @@ class RaggedEOF(TLSError):
     attack and so can ignore this exception.
     """
 
-class Backend(object):
-    """
-    An object representing the collection of classes that implement the
+class Backend:
+    """An object representing the collection of classes that implement the
     PEP 543 abstract TLS API for a specific TLS implementation.
     """
+
     __slots__ = (
-        '_client_context', '_server_context', '_tls_socket'
+        "_client_context", "_server_context", "_tls_socket",
     )
 
     def __init__(self,
                  client_context,
                  server_context,
-                 tls_socket):
+                 tls_socket) -> None:
         self._client_context = client_context
         self._server_context = server_context
         self._tls_socket = tls_socket
 
     @property
     def client_context(self):
-        """
-        The concrete implementation of the PEP 543 Client Context object,
+        """The concrete implementation of the PEP 543 Client Context object,
         if this TLS backend supports being the client on a TLS connection.
         """
         return self._client_context
 
     @property
     def server_context(self):
-        """
-        The concrete implementation of the PEP 543 Server Context object,
+        """The concrete implementation of the PEP 543 Server Context object,
         if this TLS backend supports being a server on a TLS connection.
         """
         return self._server_context
 
     @property
     def tls_socket(self):
-        """
-        The concrete implementation of the PEP 543 TLSSocket object used
+        """The concrete implementation of the PEP 543 TLSSocket object used
         by this TLS backend.
         """
         return self._tls_socket

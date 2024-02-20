@@ -8,14 +8,12 @@ dynamic = ["version"]
 description = "An example MVP for the updated PEP 543 proposal"
 readme = "README.md"
 license = { file = "LICENSE" }
-authors = [
-    { name = "Trail of Bits", email = "opensource@trailofbits.com" },
-]
+authors = [{ name = "Trail of Bits", email = "opensource@trailofbits.com" }]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: Apache Software License",
 ]
-dependencies = []
+dependencies = ["truststore"]
 requires-python = ">=3.8"
 
 [project.optional-dependencies]
@@ -33,8 +31,6 @@ lint = [
     "interrogate",
 ]
 dev = ["tlslib[doc,test,lint]", "twine", "wheel", "build"]
-
-
 
 [project.urls]
 Homepage = "https://pypi.org/project/tlslib"
@@ -73,8 +69,10 @@ warn_unused_ignores = true
 
 [tool.ruff]
 line-length = 100
-select = ["ALL"]
 target-version = "py38"
+
+[tool.ruff.lint]
+select = ["ALL"]
 
 [tool.ruff.per-file-ignores]
 "src/tlslib/_cli.py" = [
