@@ -6,7 +6,7 @@ import ssl
 
 import truststore
 
-from tlslib import (
+from .tlslib import (
     Backend,
     CipherSuite,
     ClientContext,
@@ -250,21 +250,22 @@ class OpenSSLServerContext(ServerContext):
         raise NotImplementedError
 
 
-#: The stdlib ``Backend`` object.
-STDLIB_BACKEND = Backend(
-    client_context=OpenSSLClientContext,
-    server_context=OpenSSLServerContext,
-    tls_socket=OpenSSLTLSSocket,
-)
+if __name__ == "__main__":
+    #: The stdlib ``Backend`` object.
+    STDLIB_BACKEND = Backend(
+        client_context=OpenSSLClientContext,
+        server_context=OpenSSLServerContext,
+        tls_socket=OpenSSLTLSSocket,
+    )
 
-client_config = TLSClientConfiguration()
-client_ctx = OpenSSLClientContext(client_config)
-tls_socket = client_ctx.connect(("www.python.org", 443))
-print(tls_socket.negotiated_tls_version())
-print(tls_socket.cipher())
-print(tls_socket.negotiated_protocol())
+    client_config = TLSClientConfiguration()
+    client_ctx = STDLIB_BACKEND.client_context(client_config)
+    tls_socket = client_ctx.connect(("www.python.org", 443))
+    print(tls_socket.negotiated_tls_version())
+    print(tls_socket.cipher())
+    print(tls_socket.negotiated_protocol())
 
-tls_socket.socket().write(
-    b"GET / HTTP/1.1\r\nHost: www.python.org\r\nConnection: close\r\nAccept-Encoding: identity\r\n\r\n",
-)
-print(tls_socket.socket().read(4096))
+    tls_socket.socket().write(
+        b"GET / HTTP/1.1\r\nHost: www.python.org\r\nConnection: close\r\nAccept-Encoding: identity\r\n\r\n",
+    )
+    print(tls_socket.socket().read(4096))

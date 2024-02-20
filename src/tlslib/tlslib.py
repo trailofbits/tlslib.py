@@ -501,27 +501,32 @@ class Backend:
         "_tls_socket",
     )
 
-    def __init__(self, client_context, server_context, tls_socket) -> None:
+    def __init__(
+        self,
+        client_context: type[ClientContext],
+        server_context: type[ClientContext],
+        tls_socket: type[TLSSocket],
+    ) -> None:
         self._client_context = client_context
         self._server_context = server_context
         self._tls_socket = tls_socket
 
     @property
-    def client_context(self):
+    def client_context(self) -> type[ClientContext]:
         """The concrete implementation of the PEP 543 Client Context object,
         if this TLS backend supports being the client on a TLS connection.
         """
         return self._client_context
 
     @property
-    def server_context(self):
+    def server_context(self) -> type[ServerContext]:
         """The concrete implementation of the PEP 543 Server Context object,
         if this TLS backend supports being a server on a TLS connection.
         """
         return self._server_context
 
     @property
-    def tls_socket(self):
+    def tls_socket(self) -> type[TLSSocket]:
         """The concrete implementation of the PEP 543 TLSSocket object used
         by this TLS backend.
         """
