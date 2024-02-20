@@ -20,9 +20,7 @@ requires-python = ">=3.8"
 doc = []
 test = ["pytest", "pytest-cov", "pretend", "coverage[toml]"]
 lint = [
-    # NOTE: ruff is under active development, so we pin conservatively here
-    # and let Dependabot periodically perform this update.
-    "ruff < 0.0.293",
+    "ruff",
     "mypy >= 1.0",
     "types-html5lib",
     "types-requests",
@@ -69,15 +67,21 @@ target-version = "py38"
 
 [tool.ruff.lint]
 select = ["ALL"]
-
-[tool.ruff.per-file-ignores]
-"src/tlslib/_cli.py" = [
-    "T201", # allow `print` in cli module
+ignore = [
+    "ANN101", # no need for explicit self typing
+    "COM812", # conflicts with `ruff format`
+    "D212",   # conflicts with D213, which we prefer
+    "ISC001", # conflicts with `ruff format`
 ]
+
+[tool.ruff.lint.per-file-ignores]
 "test/**/*.py" = [
     "D",    # no docstrings in tests
     "S101", # asserts are expected in tests
 ]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.interrogate]
 # don't enforce documentation coverage for packaging, testing, the virtual

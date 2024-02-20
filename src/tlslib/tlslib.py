@@ -1,5 +1,7 @@
 """Abstract interface to TLS for Python."""
 
+from __future__ import annotations
+
 from abc import ABCMeta, abstractmethod
 from enum import Enum, IntEnum
 
@@ -20,6 +22,12 @@ __all__ = [
 
 
 class _TLSBaseConfiguration:
+    """
+    "Base" configuration for a TLS connection, whether server or client initiated.
+
+    This class is not constructed or used directly.
+    """
+
     __slots__ = (
         "_ciphers",
         "_inner_protocols",
@@ -29,16 +37,16 @@ class _TLSBaseConfiguration:
 
     def __init__(
         self,
-        ciphers=None,
-        inner_protocols=None,
-        lowest_supported_version=None,
-        highest_supported_version=None,
+        ciphers: list[CipherSuite] | None = None,
+        inner_protocols: list[NextProtocol | bytes] | None = None,
+        lowest_supported_version: TLSVersion | None = None,
+        highest_supported_version: TLSVersion | None = None,
     ) -> None:
         if ciphers is None:
             ciphers = DEFAULT_CIPHER_LIST
 
         if inner_protocols is None:
-            inner_protocols = ()
+            inner_protocols = []
 
         if lowest_supported_version is None:
             lowest_supported_version = TLSVersion.TLSv1
@@ -52,55 +60,55 @@ class _TLSBaseConfiguration:
         self._highest_supported_version = highest_supported_version
 
     @property
-    def ciphers(self):
-        """The available ciphers for TLS connections created with this
-        configuration, in priority order.
-        """
+    def ciphers(self) -> list[CipherSuite]:
+        """The list of available ciphers for TLS connections, in priority order."""
         return self._ciphers
 
     @property
-    def inner_protocols(self):
-        """Protocols that connections created with this configuration should
-        advertise as supported during the TLS handshake. These may be
-        advertised using either or both of ALPN or NPN. This list of
+    def inner_protocols(self) -> list[NextProtocol | bytes]:
+        """Protocols that connections should advertise as supported during the TLS handshake.
+
+        These may be advertised using either or both of ALPN or NPN. This list of
         protocols is ordered by preference.
         """
         return self._inner_protocols
 
     @property
-    def lowest_supported_version(self):
-        """The minimum version of TLS that is allowed on TLS connections using
-        this configuration.
-        """
+    def lowest_supported_version(self) -> TLSVersion:
+        """The minimum version of TLS that is allowed on TLS connections."""
         return self._lowest_supported_version
 
     @property
-    def highest_supported_version(self):
-        """The maximum version of TLS that will be allowed on TLS connections
-        using this configuration.
-        """
+    def highest_supported_version(self) -> TLSVersion:
+        """The maximum version of TLS that will be allowed on TLS connections."""
         return self._highest_supported_version
 
 
 class TLSServerConfiguration(_TLSBaseConfiguration):
-    __slots__ = "_certificate_chain"
+    """TLS configuration for a "server" socket, i.e. a socket accepting connections from clients."""
+
+    __slots__ = ("_certificate_chain",)
 
     def __init__(
         self,
-        ciphers=None,
-        inner_protocols=None,
-        lowest_supported_version=None,
-        highest_supported_version=None,
+        ciphers: list[CipherSuite] | None = None,
+        inner_protocols: list[NextProtocol | bytes] | None = None,
+        lowest_supported_version: TLSVersion | None = None,
+        highest_supported_version: TLSVersion | None = None,
         certificate_chain=None,
     ) -> None:
         super().__init__(
-            ciphers, inner_protocols, lowest_supported_version, highest_supported_version
+            ciphers,
+            inner_protocols,
+            lowest_supported_version,
+            highest_supported_version,
         )
         self._certificate_chain = certificate_chain
 
     @property
     def certificate_chain(self):
-        """The certificate, intermediate certificates, and the corresponding
+        """
+        The certificate, intermediate certificates, and the corresponding
         private key for the leaf certificate. These certificates will be
         offered to the remote peer during the handshake if required.
 
@@ -112,15 +120,20 @@ class TLSServerConfiguration(_TLSBaseConfiguration):
 
 
 class TLSClientConfiguration(_TLSBaseConfiguration):
+    """TLS configuration for a "client" socket, i.e. a socket making a connection to a server."""
+
     def __init__(
         self,
-        ciphers=None,
-        inner_protocols=None,
-        lowest_supported_version=None,
-        highest_supported_version=None,
+        ciphers: list[CipherSuite] | None = None,
+        inner_protocols: list[NextProtocol | CipherSuite] | None = None,
+        lowest_supported_version: TLSVersion | None = None,
+        highest_supported_version: TLSVersion | None = None,
     ) -> None:
         super().__init__(
-            ciphers, inner_protocols, lowest_supported_version, highest_supported_version
+            ciphers,
+            inner_protocols,
+            lowest_supported_version,
+            highest_supported_version,
         )
 
 
@@ -170,8 +183,10 @@ class TLSSocket:
     @classmethod
     @abstractmethod
     def _create(address):
-        """Creates a TLSSocket. Only to be used by
-        ClientContext.connect() and ServerContext.connect().
+        """
+        Creates a TLSSocket.
+
+        Only to be used by ClientContext.connect() and ServerContext.connect().
         """
 
     @property
@@ -185,17 +200,19 @@ class TLSSocket:
         """The socket-like object to be used by the user."""
 
     @abstractmethod
-    def cipher(self):
-        """Returns the CipherSuite entry for the cipher that has been
-        negotiated on the connection. If no connection has been negotiated,
-        returns ``None``. If the cipher negotiated is not defined in
-        CipherSuite, returns the 16-bit integer representing that cipher
-        directly.
+    def cipher(self) -> CipherSuite | int:
+        """
+        Returns the CipherSuite entry for the cipher that has been negotiated on the connection.
+
+        If no connection has been negotiated, returns ``None``. If the cipher negotiated is not
+        defined in CipherSuite, returns the 16-bit integer representing that cipher directly.
         """
 
     @abstractmethod
-    def negotiated_protocol(self):
-        """Returns the protocol that was selected during the TLS handshake.
+    def negotiated_protocol(self) -> NextProtocol | bytes:
+        """
+        Returns the protocol that was selected during the TLS handshake.
+
         This selection may have been made using ALPN, NPN, or some future
         negotiation mechanism.
 
@@ -212,11 +229,17 @@ class TLSSocket:
 
     @property
     @abstractmethod
-    def negotiated_tls_version(self):
+    def negotiated_tls_version(self) -> TLSVersion:
         """The version of TLS that has been negotiated on this connection."""
 
 
 class CipherSuite(IntEnum):
+    """
+    Known cipher suites.
+
+    See: <https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml>
+    """
+
     TLS_RSA_WITH_RC4_128_SHA = 0x0005
     TLS_RSA_WITH_IDEA_CBC_SHA = 0x0007
     TLS_RSA_WITH_3DES_EDE_CBC_SHA = 0x000A
@@ -381,6 +404,8 @@ DEFAULT_CIPHER_LIST = [
 
 
 class NextProtocol(Enum):
+    """The underlying negotiated ("next") protocol."""
+
     H2 = b"h2"
     H2C = b"h2c"
     HTTP1 = b"http/1.1"
@@ -392,6 +417,14 @@ class NextProtocol(Enum):
 
 
 class TLSVersion(Enum):
+    """
+    TLS versions.
+
+    The `MINIMUM_SUPPORTED` and `MAXIMUM_SUPPORTED` variants are "open ended",
+    and refer to the "lowest mutually supported" and "highest mutually supported"
+    TLS versions, respectively.
+    """
+
     MINIMUM_SUPPORTED = "MINIMUM_SUPPORTED"
     SSLv2 = "SSLv2"
     SSLv3 = "SSLv3"
@@ -403,15 +436,19 @@ class TLSVersion(Enum):
 
 
 class TLSError(Exception):
-    """The base exception for all TLS related errors from any backend.
+    """
+    The base exception for all TLS related errors from any backend.
+
     Catching this error should be sufficient to catch *all* TLS errors,
     regardless of what backend is used.
     """
 
 
 class WantWriteError(TLSError):
-    """A special signaling exception used only when non-blocking or
-    buffer-only I/O is used. This error signals that the requested
+    """
+    A special signaling exception used only when non-blocking or buffer-only I/O is used.
+
+    This error signals that the requested
     operation cannot complete until more data is written to the network,
     or until the output buffer is drained.
 
@@ -422,8 +459,10 @@ class WantWriteError(TLSError):
 
 
 class WantReadError(TLSError):
-    """A special signaling exception used only when non-blocking or
-    buffer-only I/O is used. This error signals that the requested
+    """
+    A special signaling exception used only when non-blocking or buffer-only I/O is used.
+
+    This error signals that the requested
     operation cannot complete until more data is read from the network, or
     until more data is available in the input buffer.
 
