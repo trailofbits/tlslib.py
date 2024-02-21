@@ -172,7 +172,7 @@ class OpenSSLTLSSocket(TLSSocket):
         # FIXME: This works only on 3.6. To get this to work elsewhere, we may
         # need to vendor tlsdb.
         ossl_cipher, _, _ = self._socket.cipher()
-        print("a")
+
         for cipher in self._ssl_context.get_ciphers():
             if cipher["name"] == ossl_cipher:
                 break
@@ -180,12 +180,10 @@ class OpenSSLTLSSocket(TLSSocket):
             msg = "Unable to identify cipher suite"
             raise TLSError(msg)
 
-        print("b")
         cipher_id = cipher["id"] & 0xFFFF
         try:
             return CipherSuite(cipher_id)
         except ValueError:
-            print("c")
             return cipher_id
 
     def negotiated_protocol(self):
