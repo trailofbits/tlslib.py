@@ -64,6 +64,7 @@ ctx.set_ciphers("ALL:COMPLEMENTOFALL")
 _cipher_map = {c["id"] & 0xFFFF: c["name"] for c in ctx.get_ciphers()}
 del ctx
 
+
 def _version_options_from_version_range(min, max):
     """Given a TLS version range, we need to convert that into options that
     exclude TLS versions as appropriate.
@@ -73,6 +74,7 @@ def _version_options_from_version_range(min, max):
     except KeyError:
         msg = "Bad maximum/minimum options"
         raise TLSError(msg)
+
 
 def _create_context_with_trust_store(protocol, trust_store):
     if trust_store is _SYSTEMTRUSTSTORE:
@@ -165,22 +167,16 @@ def _init_context_common(some_context, config):
 
 def _init_context_client(config):
     """Initialize an ssl.SSLContext object with a given client configuration."""
-    some_context = _create_context_with_trust_store(
-        ssl.PROTOCOL_TLS_CLIENT, config.trust_store
-    )
+    some_context = _create_context_with_trust_store(ssl.PROTOCOL_TLS_CLIENT, config.trust_store)
 
     return _init_context_common(some_context, config)
 
 
 def _init_context_server(config):
     """Initialize an ssl.SSLContext object with a given server configuration."""
-    some_context = _create_context_with_trust_store(
-        ssl.PROTOCOL_TLS_SERVER, config.trust_store
-    )
+    some_context = _create_context_with_trust_store(ssl.PROTOCOL_TLS_SERVER, config.trust_store)
 
-    some_context = _configure_context_for_certs(
-        some_context, config.certificate_chain
-    )
+    some_context = _configure_context_for_certs(some_context, config.certificate_chain)
 
     return _init_context_common(some_context, config)
 
@@ -297,10 +293,12 @@ class OpenSSLServerContext(ServerContext):
             address=address,
         )
 
+
 class OpenSSLCertificate(Certificate):
     """A handle to a certificate object, either on disk or in a buffer, that can
     be used for either server or client connectivity.
     """
+
     def __init__(self, path=None):
         self._cert_path = path
 
@@ -320,6 +318,7 @@ class OpenSSLPrivateKey(PrivateKey):
     """A handle to a private key object, either on disk or in a buffer, that can
     be used along with a certificate for either server or client connectivity.
     """
+
     def __init__(self, path=None, password=None):
         self._key_path = path
         self._password = password
@@ -335,10 +334,12 @@ class OpenSSLPrivateKey(PrivateKey):
     def from_file(cls, path, password=None):
         return cls(path=path, password=password)
 
+
 class OpenSSLTrustStore(TrustStore):
     """A handle to a trust store object, either on disk or the system trust store,
     that can be used to validate the certificates presented by a remote peer.
     """
+
     def __init__(self, path):
         self._trust_path = path
 
@@ -349,6 +350,7 @@ class OpenSSLTrustStore(TrustStore):
     @classmethod
     def from_pem_file(cls, path):
         return cls(path=path)
+
 
 # We use a sentinel object for the system trust store that is guaranteed not
 # to compare equal to any other object.

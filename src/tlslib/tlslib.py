@@ -35,7 +35,7 @@ class _TLSBaseConfiguration:
         "_inner_protocols",
         "_lowest_supported_version",
         "_highest_supported_version",
-        "_trust_store"
+        "_trust_store",
     )
 
     def __init__(
@@ -505,6 +505,7 @@ class RaggedEOF(TLSError):
     layer (e.g. HTTP/1.1 and HTTP/2) is not vulnerable to this kind of
     attack and so can ignore this exception.
     """
+
 
 class Certificate:
     @classmethod
