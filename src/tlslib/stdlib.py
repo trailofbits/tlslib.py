@@ -68,7 +68,7 @@ _cipher_map = {c["id"] & 0xFFFF: c["name"] for c in ctx.get_ciphers()}
 del ctx
 
 
-def _version_options_from_version_range(min, max):
+def _version_options_from_version_range(min: TLSVersion, max: TLSVersion) -> int:
     """Given a TLS version range, we need to convert that into options that
     exclude TLS versions as appropriate.
     """
@@ -79,7 +79,9 @@ def _version_options_from_version_range(min, max):
         raise TLSError(msg)
 
 
-def _create_context_with_trust_store(protocol, trust_store):
+def _create_context_with_trust_store(
+    protocol: ssl._SSLMethod, trust_store: OpenSSLTrustStore
+) -> truststore.SSLContext | ssl.SSLContext:
     if trust_store is _SYSTEMTRUSTSTORE:
         some_context = truststore.SSLContext(protocol)
     else:
@@ -92,7 +94,10 @@ def _create_context_with_trust_store(protocol, trust_store):
     return some_context
 
 
-def _configure_context_for_certs(context, cert_chain):
+def _configure_context_for_certs(
+    context: truststore.SSLContext | ssl.SSLContext,
+    cert_chain: tuple[tuple[OpenSSLCertificate], OpenSSLPrivateKey] | None = None,
+) -> truststore.SSLContext | ssl.SSLContext:
     """Given a PEP 543 cert chain, configure the SSLContext to send that cert
     chain in the handshake.
 
@@ -110,18 +115,22 @@ def _configure_context_for_certs(context, cert_chain):
             key_path = cert_chain[1]._key_path
             password = cert_chain[1]._password
 
-        context.load_cert_chain(cert_path, key_path, password)
+        if cert_path is not None:
+            context.load_cert_chain(cert_path, key_path, password)
 
     return context
 
 
-def _configure_context_for_ciphers(context, ciphers):
+def _configure_context_for_ciphers(
+    context: truststore.SSLContext | ssl.SSLContext, ciphers: list[CipherSuite] | None = None
+) -> truststore.SSLContext | ssl.SSLContext:
     """Given a PEP 543 cipher suite list, configure the SSLContext to use those
     cipher suites.
 
     Returns the context.
     """
-    ossl_names = [_cipher_map[cipher] for cipher in ciphers if cipher in _cipher_map]
+    if ciphers is not None:
+        ossl_names = [_cipher_map[cipher] for cipher in ciphers if cipher in _cipher_map]
     if not ossl_names:
         msg = "Unable to find any supported ciphers!"
         raise TLSError(msg)
@@ -129,7 +138,10 @@ def _configure_context_for_ciphers(context, ciphers):
     return context
 
 
-def _configure_context_for_negotiation(context, inner_protocols):
+def _configure_context_for_negotiation(
+    context: truststore.SSLContext | ssl.SSLContext,
+    inner_protocols: list[NextProtocol | bytes] | None = None,
+) -> truststore.SSLContext | ssl.SSLContext:
     """Given a PEP 543 list of protocols to negotiate, configures the SSLContext
     to negotiate those protocols.
     """
@@ -151,7 +163,10 @@ def _configure_context_for_negotiation(context, inner_protocols):
     return context
 
 
-def _init_context_common(some_context, config):
+def _init_context_common(
+    some_context: truststore.SSLContext | ssl.SSLContext,
+    config: TLSClientConfiguration | TLSServerConfiguration,
+) -> truststore.SSLContext | ssl.SSLContext:
     some_context = _configure_context_for_ciphers(
         some_context,
         config.ciphers,
@@ -168,14 +183,14 @@ def _init_context_common(some_context, config):
     return some_context
 
 
-def _init_context_client(config):
+def _init_context_client(config: TLSClientConfiguration) -> truststore.SSLContext | ssl.SSLContext:
     """Initialize an ssl.SSLContext object with a given client configuration."""
     some_context = _create_context_with_trust_store(ssl.PROTOCOL_TLS_CLIENT, config.trust_store)
 
     return _init_context_common(some_context, config)
 
 
-def _init_context_server(config):
+def _init_context_server(config: TLSServerConfiguration) -> truststore.SSLContext | ssl.SSLContext:
     """Initialize an ssl.SSLContext object with a given server configuration."""
     some_context = _create_context_with_trust_store(ssl.PROTOCOL_TLS_SERVER, config.trust_store)
 

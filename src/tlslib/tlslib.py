@@ -110,7 +110,7 @@ class TLSServerConfiguration(_TLSBaseConfiguration):
         lowest_supported_version: TLSVersion | None = None,
         highest_supported_version: TLSVersion | None = None,
         trust_store: TrustStore | None = None,
-        certificate_chain=None,
+        certificate_chain: tuple[tuple[Certificate], PrivateKey] | None = None,
     ) -> None:
         super().__init__(
             ciphers,
@@ -122,7 +122,7 @@ class TLSServerConfiguration(_TLSBaseConfiguration):
         self._certificate_chain = certificate_chain
 
     @property
-    def certificate_chain(self):
+    def certificate_chain(self) -> tuple[tuple[Certificate], PrivateKey] | None:
         """
         The certificate, intermediate certificates, and the corresponding
         private key for the leaf certificate. These certificates will be
@@ -141,7 +141,7 @@ class TLSClientConfiguration(_TLSBaseConfiguration):
     def __init__(
         self,
         ciphers: list[CipherSuite] | None = None,
-        inner_protocols: list[NextProtocol | CipherSuite] | None = None,
+        inner_protocols: list[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
         highest_supported_version: TLSVersion | None = None,
         trust_store: TrustStore | None = None,
@@ -170,7 +170,7 @@ class _BaseContext:
 
 class ClientContext(_BaseContext):
     @abstractmethod
-    def connect(self, address) -> TLSSocket:
+    def connect(self, address: tuple[str | None, int]) -> TLSSocket:
         """Creates a TLSSocket that behaves like a socket.socket, and
         contains information about the TLS exchange
         (cipher, negotiated_protocol, negotiated_tls_version, etc.).
@@ -179,7 +179,7 @@ class ClientContext(_BaseContext):
 
 class ServerContext(_BaseContext):
     @abstractmethod
-    def connect(self, address) -> TLSSocket:
+    def connect(self, address: tuple[str | None, int]) -> TLSSocket:
         """Creates a TLSSocket that behaves like a socket.socket, and
         contains information about the TLS exchange
         (cipher, negotiated_protocol, negotiated_tls_version, etc.).
@@ -192,7 +192,7 @@ class TLSSocket:
     the underlying OS socket in an SSL context when necessary, and
     provides read and write methods over that channel. """
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: tuple, **kwargs: tuple) -> None:
         msg = (
             f"{self.__class__.__name__} does not have a public constructor. "
             "Instances are returned by ClientContext.connect() or ServerContext.connect()."
@@ -203,7 +203,7 @@ class TLSSocket:
 
     @classmethod
     @abstractmethod
-    def _create(address):
+    def _create(cls, address: tuple[str | None, int]) -> TLSSocket:
         """
         Creates a TLSSocket.
 
@@ -212,8 +212,8 @@ class TLSSocket:
 
     @property
     @abstractmethod
-    def context(self):
-        """The ``Context`` object this buffer is tied to."""
+    def context(self) -> ClientContext | ServerContext:
+        """The ``Context`` object this socket is tied to."""
 
     @property
     @abstractmethod
@@ -539,7 +539,7 @@ class Certificate:
 
 class PrivateKey:
     @classmethod
-    def from_buffer(cls, buffer: bytes, password: bytes = None) -> PrivateKey:
+    def from_buffer(cls, buffer: bytes, password: bytes | None = None) -> PrivateKey:
         """
         Creates a PrivateKey object from a byte buffer. This byte buffer
         may be either PEM-encoded or DER-encoded. If the buffer is PEM
@@ -562,7 +562,7 @@ class PrivateKey:
         raise NotImplementedError("Private Keys from buffers not supported")
 
     @classmethod
-    def from_file(cls, path: os.PathLike, password: bytes = None) -> PrivateKey:
+    def from_file(cls, path: os.PathLike, password: bytes | None = None) -> PrivateKey:
         """
         Creates a PrivateKey object from a file on disk. This method may
         be a convenience method that wraps ``open`` and ``from_buffer``,
@@ -580,7 +580,7 @@ class TrustStore:
     __metaclass__ = ABCMeta
 
     @classmethod
-    def system(cls):
+    def system(cls) -> TrustStore:
         """
         Returns a TrustStore object that represents the system trust
         database.
@@ -588,7 +588,7 @@ class TrustStore:
         raise NotImplementedError("System trust store not supported")
 
     @classmethod
-    def from_pem_file(cls, path):
+    def from_pem_file(cls, path: os.PathLike) -> TrustStore:
         """
         Initializes a trust store from a single file full of PEMs.
         """
@@ -613,7 +613,7 @@ class Backend:
         certificate: type[Certificate],
         client_context: type[ClientContext],
         private_key: type[PrivateKey],
-        server_context: type[ClientContext],
+        server_context: type[ServerContext],
         trust_store: type[TrustStore],
     ) -> None:
         self._certificate = certificate
