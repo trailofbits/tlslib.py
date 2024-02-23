@@ -7,7 +7,7 @@ import ssl
 import tempfile
 import truststore
 
-from tlslib import (
+from .tlslib import (
     Backend,
     Certificate,
     CipherSuite,
