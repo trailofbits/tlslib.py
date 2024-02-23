@@ -14,7 +14,7 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
 ]
 dependencies = ["truststore"]
-requires-python = ">=3.8"
+requires-python = ">=3.12"
 
 [project.optional-dependencies]
 doc = []
