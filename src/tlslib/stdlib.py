@@ -1,5 +1,7 @@
 """Shims the standard library OpenSSL module into the amended PEP 543 API."""
 
+from __future__ import annotations
+
 import contextlib
 import os
 import socket
@@ -18,6 +20,7 @@ from .tlslib import (
     ServerContext,
     TLSClientConfiguration,
     TLSError,
+    TLSServerConfiguration,
     TLSSocket,
     TLSVersion,
     TrustStore,
@@ -203,10 +206,12 @@ class OpenSSLTLSSocket(TLSSocket):
     def context(self):
         return self._parent_context
 
+    @property
     def socket(self):
         return self._socket
 
-    def cipher(self):
+    @property
+    def cipher(self) -> CipherSuite | int:
         # This is the OpenSSL cipher name. We want the ID, which we can get by
         # looking for this entry in the context's list of supported ciphers.
         # FIXME: This works only on 3.6. To get this to work elsewhere, we may
@@ -226,7 +231,8 @@ class OpenSSLTLSSocket(TLSSocket):
         except ValueError:
             return cipher_id
 
-    def negotiated_protocol(self):
+    @property
+    def negotiated_protocol(self) -> NextProtocol | bytes | None:
         proto = self._socket.selected_alpn_protocol()
 
         # The standard library returns this as a str, we want bytes.
@@ -238,6 +244,7 @@ class OpenSSLTLSSocket(TLSSocket):
         except ValueError:
             return proto
 
+    @property
     def negotiated_tls_version(self):
         ossl_version = self._socket.version()
         if ossl_version is None:
@@ -252,11 +259,11 @@ class OpenSSLClientContext(ClientContext):
     client side of a network connection.
     """
 
-    def __init__(self, configuration) -> None:
+    def __init__(self, configuration: TLSClientConfiguration) -> None:
         self._configuration = configuration
 
     @property
-    def configuration(self):
+    def configuration(self) -> TLSClientConfiguration:
         return self._configuration
 
     def connect(self, address):
@@ -276,14 +283,14 @@ class OpenSSLServerContext(ServerContext):
     server side of a network connection.
     """
 
-    def __init__(self, configuration) -> None:
+    def __init__(self, configuration: TLSServerConfiguration) -> None:
         self._configuration = configuration
 
     @property
-    def configuration(self):
+    def configuration(self) -> TLSServerConfiguration:
         return self._configuration
 
-    def connect(self, address):
+    def connect(self, address) -> OpenSSLTLSSocket:
         """Create a buffered I/O object that can be used to do TLS."""
         ossl_context = _init_context_server(self._configuration)
 
@@ -299,18 +306,18 @@ class OpenSSLCertificate(Certificate):
     be used for either server or client connectivity.
     """
 
-    def __init__(self, path=None):
+    def __init__(self, path: os.PathLike | None = None):
         self._cert_path = path
 
     @classmethod
-    def from_buffer(cls, buffer):
+    def from_buffer(cls, buffer: bytes) -> OpenSSLCertificate:
         fd, path = tempfile.mkstemp()
         with os.fdopen(fd, "wb") as f:
             f.write(buffer)
         return cls(path=path)
 
     @classmethod
-    def from_file(cls, path):
+    def from_file(cls, path: os.PathLike) -> OpenSSLCertificate:
         return cls(path=path)
 
 
@@ -319,19 +326,19 @@ class OpenSSLPrivateKey(PrivateKey):
     be used along with a certificate for either server or client connectivity.
     """
 
-    def __init__(self, path=None, password=None):
+    def __init__(self, path: os.PathLike | None = None, password: bytes | None = None):
         self._key_path = path
         self._password = password
 
     @classmethod
-    def from_buffer(cls, buffer, password=None):
+    def from_buffer(cls, buffer: bytes, password: bytes | None = None):
         fd, path = tempfile.mkstemp()
         with os.fdopen(fd, "wb") as f:
             f.write(buffer)
         return cls(path=path, password=password)
 
     @classmethod
-    def from_file(cls, path, password=None):
+    def from_file(cls, path: os.PathLike, password: bytes | None = None):
         return cls(path=path, password=password)
 
 
@@ -340,15 +347,15 @@ class OpenSSLTrustStore(TrustStore):
     that can be used to validate the certificates presented by a remote peer.
     """
 
-    def __init__(self, path):
+    def __init__(self, path: os.PathLike):
         self._trust_path = path
 
     @classmethod
-    def system(cls):
+    def system(cls) -> OpenSSLTrustStore:
         return _SYSTEMTRUSTSTORE
 
     @classmethod
-    def from_pem_file(cls, path):
+    def from_pem_file(cls, path) -> OpenSSLTrustStore:
         return cls(path=path)
 
 
@@ -370,12 +377,12 @@ if __name__ == "__main__":
     client_config = TLSClientConfiguration(trust_store=OpenSSLTrustStore.system())
     client_ctx = STDLIB_BACKEND.client_context(client_config)
     tls_socket = client_ctx.connect(("www.python.org", 443))
-    print(tls_socket.negotiated_tls_version())
-    print(tls_socket.cipher())
-    print(tls_socket.negotiated_protocol())
+    print(tls_socket.negotiated_tls_version)
+    print(tls_socket.cipher)
+    print(tls_socket.negotiated_protocol)
 
-    tls_socket.socket().write(
+    tls_socket.socket.write(
         b"GET / HTTP/1.1\r\nHost: www.python.org\r\nConnection: close"
         b"\r\nAccept-Encoding: identity\r\n\r\n",
     )
-    print(tls_socket.socket().read(4096))
+    print(tls_socket.socket.read(4096))

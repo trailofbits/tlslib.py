@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from abc import ABCMeta, abstractmethod
 from enum import Enum, IntEnum
 
@@ -89,7 +90,7 @@ class _TLSBaseConfiguration:
         return self._highest_supported_version
 
     @property
-    def trust_store(self):
+    def trust_store(self) -> TrustStore | None:
         """
         The trust store that connections using this configuration will use
         to validate certificates.
@@ -158,18 +159,18 @@ class _BaseContext:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def __init__(self, configuration) -> None:
+    def __init__(self, configuration: _TLSBaseConfiguration) -> None:
         """Create a new context object from a given TLS configuration."""
 
     @property
     @abstractmethod
-    def configuration(self):
+    def configuration(self) -> _TLSBaseConfiguration:
         """Returns the TLS configuration that was used to create the context."""
 
 
 class ClientContext(_BaseContext):
     @abstractmethod
-    def connect(self, address):
+    def connect(self, address) -> TLSSocket:
         """Creates a TLSSocket that behaves like a socket.socket, and
         contains information about the TLS exchange
         (cipher, negotiated_protocol, negotiated_tls_version, etc.).
@@ -178,7 +179,7 @@ class ClientContext(_BaseContext):
 
 class ServerContext(_BaseContext):
     @abstractmethod
-    def connect(self, address):
+    def connect(self, address) -> TLSSocket:
         """Creates a TLSSocket that behaves like a socket.socket, and
         contains information about the TLS exchange
         (cipher, negotiated_protocol, negotiated_tls_version, etc.).
@@ -229,7 +230,7 @@ class TLSSocket:
         """
 
     @abstractmethod
-    def negotiated_protocol(self) -> NextProtocol | bytes:
+    def negotiated_protocol(self) -> NextProtocol | bytes | None:
         """
         Returns the protocol that was selected during the TLS handshake.
 
@@ -512,7 +513,7 @@ class RaggedEOF(TLSError):
 
 class Certificate:
     @classmethod
-    def from_buffer(cls, buffer):
+    def from_buffer(cls, buffer: bytes) -> Certificate:
         """
         Creates a Certificate object from a byte buffer. This byte buffer
         may be either PEM-encoded or DER-encoded. If the buffer is PEM
@@ -525,7 +526,7 @@ class Certificate:
         raise NotImplementedError("Certificates from buffers not supported")
 
     @classmethod
-    def from_file(cls, path):
+    def from_file(cls, path: os.PathLike) -> Certificate:
         """
         Creates a Certificate object from a file on disk. This method may
         be a convenience method that wraps ``open`` and ``from_buffer``,
@@ -538,7 +539,7 @@ class Certificate:
 
 class PrivateKey:
     @classmethod
-    def from_buffer(cls, buffer, password=None):
+    def from_buffer(cls, buffer: bytes, password: bytes = None) -> PrivateKey:
         """
         Creates a PrivateKey object from a byte buffer. This byte buffer
         may be either PEM-encoded or DER-encoded. If the buffer is PEM
@@ -561,7 +562,7 @@ class PrivateKey:
         raise NotImplementedError("Private Keys from buffers not supported")
 
     @classmethod
-    def from_file(cls, path, password=None):
+    def from_file(cls, path: os.PathLike, password: bytes = None) -> PrivateKey:
         """
         Creates a PrivateKey object from a file on disk. This method may
         be a convenience method that wraps ``open`` and ``from_buffer``,
@@ -622,7 +623,7 @@ class Backend:
         self._trust_store = trust_store
 
     @property
-    def certificate(self):
+    def certificate(self) -> type[Certificate]:
         """The concrete implementation of the PEP 543 Certificate object used
         by this TLS backend.
         """
@@ -636,7 +637,7 @@ class Backend:
         return self._client_context
 
     @property
-    def private_key(self):
+    def private_key(self) -> type[PrivateKey]:
         """The concrete implementation of the PEP 543 Private Key object used
         by this TLS backend.
         """
@@ -650,7 +651,7 @@ class Backend:
         return self._server_context
 
     @property
-    def trust_store(self):
+    def trust_store(self) -> type[TrustStore]:
         """The concrete implementation of the PEP 543 TrustStore object used
         by this TLS backend.
         """
