@@ -375,6 +375,7 @@ if __name__ == "__main__":
     print(tls_socket.negotiated_protocol())
 
     tls_socket.socket().write(
-        b"GET / HTTP/1.1\r\nHost: www.python.org\r\nConnection: close\r\nAccept-Encoding: identity\r\n\r\n",
+        b"GET / HTTP/1.1\r\nHost: www.python.org\r\nConnection: close"
+        b"\r\nAccept-Encoding: identity\r\n\r\n",
     )
     print(tls_socket.socket().read(4096))

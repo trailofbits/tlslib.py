@@ -192,7 +192,10 @@ class TLSSocket:
     provides read and write methods over that channel. """
 
     def __init__(self, *args, **kwargs) -> None:
-        msg = f"{self.__class__.__name__} does not have a public constructor. Instances are returned by ClientContext.connect() or ServerContext.connect()."
+        msg = (
+            f"{self.__class__.__name__} does not have a public constructor. "
+            "Instances are returned by ClientContext.connect() or ServerContext.connect()."
+        )
         raise TypeError(
             msg,
         )
