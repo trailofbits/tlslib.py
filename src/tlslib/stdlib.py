@@ -7,7 +7,7 @@ import ssl
 import tempfile
 import truststore
 
-from .tlslib import (
+from tlslib import (
     Backend,
     Certificate,
     CipherSuite,
@@ -19,6 +19,7 @@ from .tlslib import (
     TLSError,
     TLSSocket,
     TLSVersion,
+    TrustStore,
 )
 
 # We need all the various TLS options. We hard code this as their integer
@@ -72,10 +73,21 @@ def _version_options_from_version_range(min, max):
         msg = "Bad maximum/minimum options"
         raise TLSError(msg)
 
+def _create_context_with_trust_store(protocol, trust_store):
+    if trust_store is _SYSTEMTRUSTSTORE:
+        some_context = truststore.SSLContext(protocol)
+    else:
+        some_context = ssl.SSLContext(protocol)
+        if trust_store is not None:
+            some_context.load_verify_locations(trust_store._trust_path)    
+    
+    some_context.options |= ssl.OP_NO_COMPRESSION
+
+    return some_context
+
 
 def _configure_context_for_certs(context, cert_chain):
-    """
-    Given a PEP 543 cert chain, configure the SSLContext to send that cert
+    """Given a PEP 543 cert chain, configure the SSLContext to send that cert
     chain in the handshake.
 
     Returns the context.
@@ -152,16 +164,18 @@ def _init_context_common(some_context, config):
 
 def _init_context_client(config):
     """Initialize an ssl.SSLContext object with a given client configuration."""
-    some_context = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    some_context.options |= ssl.OP_NO_COMPRESSION
+    some_context = _create_context_with_trust_store(
+        ssl.PROTOCOL_TLS_CLIENT, config.trust_store
+    )
 
     return _init_context_common(some_context, config)
 
 
 def _init_context_server(config):
     """Initialize an ssl.SSLContext object with a given server configuration."""
-    some_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    some_context.options |= ssl.OP_NO_COMPRESSION
+    some_context = _create_context_with_trust_store(
+        ssl.PROTOCOL_TLS_SERVER, config.trust_store
+    )
 
     some_context = _configure_context_for_certs(
         some_context, config.certificate_chain
@@ -283,8 +297,7 @@ class OpenSSLServerContext(ServerContext):
         )
 
 class OpenSSLCertificate(Certificate):
-    """
-    A handle to a certificate object, either on disk or in a buffer, that can
+    """A handle to a certificate object, either on disk or in a buffer, that can
     be used for either server or client connectivity.
     """
     def __init__(self, path=None):
@@ -303,8 +316,7 @@ class OpenSSLCertificate(Certificate):
 
 
 class OpenSSLPrivateKey(PrivateKey):
-    """
-    A handle to a private key object, either on disk or in a buffer, that can
+    """A handle to a private key object, either on disk or in a buffer, that can
     be used along with a certificate for either server or client connectivity.
     """
     def __init__(self, path=None, password=None):
@@ -322,18 +334,37 @@ class OpenSSLPrivateKey(PrivateKey):
     def from_file(cls, path, password=None):
         return cls(path=path, password=password)
 
+class OpenSSLTrustStore(TrustStore):
+    """A handle to a trust store object, either on disk or the system trust store,
+    that can be used to validate the certificates presented by a remote peer.
+    """
+    def __init__(self, path):
+        self._trust_path = path
+
+    @classmethod
+    def system(cls):
+        return _SYSTEMTRUSTSTORE
+
+    @classmethod
+    def from_pem_file(cls, path):
+        return cls(path=path)
+
+# We use a sentinel object for the system trust store that is guaranteed not
+# to compare equal to any other object.
+_SYSTEMTRUSTSTORE = OpenSSLTrustStore(object())
+
 #: The stdlib ``Backend`` object.
 STDLIB_BACKEND = Backend(
     certificate=OpenSSLCertificate,
     client_context=OpenSSLClientContext,
     private_key=OpenSSLPrivateKey,
     server_context=OpenSSLServerContext,
-    tls_socket=OpenSSLTLSSocket,
+    trust_store=OpenSSLTrustStore,
 )
 
 # The current main is just test-code. We should probably remove it from here and add it to /test
 if __name__ == "__main__":
-    client_config = TLSClientConfiguration()
+    client_config = TLSClientConfiguration(trust_store=OpenSSLTrustStore.system())
     client_ctx = STDLIB_BACKEND.client_context(client_config)
     tls_socket = client_ctx.connect(("www.python.org", 443))
     print(tls_socket.negotiated_tls_version())

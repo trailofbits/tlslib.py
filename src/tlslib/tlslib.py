@@ -35,6 +35,7 @@ class _TLSBaseConfiguration:
         "_inner_protocols",
         "_lowest_supported_version",
         "_highest_supported_version",
+        "_trust_store"
     )
 
     def __init__(
@@ -43,6 +44,7 @@ class _TLSBaseConfiguration:
         inner_protocols: list[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
         highest_supported_version: TLSVersion | None = None,
+        trust_store: TrustStore | None = None,
     ) -> None:
         if ciphers is None:
             ciphers = DEFAULT_CIPHER_LIST
@@ -60,6 +62,7 @@ class _TLSBaseConfiguration:
         self._inner_protocols = inner_protocols
         self._lowest_supported_version = lowest_supported_version
         self._highest_supported_version = highest_supported_version
+        self._trust_store = trust_store
 
     @property
     def ciphers(self) -> list[CipherSuite]:
@@ -85,6 +88,14 @@ class _TLSBaseConfiguration:
         """The maximum version of TLS that will be allowed on TLS connections."""
         return self._highest_supported_version
 
+    @property
+    def trust_store(self):
+        """
+        The trust store that connections using this configuration will use
+        to validate certificates.
+        """
+        return self._trust_store
+    
 
 class TLSServerConfiguration(_TLSBaseConfiguration):
     """TLS configuration for a "server" socket, i.e. a socket accepting connections from clients."""
@@ -97,6 +108,7 @@ class TLSServerConfiguration(_TLSBaseConfiguration):
         inner_protocols: list[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
         highest_supported_version: TLSVersion | None = None,
+        trust_store: TrustStore | None = None,
         certificate_chain=None,
     ) -> None:
         super().__init__(
@@ -104,6 +116,7 @@ class TLSServerConfiguration(_TLSBaseConfiguration):
             inner_protocols,
             lowest_supported_version,
             highest_supported_version,
+            trust_store,
         )
         self._certificate_chain = certificate_chain
 
@@ -130,12 +143,14 @@ class TLSClientConfiguration(_TLSBaseConfiguration):
         inner_protocols: list[NextProtocol | CipherSuite] | None = None,
         lowest_supported_version: TLSVersion | None = None,
         highest_supported_version: TLSVersion | None = None,
+        trust_store: TrustStore | None = None,
     ) -> None:
         super().__init__(
             ciphers,
             inner_protocols,
             lowest_supported_version,
             highest_supported_version,
+            trust_store,
         )
 
 
@@ -555,6 +570,26 @@ class PrivateKey(object):
         """
         raise NotImplementedError("Private Keys from buffers not supported")
 
+
+class TrustStore(object):
+    __metaclass__ = ABCMeta
+
+    @classmethod
+    def system(cls):
+        """
+        Returns a TrustStore object that represents the system trust
+        database.
+        """
+        raise NotImplementedError("System trust store not supported")
+
+    @classmethod
+    def from_pem_file(cls, path):
+        """
+        Initializes a trust store from a single file full of PEMs.
+        """
+        raise NotImplementedError("Trust store from PEM not supported")
+
+
 class Backend:
     """An object representing the collection of classes that implement the
     PEP 543 abstract TLS API for a specific TLS implementation.
@@ -565,7 +600,7 @@ class Backend:
         "_client_context",
         "_private_key",
         "_server_context",
-        "_tls_socket",
+        "_trust_store",
     )
 
     def __init__(
@@ -574,18 +609,17 @@ class Backend:
         client_context: type[ClientContext],
         private_key: type[PrivateKey],
         server_context: type[ClientContext],
-        tls_socket: type[TLSSocket],
+        trust_store: type[TrustStore],
     ) -> None:
         self._certificate = certificate
         self._client_context = client_context
         self._private_key = private_key
         self._server_context = server_context
-        self._tls_socket = tls_socket
+        self._trust_store = trust_store
 
     @property
     def certificate(self):
-        """
-        The concrete implementation of the PEP 543 Certificate object used
+        """The concrete implementation of the PEP 543 Certificate object used
         by this TLS backend.
         """
         return self._certificate
@@ -599,8 +633,7 @@ class Backend:
 
     @property
     def private_key(self):
-        """
-        The concrete implementation of the PEP 543 Private Key object used
+        """The concrete implementation of the PEP 543 Private Key object used
         by this TLS backend.
         """
         return self._private_key
@@ -613,8 +646,8 @@ class Backend:
         return self._server_context
 
     @property
-    def tls_socket(self) -> type[TLSSocket]:
-        """The concrete implementation of the PEP 543 TLSSocket object used
+    def trust_store(self):
+        """The concrete implementation of the PEP 543 TrustStore object used
         by this TLS backend.
         """
-        return self._tls_socket
+        return self._trust_store
