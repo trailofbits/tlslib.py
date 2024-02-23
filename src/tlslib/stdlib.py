@@ -324,7 +324,9 @@ class OpenSSLPrivateKey(PrivateKey):
 
 #: The stdlib ``Backend`` object.
 STDLIB_BACKEND = Backend(
+    certificate=OpenSSLCertificate,
     client_context=OpenSSLClientContext,
+    private_key=OpenSSLPrivateKey,
     server_context=OpenSSLServerContext,
     tls_socket=OpenSSLTLSSocket,
 )

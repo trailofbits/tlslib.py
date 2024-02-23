@@ -561,20 +561,34 @@ class Backend:
     """
 
     __slots__ = (
+        "_certificate", 
         "_client_context",
+        "_private_key",
         "_server_context",
         "_tls_socket",
     )
 
     def __init__(
         self,
+        certificate: type[Certificate],
         client_context: type[ClientContext],
+        private_key: type[PrivateKey],
         server_context: type[ClientContext],
         tls_socket: type[TLSSocket],
     ) -> None:
+        self._certificate = certificate
         self._client_context = client_context
+        self._private_key = private_key
         self._server_context = server_context
         self._tls_socket = tls_socket
+
+    @property
+    def certificate(self):
+        """
+        The concrete implementation of the PEP 543 Certificate object used
+        by this TLS backend.
+        """
+        return self._certificate
 
     @property
     def client_context(self) -> type[ClientContext]:
@@ -582,6 +596,14 @@ class Backend:
         if this TLS backend supports being the client on a TLS connection.
         """
         return self._client_context
+
+    @property
+    def private_key(self):
+        """
+        The concrete implementation of the PEP 543 Private Key object used
+        by this TLS backend.
+        """
+        return self._private_key
 
     @property
     def server_context(self) -> type[ServerContext]:
