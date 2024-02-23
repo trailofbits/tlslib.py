@@ -1,16 +1,19 @@
 """Shims the standard library OpenSSL module into the amended PEP 543 API."""
 
 import contextlib
+import os
 import socket
 import ssl
-
+import tempfile
 import truststore
 
 from .tlslib import (
     Backend,
+    Certificate,
     CipherSuite,
     ClientContext,
     NextProtocol,
+    PrivateKey,
     ServerContext,
     TLSClientConfiguration,
     TLSError,
@@ -59,16 +62,6 @@ ctx.set_ciphers("ALL:COMPLEMENTOFALL")
 _cipher_map = {c["id"] & 0xFFFF: c["name"] for c in ctx.get_ciphers()}
 del ctx
 
-# @contextmanager
-# def _error_converter(ignore_filter=()):
-#     """
-#     Catches errors from the ssl module and wraps them up in TLSError
-#     exceptions. Ignores certain kinds of exceptions as requested.
-#     """
-#         yield
-#         raise
-
-
 def _version_options_from_version_range(min, max):
     """Given a TLS version range, we need to convert that into options that
     exclude TLS versions as appropriate.
@@ -78,6 +71,30 @@ def _version_options_from_version_range(min, max):
     except KeyError:
         msg = "Bad maximum/minimum options"
         raise TLSError(msg)
+
+
+def _configure_context_for_certs(context, cert_chain):
+    """
+    Given a PEP 543 cert chain, configure the SSLContext to send that cert
+    chain in the handshake.
+
+    Returns the context.
+    """
+    if cert_chain:
+        # FIXME: support multiple certificates at different filesystem
+        # locations. This requires being prepared to create temporary
+        # files.
+        assert len(cert_chain[0]) == 1
+        cert_path = cert_chain[0][0]._cert_path
+        key_path = None
+        password = None
+        if cert_chain[1]:
+            key_path = cert_chain[1]._key_path
+            password = cert_chain[1]._password
+
+        context.load_cert_chain(cert_path, key_path, password)
+
+    return context
 
 
 def _configure_context_for_ciphers(context, ciphers):
@@ -134,9 +151,21 @@ def _init_context_common(some_context, config):
 
 
 def _init_context_client(config):
-    """Initialize an ssl.SSLContext object with a given configuration."""
+    """Initialize an ssl.SSLContext object with a given client configuration."""
     some_context = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     some_context.options |= ssl.OP_NO_COMPRESSION
+
+    return _init_context_common(some_context, config)
+
+
+def _init_context_server(config):
+    """Initialize an ssl.SSLContext object with a given server configuration."""
+    some_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    some_context.options |= ssl.OP_NO_COMPRESSION
+
+    some_context = _configure_context_for_certs(
+        some_context, config.certificate_chain
+    )
 
     return _init_context_common(some_context, config)
 
@@ -245,17 +274,63 @@ class OpenSSLServerContext(ServerContext):
 
     def connect(self, address):
         """Create a buffered I/O object that can be used to do TLS."""
-        raise NotImplementedError
+        ossl_context = _init_context_server(self._configuration)
+
+        return OpenSSLTLSSocket._create(
+            parent_context=self,
+            ssl_context=ossl_context,
+            address=address,
+        )
+
+class OpenSSLCertificate(Certificate):
+    """
+    A handle to a certificate object, either on disk or in a buffer, that can
+    be used for either server or client connectivity.
+    """
+    def __init__(self, path=None):
+        self._cert_path = path
+
+    @classmethod
+    def from_buffer(cls, buffer):
+        fd, path = tempfile.mkstemp()
+        with os.fdopen(fd, 'wb') as f:
+            f.write(buffer)
+        return cls(path=path)
+
+    @classmethod
+    def from_file(cls, path):
+        return cls(path=path)
 
 
+class OpenSSLPrivateKey(PrivateKey):
+    """
+    A handle to a private key object, either on disk or in a buffer, that can
+    be used along with a certificate for either server or client connectivity.
+    """
+    def __init__(self, path=None, password=None):
+        self._key_path = path
+        self._password = password
+
+    @classmethod
+    def from_buffer(cls, buffer, password=None):
+        fd, path = tempfile.mkstemp()
+        with os.fdopen(fd, 'wb') as f:
+            f.write(buffer)
+        return cls(path=path, password=password)
+
+    @classmethod
+    def from_file(cls, path, password=None):
+        return cls(path=path, password=password)
+
+#: The stdlib ``Backend`` object.
+STDLIB_BACKEND = Backend(
+    client_context=OpenSSLClientContext,
+    server_context=OpenSSLServerContext,
+    tls_socket=OpenSSLTLSSocket,
+)
+
+# The current main is just test-code. We should probably remove it from here and add it to /test
 if __name__ == "__main__":
-    #: The stdlib ``Backend`` object.
-    STDLIB_BACKEND = Backend(
-        client_context=OpenSSLClientContext,
-        server_context=OpenSSLServerContext,
-        tls_socket=OpenSSLTLSSocket,
-    )
-
     client_config = TLSClientConfiguration()
     client_ctx = STDLIB_BACKEND.client_context(client_config)
     tls_socket = client_ctx.connect(("www.python.org", 443))
