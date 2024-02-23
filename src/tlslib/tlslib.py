@@ -17,8 +17,8 @@ __all__ = [
     "WantWriteError",
     "WantReadError",
     "RaggedEOF",
-    'Certificate',
-    'PrivateKey',
+    "Certificate",
+    "PrivateKey",
     "Backend",
 ]
 
@@ -95,7 +95,7 @@ class _TLSBaseConfiguration:
         to validate certificates.
         """
         return self._trust_store
-    
+
 
 class TLSServerConfiguration(_TLSBaseConfiguration):
     """TLS configuration for a "server" socket, i.e. a socket accepting connections from clients."""
@@ -506,7 +506,7 @@ class RaggedEOF(TLSError):
     attack and so can ignore this exception.
     """
 
-class Certificate(object):
+class Certificate:
     @classmethod
     def from_buffer(cls, buffer):
         """
@@ -532,7 +532,7 @@ class Certificate(object):
         raise NotImplementedError("Certificates from files not supported")
 
 
-class PrivateKey(object):
+class PrivateKey:
     @classmethod
     def from_buffer(cls, buffer, password=None):
         """
@@ -571,7 +571,7 @@ class PrivateKey(object):
         raise NotImplementedError("Private Keys from buffers not supported")
 
 
-class TrustStore(object):
+class TrustStore:
     __metaclass__ = ABCMeta
 
     @classmethod
@@ -596,7 +596,7 @@ class Backend:
     """
 
     __slots__ = (
-        "_certificate", 
+        "_certificate",
         "_client_context",
         "_private_key",
         "_server_context",

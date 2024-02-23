@@ -5,6 +5,7 @@ import os
 import socket
 import ssl
 import tempfile
+
 import truststore
 
 from .tlslib import (
@@ -79,8 +80,8 @@ def _create_context_with_trust_store(protocol, trust_store):
     else:
         some_context = ssl.SSLContext(protocol)
         if trust_store is not None:
-            some_context.load_verify_locations(trust_store._trust_path)    
-    
+            some_context.load_verify_locations(trust_store._trust_path)
+
     some_context.options |= ssl.OP_NO_COMPRESSION
 
     return some_context
@@ -306,7 +307,7 @@ class OpenSSLCertificate(Certificate):
     @classmethod
     def from_buffer(cls, buffer):
         fd, path = tempfile.mkstemp()
-        with os.fdopen(fd, 'wb') as f:
+        with os.fdopen(fd, "wb") as f:
             f.write(buffer)
         return cls(path=path)
 
@@ -326,7 +327,7 @@ class OpenSSLPrivateKey(PrivateKey):
     @classmethod
     def from_buffer(cls, buffer, password=None):
         fd, path = tempfile.mkstemp()
-        with os.fdopen(fd, 'wb') as f:
+        with os.fdopen(fd, "wb") as f:
             f.write(buffer)
         return cls(path=path, password=password)
 
