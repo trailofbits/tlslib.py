@@ -114,6 +114,8 @@ class TLSServerConfiguration(_TLSBaseConfiguration):
         trust_store: TrustStore | None = None,
         certificate_chain: tuple[tuple[Certificate], PrivateKey] | None = None,
     ) -> None:
+        """Initializes the TLS server configuration with all attributes"""
+
         super().__init__(
             ciphers,
             inner_protocols,
@@ -148,6 +150,8 @@ class TLSClientConfiguration(_TLSBaseConfiguration):
         highest_supported_version: TLSVersion | None = None,
         trust_store: TrustStore | None = None,
     ) -> None:
+        """Initializes the TLS client configuration with all attributes"""
+
         super().__init__(
             ciphers,
             inner_protocols,
@@ -171,6 +175,8 @@ class _BaseContext:
 
 
 class ClientContext(_BaseContext):
+    """Context for setting up TLS connections for a client."""
+
     @abstractmethod
     def connect(self, address: tuple[str | None, int]) -> TLSSocket:
         """Creates a TLSSocket that behaves like a socket.socket, and
@@ -180,6 +186,8 @@ class ClientContext(_BaseContext):
 
 
 class ServerContext(_BaseContext):
+    """Context for setting up TLS connections for a client."""
+
     @abstractmethod
     def connect(self, address: tuple[str | None, int]) -> TLSSocket:
         """Creates a TLSSocket that behaves like a socket.socket, and
@@ -189,10 +197,11 @@ class ServerContext(_BaseContext):
 
 
 class TLSSocket:
-    __metaclass__ = ABCMeta
     """This class implements a subtype of socket.socket that wraps
     the underlying OS socket in an SSL context when necessary, and
-    provides read and write methods over that channel. """
+    provides read and write methods over that channel."""
+
+    __metaclass__ = ABCMeta
 
     @abstractmethod
     def __init__(self, *args: tuple, **kwargs: tuple) -> None:
@@ -503,6 +512,8 @@ class RaggedEOF(TLSError):
 
 
 class Certificate(Protocol):
+    """Object representing a certificate used in TLS."""
+
     @classmethod
     def from_buffer(cls, buffer: bytes) -> Certificate:
         """
@@ -529,6 +540,9 @@ class Certificate(Protocol):
 
 
 class PrivateKey(Protocol):
+    """Object representing a private key corresponding to a public key
+    for a certificate used in TLS."""
+
     @classmethod
     def from_buffer(cls, buffer: bytes, password: bytes | None = None) -> PrivateKey:
         """
@@ -609,6 +623,8 @@ class Backend:
         server_context: type[ServerContext],
         trust_store: type[TrustStore],
     ) -> None:
+        """Initializes all attributes of the backend."""
+        
         self._certificate = certificate
         self._client_context = client_context
         self._private_key = private_key

@@ -251,13 +251,24 @@ class OpenSSLTLSSocket(TLSSocket):
 
     @property
     def context(self) -> ClientContext | ServerContext:
+        """The ``Context`` object this socket is tied to."""
+
         return self._parent_context
 
     @property
     def socket(self) -> ssl.SSLSocket:
+        """The socket-like object to be used by the user."""
+
         return self._socket
 
     def cipher(self) -> CipherSuite | int | None:
+        """
+        Returns the CipherSuite entry for the cipher that has been negotiated on the connection.
+
+        If no connection has been negotiated, returns ``None``. If the cipher negotiated is not
+        defined in CipherSuite, returns the 16-bit integer representing that cipher directly.
+        """
+
         # This is the OpenSSL cipher name. We want the ID, which we can get by
         # looking for this entry in the context's list of supported ciphers.
         # FIXME: This works only on 3.6. To get this to work elsewhere, we may
@@ -283,6 +294,23 @@ class OpenSSLTLSSocket(TLSSocket):
             return cipher_id
 
     def negotiated_protocol(self) -> NextProtocol | bytes | None:
+        """
+        Returns the protocol that was selected during the TLS handshake.
+
+        This selection may have been made using ALPN, NPN, or some future
+        negotiation mechanism.
+
+        If the negotiated protocol is one of the protocols defined in the
+        ``NextProtocol`` enum, the value from that enum will be returned.
+        Otherwise, the raw bytestring of the negotiated protocol will be
+        returned.
+
+        If ``Context.set_inner_protocols()`` was not called, if the other
+        party does not support protocol negotiation, if this socket does
+        not support any of the peer's proposed protocols, or if the
+        handshake has not happened yet, ``None`` is returned.
+        """
+
         proto = self._socket.selected_alpn_protocol()
 
         # The standard library returns this as a str, we want bytes.
@@ -298,6 +326,8 @@ class OpenSSLTLSSocket(TLSSocket):
 
     @property
     def negotiated_tls_version(self) -> TLSVersion | None:
+        """The version of TLS that has been negotiated on this connection."""
+        
         ossl_version = self._socket.version()
         if ossl_version is None:
             return None
@@ -312,10 +342,14 @@ class OpenSSLClientContext(ClientContext):
     """
 
     def __init__(self, configuration: TLSClientConfiguration) -> None:
+        """Create a new context object from a given TLS configuration."""
+        
         self._configuration = configuration
 
     @property
     def configuration(self) -> TLSClientConfiguration:
+        """Returns the TLS configuration that was used to create the context."""
+        
         return self._configuration
 
     def connect(self, address: tuple[str | None, int]) -> OpenSSLTLSSocket:
@@ -336,10 +370,14 @@ class OpenSSLServerContext(ServerContext):
     """
 
     def __init__(self, configuration: TLSServerConfiguration) -> None:
+        """Create a new context object from a given TLS configuration."""
+        
         self._configuration = configuration
 
     @property
     def configuration(self) -> TLSServerConfiguration:
+        """Returns the TLS configuration that was used to create the context."""
+        
         return self._configuration
 
     def connect(self, address: tuple[str | None, int]) -> OpenSSLTLSSocket:
@@ -359,10 +397,22 @@ class OpenSSLCertificate(Certificate):
     """
 
     def __init__(self, path: os.PathLike | None = None):
+        """Creates a certificate object, storing a path to the (temp)file."""
+
         self._cert_path = path
 
     @classmethod
     def from_buffer(cls, buffer: bytes) -> OpenSSLCertificate:
+        """
+        Creates a Certificate object from a byte buffer. This byte buffer
+        may be either PEM-encoded or DER-encoded. If the buffer is PEM
+        encoded it *must* begin with the standard PEM preamble (a series of
+        dashes followed by the ASCII bytes "BEGIN CERTIFICATE" and another
+        series of dashes). In the absence of that preamble, the
+        implementation may assume that the certificate is DER-encoded
+        instead.
+        """
+        
         fd, path = tempfile.mkstemp()
         with os.fdopen(fd, "wb") as f:
             f.write(buffer)
@@ -371,6 +421,14 @@ class OpenSSLCertificate(Certificate):
 
     @classmethod
     def from_file(cls, path: os.PathLike) -> OpenSSLCertificate:
+        """
+        Creates a Certificate object from a file on disk. This method may
+        be a convenience method that wraps ``open`` and ``from_buffer``,
+        but some TLS implementations may be able to provide more-secure or
+        faster methods of loading certificates that do not involve Python
+        code.
+        """
+        
         return cls(path=path)
 
 
@@ -380,11 +438,33 @@ class OpenSSLPrivateKey(PrivateKey):
     """
 
     def __init__(self, path: os.PathLike | None = None, password: bytes | None = None):
+        """Creates a private key object, storing a path to the (temp)file."""
+        
         self._key_path = path
         self._password = password
 
     @classmethod
     def from_buffer(cls, buffer: bytes, password: bytes | None = None) -> OpenSSLPrivateKey:
+        """
+        Creates a PrivateKey object from a byte buffer. This byte buffer
+        may be either PEM-encoded or DER-encoded. If the buffer is PEM
+        encoded it *must* begin with the standard PEM preamble (a series of
+        dashes followed by the ASCII bytes "BEGIN", the key type, and
+        another series of dashes). In the absence of that preamble, the
+        implementation may assume that the certificate is DER-encoded
+        instead.
+
+        The key may additionally be encrypted. If it is, the ``password``
+        argument can be used to decrypt the key. The ``password`` argument
+        may be a function to call to get the password for decrypting the
+        private key. It will only be called if the private key is encrypted
+        and a password is necessary. It will be called with no arguments,
+        and it should return either bytes or bytearray containing the
+        password. Alternatively a bytes, or bytearray value may be supplied
+        directly as the password argument. It will be ignored if the
+        private key is not encrypted and no password is needed.
+        """
+        
         fd, path = tempfile.mkstemp()
         with os.fdopen(fd, "wb") as f:
             f.write(buffer)
@@ -392,6 +472,17 @@ class OpenSSLPrivateKey(PrivateKey):
 
     @classmethod
     def from_file(cls, path: os.PathLike, password: bytes | None = None) -> OpenSSLPrivateKey:
+        """
+        Creates a PrivateKey object from a file on disk. This method may
+        be a convenience method that wraps ``open`` and ``from_buffer``,
+        but some TLS implementations may be able to provide more-secure or
+        faster methods of loading certificates that do not involve Python
+        code.
+
+        The ``password`` parameter behaves exactly as the equivalent
+        parameter on ``from_buffer``.
+        """
+        
         return cls(path=path, password=password)
 
 
@@ -401,15 +492,25 @@ class OpenSSLTrustStore(TrustStore):
     """
 
     def __init__(self, path: os.PathLike | object):
+        """Creates a TrustStore object from a path or representing the system trust store."""
         if isinstance(path, os.PathLike):
             self._trust_path = path
 
     @classmethod
     def system(cls) -> OpenSSLTrustStore:
+        """
+        Returns a TrustStore object that represents the system trust
+        database.
+        """
+        
         return _SYSTEMTRUSTSTORE
 
     @classmethod
     def from_pem_file(cls, path: os.PathLike) -> OpenSSLTrustStore:
+        """
+        Initializes a trust store from a single file full of PEMs.
+        """
+        
         return cls(path=path)
 
 
