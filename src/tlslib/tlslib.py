@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import socket
 from abc import abstractmethod
+from collections.abc import Sequence
 from enum import Enum, IntEnum
 from typing import Protocol
 
@@ -43,8 +44,8 @@ class _TLSBaseConfiguration:
 
     def __init__(
         self,
-        ciphers: list[CipherSuite] | None = None,
-        inner_protocols: list[NextProtocol | bytes] | None = None,
+        ciphers: Sequence[CipherSuite] | None = None,
+        inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
         highest_supported_version: TLSVersion | None = None,
         trust_store: TrustStore | None = None,
@@ -68,12 +69,12 @@ class _TLSBaseConfiguration:
         self._trust_store = trust_store
 
     @property
-    def ciphers(self) -> list[CipherSuite]:
+    def ciphers(self) -> Sequence[CipherSuite]:
         """The list of available ciphers for TLS connections, in priority order."""
         return self._ciphers
 
     @property
-    def inner_protocols(self) -> list[NextProtocol | bytes]:
+    def inner_protocols(self) -> Sequence[NextProtocol | bytes]:
         """Protocols that connections should advertise as supported during the TLS handshake.
 
         These may be advertised using either or both of ALPN or NPN. This list of
@@ -107,8 +108,8 @@ class TLSServerConfiguration(_TLSBaseConfiguration):
 
     def __init__(
         self,
-        ciphers: list[CipherSuite] | None = None,
-        inner_protocols: list[NextProtocol | bytes] | None = None,
+        ciphers: Sequence[CipherSuite] | None = None,
+        inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
         highest_supported_version: TLSVersion | None = None,
         trust_store: TrustStore | None = None,
@@ -144,8 +145,8 @@ class TLSClientConfiguration(_TLSBaseConfiguration):
 
     def __init__(
         self,
-        ciphers: list[CipherSuite] | None = None,
-        inner_protocols: list[NextProtocol | bytes] | None = None,
+        ciphers: Sequence[CipherSuite] | None = None,
+        inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
         highest_supported_version: TLSVersion | None = None,
         trust_store: TrustStore | None = None,

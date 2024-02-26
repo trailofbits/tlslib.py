@@ -7,6 +7,7 @@ import os
 import socket
 import ssl
 import tempfile
+from collections.abc import Sequence
 from pathlib import Path
 
 import truststore
@@ -131,7 +132,7 @@ def _configure_context_for_certs(
 
 
 def _configure_context_for_ciphers(
-    context: truststore.SSLContext | ssl.SSLContext, ciphers: list[CipherSuite] | None = None
+    context: truststore.SSLContext | ssl.SSLContext, ciphers: Sequence[CipherSuite] | None = None
 ) -> truststore.SSLContext | ssl.SSLContext:
     """Given a PEP 543 cipher suite list, configure the SSLContext to use those
     cipher suites.
@@ -149,7 +150,7 @@ def _configure_context_for_ciphers(
 
 def _configure_context_for_negotiation(
     context: truststore.SSLContext | ssl.SSLContext,
-    inner_protocols: list[NextProtocol | bytes] | None = None,
+    inner_protocols: Sequence[NextProtocol | bytes] | None = None,
 ) -> truststore.SSLContext | ssl.SSLContext:
     """Given a PEP 543 list of protocols to negotiate, configures the SSLContext
     to negotiate those protocols.
