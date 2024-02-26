@@ -84,6 +84,8 @@ def _create_context_with_trust_store(
     protocol: ssl._SSLMethod, trust_store: TrustStore | None
 ) -> truststore.SSLContext | ssl.SSLContext:
     some_context: truststore.SSLContext | ssl.SSLContext
+    assert isinstance(trust_store, OpenSSLTrustStore)
+
     if trust_store is _SYSTEMTRUSTSTORE:
         some_context = truststore.SSLContext(protocol)
     else:
@@ -391,7 +393,7 @@ class OpenSSLServerContext(ServerContext):
         )
 
 
-class OpenSSLCertificate(Certificate):
+class OpenSSLCertificate:
     """A handle to a certificate object, either on disk or in a buffer, that can
     be used for either server or client connectivity.
     """
@@ -432,7 +434,7 @@ class OpenSSLCertificate(Certificate):
         return cls(path=path)
 
 
-class OpenSSLPrivateKey(PrivateKey):
+class OpenSSLPrivateKey:
     """A handle to a private key object, either on disk or in a buffer, that can
     be used along with a certificate for either server or client connectivity.
     """
@@ -486,7 +488,7 @@ class OpenSSLPrivateKey(PrivateKey):
         return cls(path=path, password=password)
 
 
-class OpenSSLTrustStore(TrustStore):
+class OpenSSLTrustStore:
     """A handle to a trust store object, either on disk or the system trust store,
     that can be used to validate the certificates presented by a remote peer.
     """

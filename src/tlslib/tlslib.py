@@ -584,8 +584,6 @@ class PrivateKey(Protocol):
 class TrustStore(Protocol):
     """The trust store that is used to verify certificate validity."""
 
-    _trust_path: os.PathLike
-
     @classmethod
     def system(cls) -> TrustStore:
         """
