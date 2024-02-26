@@ -327,7 +327,7 @@ class OpenSSLTLSSocket(TLSSocket):
     @property
     def negotiated_tls_version(self) -> TLSVersion | None:
         """The version of TLS that has been negotiated on this connection."""
-        
+
         ossl_version = self._socket.version()
         if ossl_version is None:
             return None
@@ -343,13 +343,13 @@ class OpenSSLClientContext(ClientContext):
 
     def __init__(self, configuration: TLSClientConfiguration) -> None:
         """Create a new context object from a given TLS configuration."""
-        
+
         self._configuration = configuration
 
     @property
     def configuration(self) -> TLSClientConfiguration:
         """Returns the TLS configuration that was used to create the context."""
-        
+
         return self._configuration
 
     def connect(self, address: tuple[str | None, int]) -> OpenSSLTLSSocket:
@@ -371,13 +371,13 @@ class OpenSSLServerContext(ServerContext):
 
     def __init__(self, configuration: TLSServerConfiguration) -> None:
         """Create a new context object from a given TLS configuration."""
-        
+
         self._configuration = configuration
 
     @property
     def configuration(self) -> TLSServerConfiguration:
         """Returns the TLS configuration that was used to create the context."""
-        
+
         return self._configuration
 
     def connect(self, address: tuple[str | None, int]) -> OpenSSLTLSSocket:
@@ -412,7 +412,7 @@ class OpenSSLCertificate(Certificate):
         implementation may assume that the certificate is DER-encoded
         instead.
         """
-        
+
         fd, path = tempfile.mkstemp()
         with os.fdopen(fd, "wb") as f:
             f.write(buffer)
@@ -428,7 +428,7 @@ class OpenSSLCertificate(Certificate):
         faster methods of loading certificates that do not involve Python
         code.
         """
-        
+
         return cls(path=path)
 
 
@@ -439,7 +439,7 @@ class OpenSSLPrivateKey(PrivateKey):
 
     def __init__(self, path: os.PathLike | None = None, password: bytes | None = None):
         """Creates a private key object, storing a path to the (temp)file."""
-        
+
         self._key_path = path
         self._password = password
 
@@ -464,7 +464,7 @@ class OpenSSLPrivateKey(PrivateKey):
         directly as the password argument. It will be ignored if the
         private key is not encrypted and no password is needed.
         """
-        
+
         fd, path = tempfile.mkstemp()
         with os.fdopen(fd, "wb") as f:
             f.write(buffer)
@@ -482,7 +482,7 @@ class OpenSSLPrivateKey(PrivateKey):
         The ``password`` parameter behaves exactly as the equivalent
         parameter on ``from_buffer``.
         """
-        
+
         return cls(path=path, password=password)
 
 
@@ -502,7 +502,7 @@ class OpenSSLTrustStore(TrustStore):
         Returns a TrustStore object that represents the system trust
         database.
         """
-        
+
         return _SYSTEMTRUSTSTORE
 
     @classmethod
@@ -510,7 +510,7 @@ class OpenSSLTrustStore(TrustStore):
         """
         Initializes a trust store from a single file full of PEMs.
         """
-        
+
         return cls(path=path)
 
 

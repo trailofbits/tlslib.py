@@ -624,7 +624,7 @@ class Backend:
         trust_store: type[TrustStore],
     ) -> None:
         """Initializes all attributes of the backend."""
-        
+
         self._certificate = certificate
         self._client_context = client_context
         self._private_key = private_key
