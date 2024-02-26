@@ -83,6 +83,7 @@ def _version_options_from_version_range(min: TLSVersion, max: TLSVersion) -> int
 def _create_context_with_trust_store(
     protocol: ssl._SSLMethod, trust_store: TrustStore | None
 ) -> truststore.SSLContext | ssl.SSLContext:
+    some_context: truststore.SSLContext | ssl.SSLContext
     if trust_store is _SYSTEMTRUSTSTORE:
         some_context = truststore.SSLContext(protocol)
     else:
