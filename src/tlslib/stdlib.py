@@ -202,11 +202,35 @@ def _init_context_server(config: TLSServerConfiguration) -> truststore.SSLContex
 class OpenSSLTLSSocket(TLSSocket):
     """A TLSSocket implementation based on OpenSSL."""
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init(args, kwargs)
+    __slots__ = (
+        "_parent_context",
+        "_socket",
+        "_ssl_context",
+    )
+
+    _parent_context: OpenSSLClientContext | OpenSSLServerContext
+    _socket: ssl.SSLSocket
+    _ssl_context: truststore.SSLContext | ssl.SSLContext
+
+    def __init__(self, *args: tuple, **kwargs: tuple) -> None:
+        """OpenTLSSockets should not be constructed by the user.
+        Instead, the ClientContext.connect() and
+        ServerContext.connect() use the _create() method."""
+        msg = (
+            f"{self.__class__.__name__} does not have a public constructor. "
+            "Instances are returned by ClientContext.connect() or ServerContext.connect()."
+        )
+        raise TypeError(
+            msg,
+        )
 
     @classmethod
-    def _create(cls, parent_context, ssl_context, address):
+    def _create(
+        cls,
+        address: tuple[str | None, int],
+        parent_context: OpenSSLClientContext | OpenSSLServerContext,
+        ssl_context: truststore.SSLContext | ssl.SSLContext,
+    ) -> OpenSSLTLSSocket:
         self = cls.__new__(cls)
         self._parent_context = parent_context
         self._ssl_context = ssl_context
@@ -218,20 +242,24 @@ class OpenSSLTLSSocket(TLSSocket):
         return self
 
     @property
-    def context(self):
+    def context(self) -> ClientContext | ServerContext:
         return self._parent_context
 
     @property
-    def socket(self):
+    def socket(self) -> ssl.SSLSocket:
         return self._socket
 
-    @property
-    def cipher(self) -> CipherSuite | int:
+    def cipher(self) -> CipherSuite | int | None:
         # This is the OpenSSL cipher name. We want the ID, which we can get by
         # looking for this entry in the context's list of supported ciphers.
         # FIXME: This works only on 3.6. To get this to work elsewhere, we may
         # need to vendor tlsdb.
-        ossl_cipher, _, _ = self._socket.cipher()
+        ret = self._socket.cipher()
+
+        if ret is None:
+            return None
+        else:
+            ossl_cipher, _, _ = ret
 
         for cipher in self._ssl_context.get_ciphers():
             if cipher["name"] == ossl_cipher:
@@ -246,21 +274,22 @@ class OpenSSLTLSSocket(TLSSocket):
         except ValueError:
             return cipher_id
 
-    @property
     def negotiated_protocol(self) -> NextProtocol | bytes | None:
         proto = self._socket.selected_alpn_protocol()
 
         # The standard library returns this as a str, we want bytes.
-        if proto is not None:
-            proto = proto.encode("ascii")
+        if proto is None:
+            return None
+
+        protoBytes = proto.encode("ascii")
 
         try:
-            return NextProtocol(proto)
+            return NextProtocol(protoBytes)
         except ValueError:
-            return proto
+            return protoBytes
 
     @property
-    def negotiated_tls_version(self):
+    def negotiated_tls_version(self) -> TLSVersion | None:
         ossl_version = self._socket.version()
         if ossl_version is None:
             return None
@@ -281,7 +310,7 @@ class OpenSSLClientContext(ClientContext):
     def configuration(self) -> TLSClientConfiguration:
         return self._configuration
 
-    def connect(self, address):
+    def connect(self, address: tuple[str | None, int]) -> OpenSSLTLSSocket:
         """Create a buffered I/O object that can be used to do TLS."""
         ossl_context = _init_context_client(self._configuration)
 
@@ -305,7 +334,7 @@ class OpenSSLServerContext(ServerContext):
     def configuration(self) -> TLSServerConfiguration:
         return self._configuration
 
-    def connect(self, address) -> OpenSSLTLSSocket:
+    def connect(self, address: tuple[str | None, int]) -> OpenSSLTLSSocket:
         """Create a buffered I/O object that can be used to do TLS."""
         ossl_context = _init_context_server(self._configuration)
 
@@ -329,6 +358,7 @@ class OpenSSLCertificate(Certificate):
         fd, path = tempfile.mkstemp()
         with os.fdopen(fd, "wb") as f:
             f.write(buffer)
+
         return cls(path=path)
 
     @classmethod
@@ -346,14 +376,14 @@ class OpenSSLPrivateKey(PrivateKey):
         self._password = password
 
     @classmethod
-    def from_buffer(cls, buffer: bytes, password: bytes | None = None):
+    def from_buffer(cls, buffer: bytes, password: bytes | None = None) -> OpenSSLPrivateKey:
         fd, path = tempfile.mkstemp()
         with os.fdopen(fd, "wb") as f:
             f.write(buffer)
         return cls(path=path, password=password)
 
     @classmethod
-    def from_file(cls, path: os.PathLike, password: bytes | None = None):
+    def from_file(cls, path: os.PathLike, password: bytes | None = None) -> OpenSSLPrivateKey:
         return cls(path=path, password=password)
 
 
@@ -362,7 +392,7 @@ class OpenSSLTrustStore(TrustStore):
     that can be used to validate the certificates presented by a remote peer.
     """
 
-    def __init__(self, path: os.PathLike):
+    def __init__(self, path: os.PathLike | object):
         self._trust_path = path
 
     @classmethod
@@ -370,7 +400,7 @@ class OpenSSLTrustStore(TrustStore):
         return _SYSTEMTRUSTSTORE
 
     @classmethod
-    def from_pem_file(cls, path) -> OpenSSLTrustStore:
+    def from_pem_file(cls, path: os.PathLike) -> OpenSSLTrustStore:
         return cls(path=path)
 
 
@@ -396,8 +426,8 @@ if __name__ == "__main__":
     print(tls_socket.cipher)
     print(tls_socket.negotiated_protocol)
 
-    tls_socket.socket.write(
+    tls_socket.socket.send(
         b"GET / HTTP/1.1\r\nHost: www.python.org\r\nConnection: close"
         b"\r\nAccept-Encoding: identity\r\n\r\n",
     )
-    print(tls_socket.socket.read(4096))
+    print(tls_socket.socket.recv(4096))

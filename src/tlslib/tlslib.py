@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import socket
 from abc import ABCMeta, abstractmethod
 from enum import Enum, IntEnum
 
@@ -192,23 +193,12 @@ class TLSSocket:
     the underlying OS socket in an SSL context when necessary, and
     provides read and write methods over that channel. """
 
-    def __init__(self, *args: tuple, **kwargs: tuple) -> None:
-        msg = (
-            f"{self.__class__.__name__} does not have a public constructor. "
-            "Instances are returned by ClientContext.connect() or ServerContext.connect()."
-        )
-        raise TypeError(
-            msg,
-        )
-
-    @classmethod
     @abstractmethod
-    def _create(cls, address: tuple[str | None, int]) -> TLSSocket:
-        """
-        Creates a TLSSocket.
-
-        Only to be used by ClientContext.connect() and ServerContext.connect().
-        """
+    def __init__(self, *args: tuple, **kwargs: tuple) -> None:
+        """TLSSockets should not be constructed by the user.
+        The backend should immplement a method to construct a TLSSocket
+        object and call it in ClientContext.connect() and
+        ServerContext.connect()."""
 
     @property
     @abstractmethod
@@ -217,11 +207,11 @@ class TLSSocket:
 
     @property
     @abstractmethod
-    def socket(self):
+    def socket(self) -> socket.socket:
         """The socket-like object to be used by the user."""
 
     @abstractmethod
-    def cipher(self) -> CipherSuite | int:
+    def cipher(self) -> CipherSuite | int | None:
         """
         Returns the CipherSuite entry for the cipher that has been negotiated on the connection.
 
@@ -250,7 +240,7 @@ class TLSSocket:
 
     @property
     @abstractmethod
-    def negotiated_tls_version(self) -> TLSVersion:
+    def negotiated_tls_version(self) -> TLSVersion | None:
         """The version of TLS that has been negotiated on this connection."""
 
 
