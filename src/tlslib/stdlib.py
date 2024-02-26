@@ -7,6 +7,7 @@ import os
 import socket
 import ssl
 import tempfile
+from pathlib import Path
 
 import truststore
 
@@ -80,7 +81,7 @@ def _version_options_from_version_range(min: TLSVersion, max: TLSVersion) -> int
 
 
 def _create_context_with_trust_store(
-    protocol: ssl._SSLMethod, trust_store: OpenSSLTrustStore
+    protocol: ssl._SSLMethod, trust_store: TrustStore | None
 ) -> truststore.SSLContext | ssl.SSLContext:
     if trust_store is _SYSTEMTRUSTSTORE:
         some_context = truststore.SSLContext(protocol)
@@ -96,24 +97,30 @@ def _create_context_with_trust_store(
 
 def _configure_context_for_certs(
     context: truststore.SSLContext | ssl.SSLContext,
-    cert_chain: tuple[tuple[OpenSSLCertificate], OpenSSLPrivateKey] | None = None,
+    cert_chain: tuple[tuple[Certificate], PrivateKey] | None = None,
 ) -> truststore.SSLContext | ssl.SSLContext:
     """Given a PEP 543 cert chain, configure the SSLContext to send that cert
     chain in the handshake.
 
     Returns the context.
     """
-    if cert_chain:
+    assert isinstance(cert_chain, tuple[tuple[OpenSSLCertificate], OpenSSLPrivateKey] | None)
+
+    if cert_chain is not None:
         # FIXME: support multiple certificates at different filesystem
         # locations. This requires being prepared to create temporary
         # files.
         assert len(cert_chain[0]) == 1
-        cert_path = cert_chain[0][0]._cert_path
+        cert = cert_chain[0][0]
+        assert isinstance(cert, OpenSSLCertificate)
+        cert_path = cert._cert_path
         key_path = None
         password = None
-        if cert_chain[1]:
-            key_path = cert_chain[1]._key_path
-            password = cert_chain[1]._password
+        if cert_chain[1] is not None:
+            privkey = cert_chain[1]
+            assert isinstance(privkey, OpenSSLPrivateKey)
+            key_path = privkey._key_path
+            password = privkey._password
 
         if cert_path is not None:
             context.load_cert_chain(cert_path, key_path, password)
@@ -359,7 +366,7 @@ class OpenSSLCertificate(Certificate):
         with os.fdopen(fd, "wb") as f:
             f.write(buffer)
 
-        return cls(path=path)
+        return cls(path=Path(path))
 
     @classmethod
     def from_file(cls, path: os.PathLike) -> OpenSSLCertificate:
@@ -380,7 +387,7 @@ class OpenSSLPrivateKey(PrivateKey):
         fd, path = tempfile.mkstemp()
         with os.fdopen(fd, "wb") as f:
             f.write(buffer)
-        return cls(path=path, password=password)
+        return cls(path=Path(path), password=password)
 
     @classmethod
     def from_file(cls, path: os.PathLike, password: bytes | None = None) -> OpenSSLPrivateKey:
@@ -393,7 +400,8 @@ class OpenSSLTrustStore(TrustStore):
     """
 
     def __init__(self, path: os.PathLike | object):
-        self._trust_path = path
+        if isinstance(path, os.PathLike):
+            self._trust_path = path
 
     @classmethod
     def system(cls) -> OpenSSLTrustStore:

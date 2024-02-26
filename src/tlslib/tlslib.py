@@ -6,6 +6,7 @@ import os
 import socket
 from abc import ABCMeta, abstractmethod
 from enum import Enum, IntEnum
+from typing import Protocol
 
 __all__ = [
     "TLSServerConfiguration",
@@ -501,7 +502,7 @@ class RaggedEOF(TLSError):
     """
 
 
-class Certificate:
+class Certificate(Protocol):
     @classmethod
     def from_buffer(cls, buffer: bytes) -> Certificate:
         """
@@ -527,7 +528,7 @@ class Certificate:
         raise NotImplementedError("Certificates from files not supported")
 
 
-class PrivateKey:
+class PrivateKey(Protocol):
     @classmethod
     def from_buffer(cls, buffer: bytes, password: bytes | None = None) -> PrivateKey:
         """
@@ -566,8 +567,10 @@ class PrivateKey:
         raise NotImplementedError("Private Keys from buffers not supported")
 
 
-class TrustStore:
-    __metaclass__ = ABCMeta
+class TrustStore(Protocol):
+    """The trust store that is used to verify certificate validity."""
+
+    _trust_path: os.PathLike
 
     @classmethod
     def system(cls) -> TrustStore:
