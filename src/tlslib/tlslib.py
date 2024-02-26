@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import socket
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 from enum import Enum, IntEnum
 from typing import Protocol
 
@@ -161,9 +161,7 @@ class TLSClientConfiguration(_TLSBaseConfiguration):
         )
 
 
-class _BaseContext:
-    __metaclass__ = ABCMeta
-
+class _BaseContext(Protocol):
     @abstractmethod
     def __init__(self, configuration: _TLSBaseConfiguration) -> None:
         """Create a new context object from a given TLS configuration."""
@@ -174,7 +172,7 @@ class _BaseContext:
         """Returns the TLS configuration that was used to create the context."""
 
 
-class ClientContext(_BaseContext):
+class ClientContext(_BaseContext, Protocol):
     """Context for setting up TLS connections for a client."""
 
     @abstractmethod
@@ -185,7 +183,7 @@ class ClientContext(_BaseContext):
         """
 
 
-class ServerContext(_BaseContext):
+class ServerContext(_BaseContext, Protocol):
     """Context for setting up TLS connections for a client."""
 
     @abstractmethod
@@ -196,12 +194,10 @@ class ServerContext(_BaseContext):
         """
 
 
-class TLSSocket:
+class TLSSocket(Protocol):
     """This class implements a subtype of socket.socket that wraps
     the underlying OS socket in an SSL context when necessary, and
     provides read and write methods over that channel."""
-
-    __metaclass__ = ABCMeta
 
     @abstractmethod
     def __init__(self, *args: tuple, **kwargs: tuple) -> None:

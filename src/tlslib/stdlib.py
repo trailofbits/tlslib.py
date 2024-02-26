@@ -22,7 +22,6 @@ from .tlslib import (
     TLSClientConfiguration,
     TLSError,
     TLSServerConfiguration,
-    TLSSocket,
     TLSVersion,
     TrustStore,
 )
@@ -209,7 +208,7 @@ def _init_context_server(config: TLSServerConfiguration) -> truststore.SSLContex
     return _init_context_common(some_context, config)
 
 
-class OpenSSLTLSSocket(TLSSocket):
+class OpenSSLTLSSocket:
     """A TLSSocket implementation based on OpenSSL."""
 
     __slots__ = (
@@ -337,7 +336,7 @@ class OpenSSLTLSSocket(TLSSocket):
             return TLSVersion(ossl_version)
 
 
-class OpenSSLClientContext(ClientContext):
+class OpenSSLClientContext:
     """This class controls and creates wrapped sockets and buffers for using the
     standard library bindings to OpenSSL to perform TLS connections on the
     client side of a network connection.
@@ -365,7 +364,7 @@ class OpenSSLClientContext(ClientContext):
         )
 
 
-class OpenSSLServerContext(ServerContext):
+class OpenSSLServerContext:
     """This class controls and creates wrapped sockets and buffers for using the
     standard library bindings to OpenSSL to perform TLS connections on the
     server side of a network connection.
