@@ -239,16 +239,15 @@ class OpenSSLTLSSocket:
         cls,
         address: tuple[str | None, int],
         parent_context: OpenSSLClientContext | OpenSSLServerContext,
+        server_side: bool,
         ssl_context: truststore.SSLContext | ssl.SSLContext,
     ) -> OpenSSLTLSSocket:
         self = cls.__new__(cls)
         self._parent_context = parent_context
         self._ssl_context = ssl_context
 
-        server_side = isinstance(parent_context, OpenSSLServerContext)
-
         hostname = None
-        if isinstance(parent_context, OpenSSLClientContext):
+        if server_side is not True:
             hostname, _ = address
 
         sock = socket.create_connection(address)
@@ -367,6 +366,7 @@ class OpenSSLClientContext:
 
         return OpenSSLTLSSocket._create(
             parent_context=self,
+            server_side=False,
             ssl_context=ossl_context,
             address=address,
         )
@@ -395,6 +395,7 @@ class OpenSSLServerContext:
 
         return OpenSSLTLSSocket._create(
             parent_context=self,
+            server_side=True,
             ssl_context=ossl_context,
             address=address,
         )
