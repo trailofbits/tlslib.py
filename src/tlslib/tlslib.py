@@ -113,7 +113,7 @@ class TLSServerConfiguration(_TLSBaseConfiguration):
         lowest_supported_version: TLSVersion | None = None,
         highest_supported_version: TLSVersion | None = None,
         trust_store: TrustStore | None = None,
-        certificate_chain: tuple[tuple[Certificate], PrivateKey] | None = None,
+        certificate_chain: SigningChain | None = None,
     ) -> None:
         """Initializes the TLS server configuration with all attributes"""
 
@@ -127,7 +127,7 @@ class TLSServerConfiguration(_TLSBaseConfiguration):
         self._certificate_chain = certificate_chain
 
     @property
-    def certificate_chain(self) -> tuple[tuple[Certificate], PrivateKey] | None:
+    def certificate_chain(self) -> SigningChain | None:
         """
         The certificate, intermediate certificates, and the corresponding
         private key for the leaf certificate. These certificates will be
@@ -595,6 +595,22 @@ class TrustStore(Protocol):
         Initializes a trust store from a single file full of PEMs.
         """
         raise NotImplementedError("Trust store from PEM not supported")
+
+
+class SigningChain:
+    """Object representing a certificate chain used in TLS."""
+
+    leaf: tuple[Certificate, PrivateKey]
+    chain: Sequence[Certificate]
+
+    def __init__(
+        self,
+        leaf: tuple[Certificate, PrivateKey],
+        chain: Sequence[Certificate],
+    ):
+        """Initializes a SigningChain object."""
+        self.leaf = leaf
+        self.chain = chain
 
 
 class Backend:

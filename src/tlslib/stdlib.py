@@ -14,12 +14,11 @@ import truststore
 
 from .tlslib import (
     Backend,
-    Certificate,
     CipherSuite,
     ClientContext,
     NextProtocol,
-    PrivateKey,
     ServerContext,
+    SigningChain,
     TLSClientConfiguration,
     TLSError,
     TLSServerConfiguration,
@@ -84,13 +83,14 @@ def _create_context_with_trust_store(
     protocol: ssl._SSLMethod, trust_store: TrustStore | None
 ) -> truststore.SSLContext | ssl.SSLContext:
     some_context: truststore.SSLContext | ssl.SSLContext
-    assert isinstance(trust_store, OpenSSLTrustStore)
+    assert isinstance(trust_store, OpenSSLTrustStore | None)
 
     if trust_store is _SYSTEMTRUSTSTORE:
         some_context = truststore.SSLContext(protocol)
     else:
         some_context = ssl.SSLContext(protocol)
         if trust_store is not None:
+            assert isinstance(trust_store, OpenSSLTrustStore)
             some_context.load_verify_locations(trust_store._trust_path)
 
     some_context.options |= ssl.OP_NO_COMPRESSION
@@ -100,27 +100,26 @@ def _create_context_with_trust_store(
 
 def _configure_context_for_certs(
     context: truststore.SSLContext | ssl.SSLContext,
-    cert_chain: tuple[tuple[Certificate], PrivateKey] | None = None,
+    cert_chain: SigningChain | None = None,
 ) -> truststore.SSLContext | ssl.SSLContext:
     """Given a PEP 543 cert chain, configure the SSLContext to send that cert
     chain in the handshake.
 
     Returns the context.
     """
-    assert isinstance(cert_chain, tuple[tuple[OpenSSLCertificate], OpenSSLPrivateKey] | None)
 
     if cert_chain is not None:
         # FIXME: support multiple certificates at different filesystem
         # locations. This requires being prepared to create temporary
         # files.
-        assert len(cert_chain[0]) == 1
-        cert = cert_chain[0][0]
+
+        cert = cert_chain.leaf[0]
         assert isinstance(cert, OpenSSLCertificate)
         cert_path = cert._cert_path
         key_path = None
         password = None
-        if cert_chain[1] is not None:
-            privkey = cert_chain[1]
+        if cert_chain.leaf[1] is not None:
+            privkey = cert_chain.leaf[1]
             assert isinstance(privkey, OpenSSLPrivateKey)
             key_path = privkey._key_path
             password = privkey._password
@@ -216,6 +215,7 @@ class OpenSSLTLSSocket:
         "_parent_context",
         "_socket",
         "_ssl_context",
+        "_tls_socket",
     )
 
     _parent_context: OpenSSLClientContext | OpenSSLServerContext
@@ -246,14 +246,17 @@ class OpenSSLTLSSocket:
         self._parent_context = parent_context
         self._ssl_context = ssl_context
 
-        hostname = None
-        if server_side is not True:
+        if server_side is True:
+            sock = socket.create_server(address)
+            self._socket = ssl_context.wrap_socket(
+                sock, server_side=server_side, server_hostname=None
+            )
+        else:
             hostname, _ = address
-
-        sock = socket.create_connection(address)
-        self._socket = ssl_context.wrap_socket(
-            sock, server_side=server_side, server_hostname=hostname
-        )
+            sock = socket.create_connection(address)
+            self._socket = ssl_context.wrap_socket(
+                sock, server_side=server_side, server_hostname=hostname
+            )
 
         return self
 
@@ -516,12 +519,12 @@ class OpenSSLTrustStore:
         return _SYSTEMTRUSTSTORE
 
     @classmethod
-    def from_pem_file(cls, path: os.PathLike) -> OpenSSLTrustStore:
+    def from_pem_file(cls, path: os.PathLike | str) -> OpenSSLTrustStore:
         """
         Initializes a trust store from a single file full of PEMs.
         """
 
-        return cls(path=path)
+        return cls(path=Path(path))
 
 
 # We use a sentinel object for the system trust store that is guaranteed not
