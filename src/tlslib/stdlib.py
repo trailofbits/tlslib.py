@@ -15,9 +15,7 @@ import truststore
 from .tlslib import (
     Backend,
     CipherSuite,
-    ClientContext,
     NextProtocol,
-    ServerContext,
     SigningChain,
     TLSClientConfiguration,
     TLSError,
@@ -215,7 +213,6 @@ class OpenSSLTLSSocket:
         "_parent_context",
         "_socket",
         "_ssl_context",
-        "_tls_socket",
     )
 
     _parent_context: OpenSSLClientContext | OpenSSLServerContext
@@ -260,17 +257,60 @@ class OpenSSLTLSSocket:
 
         return self
 
+    def recv(self, bufsize: int) -> bytes:
+        """Receive data from the socket. The return value is a bytes object
+        representing the data received. Should not work before the handshake
+        is completed."""
+
+        return self._socket.recv(bufsize)
+
+    def send(self, bytes: bytes) -> int:
+        """Send data to the socket. The socket must be connected to a remote socket."""
+
+        return self._socket.send(bytes)
+
+    def close(self) -> None:
+        """Shut down both halves of the connection and mark the socket closed."""
+
+        self._socket.shutdown(socket.SHUT_RDWR)
+        return self._socket.close()
+
+    def listen(self, backlog: int) -> None:
+        """Enable a server to accept connections. If backlog is specified, it
+        specifies the number of unaccepted connections that the system will allow
+        before refusing new connections."""
+
+        return self._socket.listen(backlog)
+
+    def accept(self) -> tuple[OpenSSLTLSSocket, socket._RetAddress]:
+        """Accept a connection. The socket must be bound to an address and listening
+        for connections. The return value is a pair (conn, address) where conn is a
+        new TLSSocket object usable to send and receive data on the connection, and
+        address is the address bound to the socket on the other end of the connection."""
+
+        (sock, address) = self._socket.accept()
+        tls_socket = OpenSSLTLSSocket.__new__(OpenSSLTLSSocket)
+        tls_socket._parent_context = self._parent_context
+        tls_socket._ssl_context = self._ssl_context
+        tls_socket._socket = sock
+
+        return (tls_socket, address)
+
+    def getpeername(self) -> socket._RetAddress:
+        """Return the remote address to which the socket is connected."""
+
+        return self._socket.getpeername()
+
+    def fileno(self) -> int:
+        """Return the socket’s file descriptor (a small integer), or -1 on failure."""
+
+        return self._socket.fileno()
+
     @property
-    def context(self) -> ClientContext | ServerContext:
+    def context(self) -> OpenSSLClientContext | OpenSSLServerContext:
         """The ``Context`` object this socket is tied to."""
 
         return self._parent_context
-
-    @property
-    def socket(self) -> ssl.SSLSocket:
-        """The socket-like object to be used by the user."""
-
-        return self._socket
 
     def cipher(self) -> CipherSuite | int | None:
         """
@@ -549,8 +589,8 @@ if __name__ == "__main__":
     print(tls_socket.cipher)
     print(tls_socket.negotiated_protocol)
 
-    tls_socket.socket.send(
+    tls_socket.send(
         b"GET / HTTP/1.1\r\nHost: www.python.org\r\nConnection: close"
         b"\r\nAccept-Encoding: identity\r\n\r\n",
     )
-    print(tls_socket.socket.recv(4096))
+    print(tls_socket.recv(4096))

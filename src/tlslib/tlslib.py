@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import socket
 from abc import abstractmethod
 from collections.abc import Sequence
 from enum import Enum, IntEnum
@@ -203,19 +202,50 @@ class TLSSocket(Protocol):
     @abstractmethod
     def __init__(self, *args: tuple, **kwargs: tuple) -> None:
         """TLSSockets should not be constructed by the user.
-        The backend should immplement a method to construct a TLSSocket
+        The backend should implement a method to construct a TLSSocket
         object and call it in ClientContext.connect() and
         ServerContext.connect()."""
+
+    @abstractmethod
+    def recv(self, bufsize: int) -> bytes:
+        """Receive data from the socket. The return value is a bytes object
+        representing the data received. Should not work before the handshake
+        is completed."""
+
+    @abstractmethod
+    def send(self, bytes: bytes) -> int:
+        """Send data to the socket. The socket must be connected to a remote socket."""
+
+    @abstractmethod
+    def close(self) -> None:
+        """Shut down both halves of the connection and mark the socket closed."""
+
+    @abstractmethod
+    def listen(self, backlog: int) -> None:
+        """Enable a server to accept connections. If backlog is specified, it
+        specifies the number of unaccepted connections that the system will allow
+        before refusing new connections."""
+
+    @abstractmethod
+    def accept(self) -> tuple[TLSSocket, tuple[str | None, int]]:
+        """Accept a connection. The socket must be bound to an address and listening
+        for connections. The return value is a pair (conn, address) where conn is a
+        new TLSSocket object usable to send and receive data on the connection, and
+        address is the address bound to the socket on the other end of the connection."""
+
+    @abstractmethod
+    def getpeername(self) -> tuple[str | None, int]:
+        """Return the remote address to which the socket is connected."""
+
+    def fileno(self) -> int:
+        """Return the socket’s file descriptor (a small integer), or -1 on failure."""
+
+        raise NotImplementedError("File descriptors from sockets not supported.")
 
     @property
     @abstractmethod
     def context(self) -> ClientContext | ServerContext:
         """The ``Context`` object this socket is tied to."""
-
-    @property
-    @abstractmethod
-    def socket(self) -> socket.socket:
-        """The socket-like object to be used by the user."""
 
     @abstractmethod
     def cipher(self) -> CipherSuite | int | None:
