@@ -245,9 +245,16 @@ class OpenSSLTLSSocket:
         self._parent_context = parent_context
         self._ssl_context = ssl_context
 
-        hostname, _ = address
+        server_side = isinstance(parent_context, OpenSSLServerContext)
+
+        hostname = None
+        if isinstance(parent_context, OpenSSLClientContext):
+            hostname, _ = address
+
         sock = socket.create_connection(address)
-        self._socket = ssl_context.wrap_socket(sock, server_hostname=hostname)
+        self._socket = ssl_context.wrap_socket(
+            sock, server_side=server_side, server_hostname=hostname
+        )
 
         return self
 
