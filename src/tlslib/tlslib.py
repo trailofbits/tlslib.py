@@ -636,7 +636,7 @@ class SigningChain:
     """Object representing a certificate chain used in TLS."""
 
     leaf: tuple[Certificate, PrivateKey]
-    chain: Sequence[Certificate]
+    chain: list[Certificate]
 
     def __init__(
         self,
@@ -645,7 +645,7 @@ class SigningChain:
     ):
         """Initializes a SigningChain object."""
         self.leaf = leaf
-        self.chain = chain
+        self.chain = list(chain)
 
 
 class Backend:
