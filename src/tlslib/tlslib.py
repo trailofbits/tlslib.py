@@ -6,7 +6,7 @@ import os
 from abc import abstractmethod
 from collections.abc import Sequence
 from enum import Enum, IntEnum
-from typing import Protocol
+from typing import Generic, Protocol, TypeVar
 
 __all__ = [
     "TLSServerConfiguration",
@@ -26,7 +26,29 @@ __all__ = [
 ]
 
 
-class _TLSBaseConfiguration:
+class TrustStore(Protocol):
+    """The trust store that is used to verify certificate validity."""
+
+    @classmethod
+    def system(cls) -> TrustStore:
+        """
+        Returns a TrustStore object that represents the system trust
+        database.
+        """
+        raise NotImplementedError("System trust store not supported")
+
+    @classmethod
+    def from_pem_file(cls, path: os.PathLike) -> TrustStore:
+        """
+        Initializes a trust store from a single file full of PEMs.
+        """
+        raise NotImplementedError("Trust store from PEM not supported")
+
+
+_TrustStore = TypeVar("_TrustStore", bound=TrustStore)
+
+
+class _TLSBaseConfiguration(Generic[_TrustStore]):
     """
     "Base" configuration for a TLS connection, whether server or client initiated.
 
@@ -49,7 +71,7 @@ class _TLSBaseConfiguration:
         inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
         highest_supported_version: TLSVersion | None = None,
-        trust_store: TrustStore | None = None,
+        trust_store: _TrustStore | None = None,
     ) -> None:
         if ciphers is None:
             ciphers = DEFAULT_CIPHER_LIST
@@ -108,7 +130,7 @@ class _TLSBaseConfiguration:
         return self._highest_supported_version
 
     @property
-    def trust_store(self) -> TrustStore | None:
+    def trust_store(self) -> _TrustStore | None:
         """
         The trust store that connections using this configuration will use
         to validate certificates.
@@ -611,25 +633,6 @@ class PrivateKey(Protocol):
         parameter on ``from_buffer``.
         """
         raise NotImplementedError("Private Keys from buffers not supported")
-
-
-class TrustStore(Protocol):
-    """The trust store that is used to verify certificate validity."""
-
-    @classmethod
-    def system(cls) -> TrustStore:
-        """
-        Returns a TrustStore object that represents the system trust
-        database.
-        """
-        raise NotImplementedError("System trust store not supported")
-
-    @classmethod
-    def from_pem_file(cls, path: os.PathLike) -> TrustStore:
-        """
-        Initializes a trust store from a single file full of PEMs.
-        """
-        raise NotImplementedError("Trust store from PEM not supported")
 
 
 class SigningChain:

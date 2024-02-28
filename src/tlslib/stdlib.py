@@ -23,10 +23,11 @@ from .tlslib import (
     TLSError,
     TLSServerConfiguration,
     TLSVersion,
-    TrustStore,
     WantReadError,
     WantWriteError,
 )
+
+_SSLContext = ssl.SSLContext | truststore.SSLContext
 
 # We need all the various TLS options. We hard code this as their integer
 # values to deal with the fact that the symbolic constants are only exposed if
@@ -102,18 +103,15 @@ def _version_options_from_version_range(min: TLSVersion, max: TLSVersion) -> int
 
 
 def _create_context_with_trust_store(
-    protocol: ssl._SSLMethod, trust_store: TrustStore | None
-) -> truststore.SSLContext | ssl.SSLContext:
-    some_context: truststore.SSLContext | ssl.SSLContext
-    assert isinstance(trust_store, OpenSSLTrustStore | None)
+    protocol: ssl._SSLMethod, trust_store: OpenSSLTrustStore | None
+) -> _SSLContext:
+    some_context: _SSLContext
 
-    if trust_store is _SYSTEMTRUSTSTORE:
+    if not trust_store or not trust_store._trust_path:
         some_context = truststore.SSLContext(protocol)
     else:
         some_context = ssl.SSLContext(protocol)
-        if trust_store is not None:
-            assert isinstance(trust_store, OpenSSLTrustStore)
-            some_context.load_verify_locations(trust_store._trust_path)
+        some_context.load_verify_locations(trust_store._trust_path)
 
     some_context.options |= ssl.OP_NO_COMPRESSION
 
@@ -121,9 +119,9 @@ def _create_context_with_trust_store(
 
 
 def _configure_context_for_certs(
-    context: truststore.SSLContext | ssl.SSLContext,
+    context: _SSLContext,
     cert_chain: SigningChain | None = None,
-) -> truststore.SSLContext | ssl.SSLContext:
+) -> _SSLContext:
     """Given a PEP 543 cert chain, configure the SSLContext to send that cert
     chain in the handshake.
 
@@ -153,8 +151,8 @@ def _configure_context_for_certs(
 
 
 def _configure_context_for_ciphers(
-    context: truststore.SSLContext | ssl.SSLContext, ciphers: Sequence[CipherSuite] | None = None
-) -> truststore.SSLContext | ssl.SSLContext:
+    context: _SSLContext, ciphers: Sequence[CipherSuite] | None = None
+) -> _SSLContext:
     """Given a PEP 543 cipher suite list, configure the SSLContext to use those
     cipher suites.
 
@@ -170,9 +168,9 @@ def _configure_context_for_ciphers(
 
 
 def _configure_context_for_negotiation(
-    context: truststore.SSLContext | ssl.SSLContext,
+    context: _SSLContext,
     inner_protocols: Sequence[NextProtocol | bytes] | None = None,
-) -> truststore.SSLContext | ssl.SSLContext:
+) -> _SSLContext:
     """Given a PEP 543 list of protocols to negotiate, configures the SSLContext
     to negotiate those protocols.
     """
@@ -195,9 +193,9 @@ def _configure_context_for_negotiation(
 
 
 def _init_context_common(
-    some_context: truststore.SSLContext | ssl.SSLContext,
+    some_context: _SSLContext,
     config: TLSClientConfiguration | TLSServerConfiguration,
-) -> truststore.SSLContext | ssl.SSLContext:
+) -> _SSLContext:
     some_context = _configure_context_for_certs(some_context, config.certificate_chain)
 
     some_context = _configure_context_for_ciphers(
@@ -216,15 +214,15 @@ def _init_context_common(
     return some_context
 
 
-def _init_context_client(config: TLSClientConfiguration) -> truststore.SSLContext | ssl.SSLContext:
-    """Initialize an ssl.SSLContext object with a given client configuration."""
+def _init_context_client(config: TLSClientConfiguration) -> _SSLContext:
+    """Initialize an SSL context object with a given client configuration."""
     some_context = _create_context_with_trust_store(ssl.PROTOCOL_TLS_CLIENT, config.trust_store)
 
     return _init_context_common(some_context, config)
 
 
-def _init_context_server(config: TLSServerConfiguration) -> truststore.SSLContext | ssl.SSLContext:
-    """Initialize an ssl.SSLContext object with a given server configuration."""
+def _init_context_server(config: TLSServerConfiguration) -> _SSLContext:
+    """Initialize an SSL context object with a given server configuration."""
     some_context = _create_context_with_trust_store(ssl.PROTOCOL_TLS_SERVER, config.trust_store)
 
     return _init_context_common(some_context, config)
@@ -241,7 +239,7 @@ class OpenSSLTLSSocket:
 
     _parent_context: OpenSSLClientContext | OpenSSLServerContext
     _socket: ssl.SSLSocket
-    _ssl_context: truststore.SSLContext | ssl.SSLContext
+    _ssl_context: _SSLContext
 
     def __init__(self, *args: tuple, **kwargs: tuple) -> None:
         """OpenTLSSockets should not be constructed by the user.
@@ -261,7 +259,7 @@ class OpenSSLTLSSocket:
         address: tuple[str | None, int],
         parent_context: OpenSSLClientContext | OpenSSLServerContext,
         server_side: bool,
-        ssl_context: truststore.SSLContext | ssl.SSLContext,
+        ssl_context: _SSLContext,
     ) -> OpenSSLTLSSocket:
         self = cls.__new__(cls)
         self._parent_context = parent_context
@@ -579,10 +577,14 @@ class OpenSSLTrustStore:
     that can be used to validate the certificates presented by a remote peer.
     """
 
-    def __init__(self, path: os.PathLike | object):
-        """Creates a TrustStore object from a path or representing the system trust store."""
-        if isinstance(path, os.PathLike):
-            self._trust_path = path
+    def __init__(self, path: os.PathLike | None):
+        """
+        Creates a TrustStore object from a path or representing the system trust store.
+
+        If no path is given, the default system trust store is used.
+        """
+
+        self._trust_path = path
 
     @classmethod
     def system(cls) -> OpenSSLTrustStore:
@@ -591,20 +593,16 @@ class OpenSSLTrustStore:
         database.
         """
 
-        return _SYSTEMTRUSTSTORE
+        return cls(path=None)
 
     @classmethod
-    def from_pem_file(cls, path: os.PathLike | str) -> OpenSSLTrustStore:
+    def from_pem_file(cls, path: os.PathLike) -> OpenSSLTrustStore:
         """
         Initializes a trust store from a single file full of PEMs.
         """
 
         return cls(path=Path(path))
 
-
-# We use a sentinel object for the system trust store that is guaranteed not
-# to compare equal to any other object.
-_SYSTEMTRUSTSTORE = OpenSSLTrustStore(object())
 
 #: The stdlib ``Backend`` object.
 STDLIB_BACKEND = Backend(
