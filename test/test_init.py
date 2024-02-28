@@ -1,8 +1,14 @@
-"""Initial testing module."""
+"""
+Tests for `tlslib/__init__.py`.
+"""
+
+from unittest import TestCase
+
 import tlslib
 
 
-def test_version() -> None:
-    version = getattr(tlslib, "__version__", None)
-    assert version is not None
-    assert isinstance(version, str)
+class TestVersion(TestCase):
+    def test_version(self) -> None:
+        version = getattr(tlslib, "__version__", None)
+        self.assertTrue(version is not None)
+        self.assertIsInstance(version, str)
