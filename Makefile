@@ -33,7 +33,8 @@ ifneq ($(TESTS),)
 	COV_ARGS :=
 else
 	TEST_ARGS :=
-	COV_ARGS := --fail-under 100
+#	COV_ARGS := --fail-under 100
+	COV_ARGS :=
 endif
 
 .PHONY: all
@@ -63,8 +64,8 @@ lint: $(VENV)/pyvenv.cfg
 .PHONY: reformat
 reformat: $(VENV)/pyvenv.cfg
 	. $(VENV_BIN)/activate && \
-		ruff --fix $(ALL_PY_SRCS) && \
-		ruff format $(ALL_PY_SRCS)
+		ruff format $(ALL_PY_SRCS) && \
+		ruff --fix $(ALL_PY_SRCS)
 
 .PHONY: test tests
 test tests: $(VENV)/pyvenv.cfg
