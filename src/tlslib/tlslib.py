@@ -34,6 +34,7 @@ class _TLSBaseConfiguration:
     """
 
     __slots__ = (
+        "_certificate_chain",
         "_ciphers",
         "_inner_protocols",
         "_lowest_supported_version",
@@ -43,6 +44,7 @@ class _TLSBaseConfiguration:
 
     def __init__(
         self,
+        certificate_chain: SigningChain | None = None,
         ciphers: Sequence[CipherSuite] | None = None,
         inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
@@ -61,11 +63,25 @@ class _TLSBaseConfiguration:
         if highest_supported_version is None:
             highest_supported_version = TLSVersion.MAXIMUM_SUPPORTED
 
+        self._certificate_chain = certificate_chain
         self._ciphers = ciphers
         self._inner_protocols = inner_protocols
         self._lowest_supported_version = lowest_supported_version
         self._highest_supported_version = highest_supported_version
         self._trust_store = trust_store
+
+    @property
+    def certificate_chain(self) -> SigningChain | None:
+        """
+        The certificate, intermediate certificates, and the corresponding
+        private key for the leaf certificate. These certificates will be
+        offered to the remote peer during the handshake if required.
+
+        The first Certificate in the list is the leaf certificate. All
+        subsequent certificates will be offered as intermediate additional
+        certificates.
+        """
+        return self._certificate_chain
 
     @property
     def ciphers(self) -> Sequence[CipherSuite]:
@@ -103,40 +119,27 @@ class _TLSBaseConfiguration:
 class TLSServerConfiguration(_TLSBaseConfiguration):
     """TLS configuration for a "server" socket, i.e. a socket accepting connections from clients."""
 
-    __slots__ = ("_certificate_chain",)
+    __slots__ = ()
 
     def __init__(
         self,
+        certificate_chain: SigningChain | None = None,
         ciphers: Sequence[CipherSuite] | None = None,
         inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
         highest_supported_version: TLSVersion | None = None,
         trust_store: TrustStore | None = None,
-        certificate_chain: SigningChain | None = None,
     ) -> None:
         """Initializes the TLS server configuration with all attributes"""
 
         super().__init__(
+            certificate_chain,
             ciphers,
             inner_protocols,
             lowest_supported_version,
             highest_supported_version,
             trust_store,
         )
-        self._certificate_chain = certificate_chain
-
-    @property
-    def certificate_chain(self) -> SigningChain | None:
-        """
-        The certificate, intermediate certificates, and the corresponding
-        private key for the leaf certificate. These certificates will be
-        offered to the remote peer during the handshake if required.
-
-        The first Certificate in the list is the leaf certificate. All
-        subsequent certificates will be offered as intermediate additional
-        certificates.
-        """
-        return self._certificate_chain
 
 
 class TLSClientConfiguration(_TLSBaseConfiguration):
@@ -144,6 +147,7 @@ class TLSClientConfiguration(_TLSBaseConfiguration):
 
     def __init__(
         self,
+        certificate_chain: SigningChain | None = None,
         ciphers: Sequence[CipherSuite] | None = None,
         inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
@@ -153,6 +157,7 @@ class TLSClientConfiguration(_TLSBaseConfiguration):
         """Initializes the TLS client configuration with all attributes"""
 
         super().__init__(
+            certificate_chain,
             ciphers,
             inner_protocols,
             lowest_supported_version,
