@@ -48,7 +48,83 @@ class TrustStore(Protocol):
 _TrustStore = TypeVar("_TrustStore", bound=TrustStore)
 
 
-class _TLSBaseConfiguration(Generic[_TrustStore]):
+class Certificate(Protocol):
+    """Object representing a certificate used in TLS."""
+
+    @classmethod
+    def from_buffer(cls, buffer: bytes) -> Certificate:
+        """
+        Creates a Certificate object from a byte buffer. This byte buffer
+        may be either PEM-encoded or DER-encoded. If the buffer is PEM
+        encoded it *must* begin with the standard PEM preamble (a series of
+        dashes followed by the ASCII bytes "BEGIN CERTIFICATE" and another
+        series of dashes). In the absence of that preamble, the
+        implementation may assume that the certificate is DER-encoded
+        instead.
+        """
+        raise NotImplementedError("Certificates from buffers not supported")
+
+    @classmethod
+    def from_file(cls, path: os.PathLike) -> Certificate:
+        """
+        Creates a Certificate object from a file on disk. This method may
+        be a convenience method that wraps ``open`` and ``from_buffer``,
+        but some TLS implementations may be able to provide more-secure or
+        faster methods of loading certificates that do not involve Python
+        code.
+        """
+        raise NotImplementedError("Certificates from files not supported")
+
+
+_Certificate = TypeVar("_Certificate", bound=Certificate)
+
+
+class PrivateKey(Protocol):
+    """Object representing a private key corresponding to a public key
+    for a certificate used in TLS."""
+
+    @classmethod
+    def from_buffer(cls, buffer: bytes, password: bytes | None = None) -> PrivateKey:
+        """
+        Creates a PrivateKey object from a byte buffer. This byte buffer
+        may be either PEM-encoded or DER-encoded. If the buffer is PEM
+        encoded it *must* begin with the standard PEM preamble (a series of
+        dashes followed by the ASCII bytes "BEGIN", the key type, and
+        another series of dashes). In the absence of that preamble, the
+        implementation may assume that the certificate is DER-encoded
+        instead.
+
+        The key may additionally be encrypted. If it is, the ``password``
+        argument can be used to decrypt the key. The ``password`` argument
+        may be a function to call to get the password for decrypting the
+        private key. It will only be called if the private key is encrypted
+        and a password is necessary. It will be called with no arguments,
+        and it should return either bytes or bytearray containing the
+        password. Alternatively a bytes, or bytearray value may be supplied
+        directly as the password argument. It will be ignored if the
+        private key is not encrypted and no password is needed.
+        """
+        raise NotImplementedError("Private Keys from buffers not supported")
+
+    @classmethod
+    def from_file(cls, path: os.PathLike, password: bytes | None = None) -> PrivateKey:
+        """
+        Creates a PrivateKey object from a file on disk. This method may
+        be a convenience method that wraps ``open`` and ``from_buffer``,
+        but some TLS implementations may be able to provide more-secure or
+        faster methods of loading certificates that do not involve Python
+        code.
+
+        The ``password`` parameter behaves exactly as the equivalent
+        parameter on ``from_buffer``.
+        """
+        raise NotImplementedError("Private Keys from buffers not supported")
+
+
+_PrivateKey = TypeVar("_PrivateKey", bound=PrivateKey)
+
+
+class _TLSBaseConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
     """
     "Base" configuration for a TLS connection, whether server or client initiated.
 
@@ -66,7 +142,7 @@ class _TLSBaseConfiguration(Generic[_TrustStore]):
 
     def __init__(
         self,
-        certificate_chain: SigningChain | None = None,
+        certificate_chain: SigningChain[_Certificate, _PrivateKey] | None = None,
         ciphers: Sequence[CipherSuite] | None = None,
         inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
@@ -138,14 +214,14 @@ class _TLSBaseConfiguration(Generic[_TrustStore]):
         return self._trust_store
 
 
-class TLSServerConfiguration(_TLSBaseConfiguration[_TrustStore]):
+class TLSServerConfiguration(_TLSBaseConfiguration[_TrustStore, _Certificate, _PrivateKey]):
     """TLS configuration for a "server" socket, i.e. a socket accepting connections from clients."""
 
     __slots__ = ()
 
     def __init__(
         self,
-        certificate_chain: SigningChain | None = None,
+        certificate_chain: SigningChain[_Certificate, _PrivateKey] | None = None,
         ciphers: Sequence[CipherSuite] | None = None,
         inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
@@ -164,12 +240,12 @@ class TLSServerConfiguration(_TLSBaseConfiguration[_TrustStore]):
         )
 
 
-class TLSClientConfiguration(_TLSBaseConfiguration[_TrustStore]):
+class TLSClientConfiguration(_TLSBaseConfiguration[_TrustStore, _Certificate, _PrivateKey]):
     """TLS configuration for a "client" socket, i.e. a socket making a connection to a server."""
 
     def __init__(
         self,
-        certificate_chain: SigningChain | None = None,
+        certificate_chain: SigningChain[_Certificate, _PrivateKey] | None = None,
         ciphers: Sequence[CipherSuite] | None = None,
         inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
@@ -565,86 +641,16 @@ class RaggedEOF(TLSError):
     """
 
 
-class Certificate(Protocol):
-    """Object representing a certificate used in TLS."""
-
-    @classmethod
-    def from_buffer(cls, buffer: bytes) -> Certificate:
-        """
-        Creates a Certificate object from a byte buffer. This byte buffer
-        may be either PEM-encoded or DER-encoded. If the buffer is PEM
-        encoded it *must* begin with the standard PEM preamble (a series of
-        dashes followed by the ASCII bytes "BEGIN CERTIFICATE" and another
-        series of dashes). In the absence of that preamble, the
-        implementation may assume that the certificate is DER-encoded
-        instead.
-        """
-        raise NotImplementedError("Certificates from buffers not supported")
-
-    @classmethod
-    def from_file(cls, path: os.PathLike) -> Certificate:
-        """
-        Creates a Certificate object from a file on disk. This method may
-        be a convenience method that wraps ``open`` and ``from_buffer``,
-        but some TLS implementations may be able to provide more-secure or
-        faster methods of loading certificates that do not involve Python
-        code.
-        """
-        raise NotImplementedError("Certificates from files not supported")
-
-
-class PrivateKey(Protocol):
-    """Object representing a private key corresponding to a public key
-    for a certificate used in TLS."""
-
-    @classmethod
-    def from_buffer(cls, buffer: bytes, password: bytes | None = None) -> PrivateKey:
-        """
-        Creates a PrivateKey object from a byte buffer. This byte buffer
-        may be either PEM-encoded or DER-encoded. If the buffer is PEM
-        encoded it *must* begin with the standard PEM preamble (a series of
-        dashes followed by the ASCII bytes "BEGIN", the key type, and
-        another series of dashes). In the absence of that preamble, the
-        implementation may assume that the certificate is DER-encoded
-        instead.
-
-        The key may additionally be encrypted. If it is, the ``password``
-        argument can be used to decrypt the key. The ``password`` argument
-        may be a function to call to get the password for decrypting the
-        private key. It will only be called if the private key is encrypted
-        and a password is necessary. It will be called with no arguments,
-        and it should return either bytes or bytearray containing the
-        password. Alternatively a bytes, or bytearray value may be supplied
-        directly as the password argument. It will be ignored if the
-        private key is not encrypted and no password is needed.
-        """
-        raise NotImplementedError("Private Keys from buffers not supported")
-
-    @classmethod
-    def from_file(cls, path: os.PathLike, password: bytes | None = None) -> PrivateKey:
-        """
-        Creates a PrivateKey object from a file on disk. This method may
-        be a convenience method that wraps ``open`` and ``from_buffer``,
-        but some TLS implementations may be able to provide more-secure or
-        faster methods of loading certificates that do not involve Python
-        code.
-
-        The ``password`` parameter behaves exactly as the equivalent
-        parameter on ``from_buffer``.
-        """
-        raise NotImplementedError("Private Keys from buffers not supported")
-
-
-class SigningChain:
+class SigningChain(Generic[_Certificate, _PrivateKey]):
     """Object representing a certificate chain used in TLS."""
 
-    leaf: tuple[Certificate, PrivateKey]
-    chain: list[Certificate]
+    leaf: tuple[_Certificate, _PrivateKey]
+    chain: list[_Certificate]
 
     def __init__(
         self,
-        leaf: tuple[Certificate, PrivateKey],
-        chain: Sequence[Certificate],
+        leaf: tuple[_Certificate, _PrivateKey],
+        chain: Sequence[_Certificate],
     ):
         """Initializes a SigningChain object."""
         self.leaf = leaf
