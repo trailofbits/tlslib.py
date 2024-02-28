@@ -7,7 +7,9 @@ import os
 import socket
 import ssl
 import tempfile
+import typing
 from collections.abc import Sequence
+from contextlib import contextmanager
 from pathlib import Path
 
 import truststore
@@ -22,6 +24,8 @@ from .tlslib import (
     TLSServerConfiguration,
     TLSVersion,
     TrustStore,
+    WantReadError,
+    WantWriteError,
 )
 
 # We need all the various TLS options. We hard code this as their integer
@@ -64,6 +68,26 @@ ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 ctx.set_ciphers("ALL:COMPLEMENTOFALL")
 _cipher_map = {c["id"] & 0xFFFF: c["name"] for c in ctx.get_ciphers()}
 del ctx
+
+
+@contextmanager
+def _error_converter(
+    ignore_filter: tuple[type[Exception]] | tuple[()] = (),
+) -> typing.Generator[None, None, None]:
+    """
+    Catches errors from the ssl module and wraps them up in TLSError
+    exceptions. Ignores certain kinds of exceptions as requested.
+    """
+    try:
+        yield
+    except ignore_filter:
+        raise
+    except ssl.SSLWantReadError:
+        raise WantReadError("Must read data") from None
+    except ssl.SSLWantWriteError:
+        raise WantWriteError("Must write data") from None
+    except ssl.SSLError as e:
+        raise TLSError(e) from None
 
 
 def _version_options_from_version_range(min: TLSVersion, max: TLSVersion) -> int:
@@ -255,32 +279,40 @@ class OpenSSLTLSSocket:
                 sock, server_side=server_side, server_hostname=hostname
             )
 
+        self._socket.setblocking(False)
+
         return self
 
     def recv(self, bufsize: int) -> bytes:
         """Receive data from the socket. The return value is a bytes object
         representing the data received. Should not work before the handshake
         is completed."""
-
-        return self._socket.recv(bufsize)
+        try:
+            with _error_converter(ignore_filter=(ssl.SSLZeroReturnError,)):
+                return self._socket.recv(bufsize)
+        except ssl.SSLZeroReturnError:
+            return b""
 
     def send(self, bytes: bytes) -> int:
         """Send data to the socket. The socket must be connected to a remote socket."""
-
-        return self._socket.send(bytes)
+        with _error_converter():
+            return self._socket.send(bytes)
 
     def close(self) -> None:
-        """Shut down both halves of the connection and mark the socket closed."""
+        """Unwraps the TLS connection, shuts down both halves of the connection and
+        mark the socket closed."""
+        with _error_converter():
+            sock = self._socket.unwrap()
 
-        self._socket.shutdown(socket.SHUT_RDWR)
-        return self._socket.close()
+        sock.shutdown(socket.SHUT_RDWR)
+        return sock.close()
 
     def listen(self, backlog: int) -> None:
         """Enable a server to accept connections. If backlog is specified, it
         specifies the number of unaccepted connections that the system will allow
         before refusing new connections."""
-
-        return self._socket.listen(backlog)
+        with _error_converter():
+            return self._socket.listen(backlog)
 
     def accept(self) -> tuple[OpenSSLTLSSocket, socket._RetAddress]:
         """Accept a connection. The socket must be bound to an address and listening
@@ -293,18 +325,21 @@ class OpenSSLTLSSocket:
         tls_socket._parent_context = self._parent_context
         tls_socket._ssl_context = self._ssl_context
         tls_socket._socket = sock
-
+        with _error_converter():
+            tls_socket._socket.setblocking(False)
         return (tls_socket, address)
 
     def getpeername(self) -> socket._RetAddress:
         """Return the remote address to which the socket is connected."""
 
-        return self._socket.getpeername()
+        with _error_converter():
+            return self._socket.getpeername()
 
     def fileno(self) -> int:
         """Return the socket’s file descriptor (a small integer), or -1 on failure."""
 
-        return self._socket.fileno()
+        with _error_converter():
+            return self._socket.fileno()
 
     @property
     def context(self) -> OpenSSLClientContext | OpenSSLServerContext:
