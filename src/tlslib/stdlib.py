@@ -198,6 +198,8 @@ def _init_context_common(
     some_context: truststore.SSLContext | ssl.SSLContext,
     config: TLSClientConfiguration | TLSServerConfiguration,
 ) -> truststore.SSLContext | ssl.SSLContext:
+    some_context = _configure_context_for_certs(some_context, config.certificate_chain)
+
     some_context = _configure_context_for_ciphers(
         some_context,
         config.ciphers,
@@ -224,8 +226,6 @@ def _init_context_client(config: TLSClientConfiguration) -> truststore.SSLContex
 def _init_context_server(config: TLSServerConfiguration) -> truststore.SSLContext | ssl.SSLContext:
     """Initialize an ssl.SSLContext object with a given server configuration."""
     some_context = _create_context_with_trust_store(ssl.PROTOCOL_TLS_SERVER, config.trust_store)
-
-    some_context = _configure_context_for_certs(some_context, config.certificate_chain)
 
     return _init_context_common(some_context, config)
 
