@@ -29,6 +29,39 @@ from .tlslib import (
 
 _SSLContext = ssl.SSLContext | truststore.SSLContext
 
+
+class OpenSSLTrustStore:
+    """A handle to a trust store object, either on disk or the system trust store,
+    that can be used to validate the certificates presented by a remote peer.
+    """
+
+    def __init__(self, path: os.PathLike | None):
+        """
+        Creates a TrustStore object from a path or representing the system trust store.
+
+        If no path is given, the default system trust store is used.
+        """
+
+        self._trust_path = path
+
+    @classmethod
+    def system(cls) -> OpenSSLTrustStore:
+        """
+        Returns a TrustStore object that represents the system trust
+        database.
+        """
+
+        return cls(path=None)
+
+    @classmethod
+    def from_pem_file(cls, path: os.PathLike) -> OpenSSLTrustStore:
+        """
+        Initializes a trust store from a single file full of PEMs.
+        """
+
+        return cls(path=Path(path))
+
+
 # We need all the various TLS options. We hard code this as their integer
 # values to deal with the fact that the symbolic constants are only exposed if
 # both OpenSSL and Python agree that they should be. That's problematic for
@@ -214,14 +247,14 @@ def _init_context_common(
     return some_context
 
 
-def _init_context_client(config: TLSClientConfiguration) -> _SSLContext:
+def _init_context_client(config: TLSClientConfiguration[OpenSSLTrustStore]) -> _SSLContext:
     """Initialize an SSL context object with a given client configuration."""
     some_context = _create_context_with_trust_store(ssl.PROTOCOL_TLS_CLIENT, config.trust_store)
 
     return _init_context_common(some_context, config)
 
 
-def _init_context_server(config: TLSServerConfiguration) -> _SSLContext:
+def _init_context_server(config: TLSServerConfiguration[OpenSSLTrustStore]) -> _SSLContext:
     """Initialize an SSL context object with a given server configuration."""
     some_context = _create_context_with_trust_store(ssl.PROTOCOL_TLS_SERVER, config.trust_store)
 
@@ -425,13 +458,13 @@ class OpenSSLClientContext:
     client side of a network connection.
     """
 
-    def __init__(self, configuration: TLSClientConfiguration) -> None:
+    def __init__(self, configuration: TLSClientConfiguration[OpenSSLTrustStore]) -> None:
         """Create a new context object from a given TLS configuration."""
 
         self._configuration = configuration
 
     @property
-    def configuration(self) -> TLSClientConfiguration:
+    def configuration(self) -> TLSClientConfiguration[OpenSSLTrustStore]:
         """Returns the TLS configuration that was used to create the context."""
 
         return self._configuration
@@ -454,13 +487,13 @@ class OpenSSLServerContext:
     server side of a network connection.
     """
 
-    def __init__(self, configuration: TLSServerConfiguration) -> None:
+    def __init__(self, configuration: TLSServerConfiguration[OpenSSLTrustStore]) -> None:
         """Create a new context object from a given TLS configuration."""
 
         self._configuration = configuration
 
     @property
-    def configuration(self) -> TLSServerConfiguration:
+    def configuration(self) -> TLSServerConfiguration[OpenSSLTrustStore]:
         """Returns the TLS configuration that was used to create the context."""
 
         return self._configuration
@@ -570,38 +603,6 @@ class OpenSSLPrivateKey:
         """
 
         return cls(path=path, password=password)
-
-
-class OpenSSLTrustStore:
-    """A handle to a trust store object, either on disk or the system trust store,
-    that can be used to validate the certificates presented by a remote peer.
-    """
-
-    def __init__(self, path: os.PathLike | None):
-        """
-        Creates a TrustStore object from a path or representing the system trust store.
-
-        If no path is given, the default system trust store is used.
-        """
-
-        self._trust_path = path
-
-    @classmethod
-    def system(cls) -> OpenSSLTrustStore:
-        """
-        Returns a TrustStore object that represents the system trust
-        database.
-        """
-
-        return cls(path=None)
-
-    @classmethod
-    def from_pem_file(cls, path: os.PathLike) -> OpenSSLTrustStore:
-        """
-        Initializes a trust store from a single file full of PEMs.
-        """
-
-        return cls(path=Path(path))
 
 
 #: The stdlib ``Backend`` object.

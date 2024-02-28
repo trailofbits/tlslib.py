@@ -138,7 +138,7 @@ class _TLSBaseConfiguration(Generic[_TrustStore]):
         return self._trust_store
 
 
-class TLSServerConfiguration(_TLSBaseConfiguration):
+class TLSServerConfiguration(_TLSBaseConfiguration[_TrustStore]):
     """TLS configuration for a "server" socket, i.e. a socket accepting connections from clients."""
 
     __slots__ = ()
@@ -150,7 +150,7 @@ class TLSServerConfiguration(_TLSBaseConfiguration):
         inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
         highest_supported_version: TLSVersion | None = None,
-        trust_store: TrustStore | None = None,
+        trust_store: _TrustStore | None = None,
     ) -> None:
         """Initializes the TLS server configuration with all attributes"""
 
@@ -164,7 +164,7 @@ class TLSServerConfiguration(_TLSBaseConfiguration):
         )
 
 
-class TLSClientConfiguration(_TLSBaseConfiguration):
+class TLSClientConfiguration(_TLSBaseConfiguration[_TrustStore]):
     """TLS configuration for a "client" socket, i.e. a socket making a connection to a server."""
 
     def __init__(
@@ -174,7 +174,7 @@ class TLSClientConfiguration(_TLSBaseConfiguration):
         inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
         highest_supported_version: TLSVersion | None = None,
-        trust_store: TrustStore | None = None,
+        trust_store: _TrustStore | None = None,
     ) -> None:
         """Initializes the TLS client configuration with all attributes"""
 
