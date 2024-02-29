@@ -680,12 +680,29 @@ class Backend(Generic[_TrustStore, _Certificate, _PrivateKey, _ClientContext, _S
     def client_configuration(
         self,
     ) -> type[TLSClientConfiguration[_TrustStore, _Certificate, _PrivateKey]]:
+        """
+        Returns a type object for `TLSClientConfiguration`.
+
+        This is identical to using `TLSClientConfiguration` directly, except
+        that this property defines generic annotations that bind the
+        created object to a specific backend's types. As such, you should
+        prefer it in type-checked code.
+        """
         return TLSClientConfiguration
 
     @property
     def server_configuration(
         self,
     ) -> type[TLSServerConfiguration[_TrustStore, _Certificate, _PrivateKey]]:
+        """
+        Returns a type object for `TLSServerConfiguration`.
+
+        This is identical to using `TLSServerConfiguration` directly, except
+        that this property defines generic annotations that bind the
+        created object to a specific backend's types. As such, you should
+        prefer it in type-checked code.
+        """
+
         return TLSServerConfiguration
 
     def __init__(
