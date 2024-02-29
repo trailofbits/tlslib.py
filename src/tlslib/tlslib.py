@@ -286,6 +286,9 @@ class ClientContext(_BaseContext, Protocol):
         """
 
 
+_ClientContext = TypeVar("_ClientContext", bound=ClientContext)
+
+
 class ServerContext(_BaseContext, Protocol):
     """Context for setting up TLS connections for a client."""
 
@@ -295,6 +298,9 @@ class ServerContext(_BaseContext, Protocol):
         contains information about the TLS exchange
         (cipher, negotiated_protocol, negotiated_tls_version, etc.).
         """
+
+
+_ServerContext = TypeVar("_ServerContext", bound=ClientContext)
 
 
 class TLSSocket(Protocol):
@@ -657,7 +663,7 @@ class SigningChain(Generic[_Certificate, _PrivateKey]):
         self.chain = list(chain)
 
 
-class Backend(Generic[_TrustStore, _Certificate, _PrivateKey]):
+class Backend(Generic[_TrustStore, _Certificate, _PrivateKey, _ClientContext, _ServerContext]):
     """An object representing the collection of classes that implement the
     PEP 543 abstract TLS API for a specific TLS implementation.
     """
@@ -685,9 +691,9 @@ class Backend(Generic[_TrustStore, _Certificate, _PrivateKey]):
     def __init__(
         self,
         certificate: type[_Certificate],
-        client_context: type[ClientContext],
+        client_context: type[_ClientContext],
         private_key: type[_PrivateKey],
-        server_context: type[ServerContext],
+        server_context: type[_ServerContext],
         trust_store: type[_TrustStore],
     ) -> None:
         """Initializes all attributes of the backend."""
@@ -706,7 +712,7 @@ class Backend(Generic[_TrustStore, _Certificate, _PrivateKey]):
         return self._certificate
 
     @property
-    def client_context(self) -> type[ClientContext]:
+    def client_context(self) -> type[_ClientContext]:
         """The concrete implementation of the PEP 543 Client Context object,
         if this TLS backend supports being the client on a TLS connection.
         """
@@ -720,7 +726,7 @@ class Backend(Generic[_TrustStore, _Certificate, _PrivateKey]):
         return self._private_key
 
     @property
-    def server_context(self) -> type[ServerContext]:
+    def server_context(self) -> type[_ServerContext]:
         """The concrete implementation of the PEP 543 Server Context object,
         if this TLS backend supports being a server on a TLS connection.
         """
