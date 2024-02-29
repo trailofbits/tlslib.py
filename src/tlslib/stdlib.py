@@ -108,11 +108,17 @@ def _create_context_with_trust_store(
 ) -> _SSLContext:
     some_context: _SSLContext
 
-    if not trust_store or not trust_store._trust_path:
-        some_context = truststore.SSLContext(protocol)
-    else:
+    # truststore does not support server sockets.
+    if protocol == ssl.PROTOCOL_TLS_SERVER:
         some_context = ssl.SSLContext(protocol)
-        some_context.load_verify_locations(trust_store._trust_path)
+    else:
+        some_context = truststore.SSLContext(protocol)
+
+    if trust_store:
+        if not trust_store._trust_path:
+            some_context.load_default_certs()
+        else:
+            some_context.load_verify_locations(trust_store._trust_path)
 
     some_context.options |= ssl.OP_NO_COMPRESSION
 
