@@ -657,7 +657,7 @@ class SigningChain(Generic[_Certificate, _PrivateKey]):
         self.chain = list(chain)
 
 
-class Backend:
+class Backend(Generic[_TrustStore, _Certificate, _PrivateKey]):
     """An object representing the collection of classes that implement the
     PEP 543 abstract TLS API for a specific TLS implementation.
     """
@@ -670,13 +670,25 @@ class Backend:
         "_trust_store",
     )
 
+    @property
+    def client_configuration(
+        self,
+    ) -> type[TLSClientConfiguration[_TrustStore, _Certificate, _PrivateKey]]:
+        return TLSClientConfiguration
+
+    @property
+    def server_configuration(
+        self,
+    ) -> type[TLSServerConfiguration[_TrustStore, _Certificate, _PrivateKey]]:
+        return TLSServerConfiguration
+
     def __init__(
         self,
-        certificate: type[Certificate],
+        certificate: type[_Certificate],
         client_context: type[ClientContext],
-        private_key: type[PrivateKey],
+        private_key: type[_PrivateKey],
         server_context: type[ServerContext],
-        trust_store: type[TrustStore],
+        trust_store: type[_TrustStore],
     ) -> None:
         """Initializes all attributes of the backend."""
 
@@ -687,7 +699,7 @@ class Backend:
         self._trust_store = trust_store
 
     @property
-    def certificate(self) -> type[Certificate]:
+    def certificate(self) -> type[_Certificate]:
         """The concrete implementation of the PEP 543 Certificate object used
         by this TLS backend.
         """
@@ -701,7 +713,7 @@ class Backend:
         return self._client_context
 
     @property
-    def private_key(self) -> type[PrivateKey]:
+    def private_key(self) -> type[_PrivateKey]:
         """The concrete implementation of the PEP 543 Private Key object used
         by this TLS backend.
         """
@@ -715,7 +727,7 @@ class Backend:
         return self._server_context
 
     @property
-    def trust_store(self) -> type[TrustStore]:
+    def trust_store(self) -> type[_TrustStore]:
         """The concrete implementation of the PEP 543 TrustStore object used
         by this TLS backend.
         """

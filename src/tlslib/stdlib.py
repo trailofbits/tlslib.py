@@ -157,15 +157,6 @@ class OpenSSLPrivateKey:
         return cls(path=path, password=password)
 
 
-_TLSClientConfiguration = TLSClientConfiguration[
-    OpenSSLTrustStore, OpenSSLCertificate, OpenSSLPrivateKey
-]
-
-_TLSServerConfiguration = TLSServerConfiguration[
-    OpenSSLTrustStore, OpenSSLCertificate, OpenSSLPrivateKey
-]
-
-
 # We need all the various TLS options. We hard code this as their integer
 # values to deal with the fact that the symbolic constants are only exposed if
 # both OpenSSL and Python agree that they should be. That's problematic for
@@ -351,14 +342,14 @@ def _init_context_common(
     return some_context
 
 
-def _init_context_client(config: _TLSClientConfiguration) -> _SSLContext:
+def _init_context_client(config: TLSClientConfiguration) -> _SSLContext:
     """Initialize an SSL context object with a given client configuration."""
     some_context = _create_context_with_trust_store(ssl.PROTOCOL_TLS_CLIENT, config.trust_store)
 
     return _init_context_common(some_context, config)
 
 
-def _init_context_server(config: _TLSServerConfiguration) -> _SSLContext:
+def _init_context_server(config: TLSServerConfiguration) -> _SSLContext:
     """Initialize an SSL context object with a given server configuration."""
     some_context = _create_context_with_trust_store(ssl.PROTOCOL_TLS_SERVER, config.trust_store)
 
@@ -562,13 +553,13 @@ class OpenSSLClientContext:
     client side of a network connection.
     """
 
-    def __init__(self, configuration: _TLSClientConfiguration) -> None:
+    def __init__(self, configuration: TLSClientConfiguration) -> None:
         """Create a new context object from a given TLS configuration."""
 
         self._configuration = configuration
 
     @property
-    def configuration(self) -> _TLSClientConfiguration:
+    def configuration(self) -> TLSClientConfiguration:
         """Returns the TLS configuration that was used to create the context."""
 
         return self._configuration
@@ -591,13 +582,13 @@ class OpenSSLServerContext:
     server side of a network connection.
     """
 
-    def __init__(self, configuration: _TLSServerConfiguration) -> None:
+    def __init__(self, configuration: TLSServerConfiguration) -> None:
         """Create a new context object from a given TLS configuration."""
 
         self._configuration = configuration
 
     @property
-    def configuration(self) -> _TLSServerConfiguration:
+    def configuration(self) -> TLSServerConfiguration:
         """Returns the TLS configuration that was used to create the context."""
 
         return self._configuration
@@ -625,7 +616,7 @@ STDLIB_BACKEND = Backend(
 
 # The current main is just test-code. We should probably remove it from here and add it to /test
 if __name__ == "__main__":
-    client_config = _TLSClientConfiguration(trust_store=OpenSSLTrustStore.system())
+    client_config = STDLIB_BACKEND.client_configuration(trust_store=OpenSSLTrustStore.system())
     client_ctx = STDLIB_BACKEND.client_context(client_config)
     tls_socket = client_ctx.connect(("www.python.org", 443))
     print(tls_socket.negotiated_tls_version)
