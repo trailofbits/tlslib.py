@@ -35,7 +35,7 @@ class OpenSSLTrustStore:
     that can be used to validate the certificates presented by a remote peer.
     """
 
-    def __init__(self, path: os.PathLike | None):
+    def __init__(self, path: os.PathLike | None = None):
         """
         Creates a TrustStore object from a path or representing the system trust store.
 
