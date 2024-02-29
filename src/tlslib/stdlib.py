@@ -307,7 +307,8 @@ class OpenSSLTLSSocket:
         """Unwraps the TLS connection, shuts down both halves of the connection and
         mark the socket closed."""
 
-        with _error_converter():
+        # NOTE: OSError indicates that the other side has already hung up.
+        with _error_converter(ignore_filter=(OSError,)):
             self._socket.shutdown(socket.SHUT_RDWR)
         return self._socket.close()
 
