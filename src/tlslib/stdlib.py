@@ -30,133 +30,6 @@ from .tlslib import (
 _SSLContext = ssl.SSLContext | truststore.SSLContext
 
 
-class OpenSSLTrustStore:
-    """A handle to a trust store object, either on disk or the system trust store,
-    that can be used to validate the certificates presented by a remote peer.
-    """
-
-    def __init__(self, path: os.PathLike | None = None):
-        """
-        Creates a TrustStore object from a path or representing the system trust store.
-
-        If no path is given, the default system trust store is used.
-        """
-
-        self._trust_path = path
-
-    @classmethod
-    def system(cls) -> OpenSSLTrustStore:
-        """
-        Returns a TrustStore object that represents the system trust
-        database.
-        """
-
-        return cls(path=None)
-
-    @classmethod
-    def from_pem_file(cls, path: os.PathLike) -> OpenSSLTrustStore:
-        """
-        Initializes a trust store from a single file full of PEMs.
-        """
-
-        return cls(path=Path(path))
-
-
-class OpenSSLCertificate:
-    """A handle to a certificate object, either on disk or in a buffer, that can
-    be used for either server or client connectivity.
-    """
-
-    def __init__(self, path: os.PathLike | None = None):
-        """Creates a certificate object, storing a path to the (temp)file."""
-
-        self._cert_path = path
-
-    @classmethod
-    def from_buffer(cls, buffer: bytes) -> OpenSSLCertificate:
-        """
-        Creates a Certificate object from a byte buffer. This byte buffer
-        may be either PEM-encoded or DER-encoded. If the buffer is PEM
-        encoded it *must* begin with the standard PEM preamble (a series of
-        dashes followed by the ASCII bytes "BEGIN CERTIFICATE" and another
-        series of dashes). In the absence of that preamble, the
-        implementation may assume that the certificate is DER-encoded
-        instead.
-        """
-
-        fd, path = tempfile.mkstemp()
-        with os.fdopen(fd, "wb") as f:
-            f.write(buffer)
-
-        return cls(path=Path(path))
-
-    @classmethod
-    def from_file(cls, path: os.PathLike) -> OpenSSLCertificate:
-        """
-        Creates a Certificate object from a file on disk. This method may
-        be a convenience method that wraps ``open`` and ``from_buffer``,
-        but some TLS implementations may be able to provide more-secure or
-        faster methods of loading certificates that do not involve Python
-        code.
-        """
-
-        return cls(path=path)
-
-
-class OpenSSLPrivateKey:
-    """A handle to a private key object, either on disk or in a buffer, that can
-    be used along with a certificate for either server or client connectivity.
-    """
-
-    def __init__(self, path: os.PathLike | None = None, password: bytes | None = None):
-        """Creates a private key object, storing a path to the (temp)file."""
-
-        self._key_path = path
-        self._password = password
-
-    @classmethod
-    def from_buffer(cls, buffer: bytes, password: bytes | None = None) -> OpenSSLPrivateKey:
-        """
-        Creates a PrivateKey object from a byte buffer. This byte buffer
-        may be either PEM-encoded or DER-encoded. If the buffer is PEM
-        encoded it *must* begin with the standard PEM preamble (a series of
-        dashes followed by the ASCII bytes "BEGIN", the key type, and
-        another series of dashes). In the absence of that preamble, the
-        implementation may assume that the certificate is DER-encoded
-        instead.
-
-        The key may additionally be encrypted. If it is, the ``password``
-        argument can be used to decrypt the key. The ``password`` argument
-        may be a function to call to get the password for decrypting the
-        private key. It will only be called if the private key is encrypted
-        and a password is necessary. It will be called with no arguments,
-        and it should return either bytes or bytearray containing the
-        password. Alternatively a bytes, or bytearray value may be supplied
-        directly as the password argument. It will be ignored if the
-        private key is not encrypted and no password is needed.
-        """
-
-        fd, path = tempfile.mkstemp()
-        with os.fdopen(fd, "wb") as f:
-            f.write(buffer)
-        return cls(path=Path(path), password=password)
-
-    @classmethod
-    def from_file(cls, path: os.PathLike, password: bytes | None = None) -> OpenSSLPrivateKey:
-        """
-        Creates a PrivateKey object from a file on disk. This method may
-        be a convenience method that wraps ``open`` and ``from_buffer``,
-        but some TLS implementations may be able to provide more-secure or
-        faster methods of loading certificates that do not involve Python
-        code.
-
-        The ``password`` parameter behaves exactly as the equivalent
-        parameter on ``from_buffer``.
-        """
-
-        return cls(path=path, password=password)
-
-
 # We need all the various TLS options. We hard code this as their integer
 # values to deal with the fact that the symbolic constants are only exposed if
 # both OpenSSL and Python agree that they should be. That's problematic for
@@ -603,6 +476,133 @@ class OpenSSLServerContext:
             ssl_context=ossl_context,
             address=address,
         )
+
+
+class OpenSSLTrustStore:
+    """A handle to a trust store object, either on disk or the system trust store,
+    that can be used to validate the certificates presented by a remote peer.
+    """
+
+    def __init__(self, path: os.PathLike | None = None):
+        """
+        Creates a TrustStore object from a path or representing the system trust store.
+
+        If no path is given, the default system trust store is used.
+        """
+
+        self._trust_path = path
+
+    @classmethod
+    def system(cls) -> OpenSSLTrustStore:
+        """
+        Returns a TrustStore object that represents the system trust
+        database.
+        """
+
+        return cls(path=None)
+
+    @classmethod
+    def from_pem_file(cls, path: os.PathLike) -> OpenSSLTrustStore:
+        """
+        Initializes a trust store from a single file full of PEMs.
+        """
+
+        return cls(path=Path(path))
+
+
+class OpenSSLCertificate:
+    """A handle to a certificate object, either on disk or in a buffer, that can
+    be used for either server or client connectivity.
+    """
+
+    def __init__(self, path: os.PathLike | None = None):
+        """Creates a certificate object, storing a path to the (temp)file."""
+
+        self._cert_path = path
+
+    @classmethod
+    def from_buffer(cls, buffer: bytes) -> OpenSSLCertificate:
+        """
+        Creates a Certificate object from a byte buffer. This byte buffer
+        may be either PEM-encoded or DER-encoded. If the buffer is PEM
+        encoded it *must* begin with the standard PEM preamble (a series of
+        dashes followed by the ASCII bytes "BEGIN CERTIFICATE" and another
+        series of dashes). In the absence of that preamble, the
+        implementation may assume that the certificate is DER-encoded
+        instead.
+        """
+
+        fd, path = tempfile.mkstemp()
+        with os.fdopen(fd, "wb") as f:
+            f.write(buffer)
+
+        return cls(path=Path(path))
+
+    @classmethod
+    def from_file(cls, path: os.PathLike) -> OpenSSLCertificate:
+        """
+        Creates a Certificate object from a file on disk. This method may
+        be a convenience method that wraps ``open`` and ``from_buffer``,
+        but some TLS implementations may be able to provide more-secure or
+        faster methods of loading certificates that do not involve Python
+        code.
+        """
+
+        return cls(path=path)
+
+
+class OpenSSLPrivateKey:
+    """A handle to a private key object, either on disk or in a buffer, that can
+    be used along with a certificate for either server or client connectivity.
+    """
+
+    def __init__(self, path: os.PathLike | None = None, password: bytes | None = None):
+        """Creates a private key object, storing a path to the (temp)file."""
+
+        self._key_path = path
+        self._password = password
+
+    @classmethod
+    def from_buffer(cls, buffer: bytes, password: bytes | None = None) -> OpenSSLPrivateKey:
+        """
+        Creates a PrivateKey object from a byte buffer. This byte buffer
+        may be either PEM-encoded or DER-encoded. If the buffer is PEM
+        encoded it *must* begin with the standard PEM preamble (a series of
+        dashes followed by the ASCII bytes "BEGIN", the key type, and
+        another series of dashes). In the absence of that preamble, the
+        implementation may assume that the certificate is DER-encoded
+        instead.
+
+        The key may additionally be encrypted. If it is, the ``password``
+        argument can be used to decrypt the key. The ``password`` argument
+        may be a function to call to get the password for decrypting the
+        private key. It will only be called if the private key is encrypted
+        and a password is necessary. It will be called with no arguments,
+        and it should return either bytes or bytearray containing the
+        password. Alternatively a bytes, or bytearray value may be supplied
+        directly as the password argument. It will be ignored if the
+        private key is not encrypted and no password is needed.
+        """
+
+        fd, path = tempfile.mkstemp()
+        with os.fdopen(fd, "wb") as f:
+            f.write(buffer)
+        return cls(path=Path(path), password=password)
+
+    @classmethod
+    def from_file(cls, path: os.PathLike, password: bytes | None = None) -> OpenSSLPrivateKey:
+        """
+        Creates a PrivateKey object from a file on disk. This method may
+        be a convenience method that wraps ``open`` and ``from_buffer``,
+        but some TLS implementations may be able to provide more-secure or
+        faster methods of loading certificates that do not involve Python
+        code.
+
+        The ``password`` parameter behaves exactly as the equivalent
+        parameter on ``from_buffer``.
+        """
+
+        return cls(path=path, password=password)
 
 
 #: The stdlib ``Backend`` object.
