@@ -83,7 +83,7 @@ def _error_converter(
     try:
         yield
     except ignore_filter:
-        raise
+        pass
     except ssl.SSLWantReadError:
         raise WantReadError("Must read data") from None
     except ssl.SSLWantWriteError:
@@ -306,11 +306,10 @@ class OpenSSLTLSSocket:
     def close(self) -> None:
         """Unwraps the TLS connection, shuts down both halves of the connection and
         mark the socket closed."""
-        with _error_converter():
-            sock = self._socket.unwrap()
 
-        sock.shutdown(socket.SHUT_RDWR)
-        return sock.close()
+        with _error_converter():
+            self._socket.shutdown(socket.SHUT_RDWR)
+        return self._socket.close()
 
     def listen(self, backlog: int) -> None:
         """Enable a server to accept connections. If backlog is specified, it
@@ -333,6 +332,10 @@ class OpenSSLTLSSocket:
         with _error_converter():
             tls_socket._socket.setblocking(False)
         return (tls_socket, address)
+
+    def getsockname(self) -> socket._RetAddress:
+        with _error_converter():
+            return self._socket.getsockname()
 
     def getpeername(self) -> socket._RetAddress:
         """Return the remote address to which the socket is connected."""

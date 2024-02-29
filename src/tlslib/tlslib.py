@@ -356,6 +356,10 @@ class TLSSocket(Protocol):
         address is the address bound to the socket on the other end of the connection."""
 
     @abstractmethod
+    def getsockname(self) -> tuple[str | None, int]:
+        """Return the local address to which the socket is connected."""
+
+    @abstractmethod
     def getpeername(self) -> tuple[str | None, int]:
         """Return the remote address to which the socket is connected."""
 
