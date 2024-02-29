@@ -44,6 +44,9 @@ class TestBasic(TestBackend):
 
         with server:
             client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
-            client_sock = client_context.connect(server.socket.getpeername())
-            client_sock.send(b"hello!")
+            print(f"{server.socket=}")
+            client_sock = client_context.connect(server.socket.getsockname())
+            client_sock.send(b"hello from the client!")
+            msg = client_sock.recv(1024)
+            print(f"server sez: {msg}")
             client_sock.close()

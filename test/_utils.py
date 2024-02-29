@@ -12,6 +12,8 @@ from tlslib.tlslib import (
     SigningChain,
     TLSClientConfiguration,
     TLSSocket,
+    WantReadError,
+    WantWriteError,
 )
 
 _ASSETS = Path(__file__).parent / "assets"
@@ -34,12 +36,8 @@ class ThreadedServer(threading.Thread):
 
             self.running = False
             threading.Thread.__init__(self)
-
-        def read(self, amt: int):
-            return self.sock.recv(amt)
-
-        def write(self, buf: bytes):
-            return self.sock.send(buf)
+            self.daemon = True
+            self.name = "client"
 
         def close(self):
             self.sock.close()
@@ -48,9 +46,19 @@ class ThreadedServer(threading.Thread):
             self.running = True
 
             while self.running:
-                msg = self.read(1024)
-                sys.stdout.write(f"msg: {msg.strip()}")
-                self.write(msg)
+                try:
+                    msg = self.sock.recv(1024)
+                    print(f"client sez: {msg}")
+                except WantWriteError:
+                    # print("WantWrite!")
+                    self.sock.send(b"hello")
+                    continue
+                except WantReadError:
+                    continue
+                    # print("WantRead!")
+                except Exception as e:
+                    self.running = False
+                    print(f"ConnectionHandler {e=}")
 
     def __init__(
         self,
@@ -75,6 +83,8 @@ class ThreadedServer(threading.Thread):
         self.active = False
         self.flag: threading.Event | None = None
         threading.Thread.__init__(self)
+        self.name = "server"
+        self.daemon = True
 
     def __enter__(self):
         self.start(threading.Event())
@@ -91,24 +101,32 @@ class ThreadedServer(threading.Thread):
         return super().start()
 
     def run(self) -> None:
+        self.socket.listen(1)
+
         self.active = True
         if self.flag:
             self.flag.set()
         while self.active:
             try:
                 newconn, connaddr = self.socket.accept()
+                sys.stdout.write("accepted!\n")
                 handler = self.ConnectionHandler(self, newconn, connaddr)
                 handler.start()
                 handler.join()
-            except ValueError:  # TODO
-                pass
+                print("done with handler")
+            except BlockingIOError:
+                # Would have blocked on accept; busy loop instead.
+                continue
+            except Exception as e:  # TODO
+                sys.stdout.write(f"uh oh: {e=}\n")
+                raise
 
         if self.socket:
             self.socket.close()
             self.socket = None
 
     def stop(self):
-        pass
+        self.active = False
 
 
 def limbo_server(id: str) -> tuple[ThreadedServer, TLSClientConfiguration]:
