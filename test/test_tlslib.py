@@ -38,6 +38,6 @@ class TestBackend(TestCase):
         self.assertIs(backend.server_context, ServerContext)
         self.assertIs(backend.trust_store, TrustStore)
 
-        # computed properties
+        # invariant properties
         self.assertIs(backend.client_configuration, tlslib.TLSClientConfiguration)
         self.assertIs(backend.server_configuration, tlslib.TLSServerConfiguration)
