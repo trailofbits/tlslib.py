@@ -44,9 +44,12 @@ class TestBasic(TestBackend):
 
         with server:
             client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
-            print(f"{server.socket=}")
             client_sock = client_context.connect(server.socket.getsockname())
-            client_sock.send(b"hello from the client!")
-            msg = client_sock.recv(1024)
-            print(f"server sez: {msg}")
+            client_sock.send(b"message 1")
+            client_sock.send(b"message 2")
+            client_sock.recv(1024)
+            client_sock.recv(1024)
             client_sock.close()
+
+            self.assertEqual(server.server_recv, [b"message 1", b"message 2"])
+            self.assertEqual(server.server_sent, [b"echo: message 1", b"echo: message 2"])

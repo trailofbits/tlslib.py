@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import sys
 import threading
@@ -8,6 +10,7 @@ from tlslib.stdlib import STDLIB_BACKEND, OpenSSLCertificate, OpenSSLPrivateKey,
 from tlslib.tlslib import (
     DEFAULT_CIPHER_LIST,
     Backend,
+    RaggedEOF,
     ServerContext,
     SigningChain,
     TLSClientConfiguration,
@@ -27,38 +30,50 @@ def limbo_asset(id: str) -> dict[str, Any]:
 
 # Derived from CPython's `test_ssl.ThreadedEchoServer`,
 # with simplifications (no socket wrapping/unwrapping).
-class ThreadedServer(threading.Thread):
+class ThreadedEchoServer(threading.Thread):
     class ConnectionHandler(threading.Thread):
-        def __init__(self, server, sock: TLSSocket, addr):
+        def __init__(self, server: ThreadedEchoServer, sock: TLSSocket, addr):
             self.server = server
             self.sock = sock
             self.addr = addr
 
             self.running = False
+            self.queue = []
             threading.Thread.__init__(self)
             self.daemon = True
             self.name = "client"
 
-        def close(self):
-            self.sock.close()
+        def send(self, msg: bytes) -> None:
+            self.sock.send(msg)
+            self.server.server_sent.append(msg)
+
+        def recv(self, amt: int) -> bytes:
+            msg = self.sock.recv(amt)
+            self.server.server_recv.append(msg)
+            return msg
 
         def run(self) -> None:
             self.running = True
 
             while self.running:
+                # Normally there'd be some kind of real state machine here,
+                # but ours is just a single transition of read->write.
                 try:
-                    msg = self.sock.recv(1024)
-                    print(f"client sez: {msg}")
-                except WantWriteError:
-                    # print("WantWrite!")
-                    self.sock.send(b"hello")
-                    continue
+                    msg = self.recv(1024)
+                    if not msg:
+                        self.running = False
+                    else:
+                        self.queue.append(msg)
                 except WantReadError:
+                    try:
+                        msg = self.queue.pop()
+                        self.send(b"echo: " + msg)
+                    except IndexError:
+                        continue
+                except WantWriteError:
                     continue
-                    # print("WantRead!")
-                except Exception as e:
+                except RaggedEOF:
                     self.running = False
-                    print(f"ConnectionHandler {e=}")
 
     def __init__(
         self,
@@ -86,6 +101,9 @@ class ThreadedServer(threading.Thread):
         self.name = "server"
         self.daemon = True
 
+        self.server_sent = []
+        self.server_recv = []
+
     def __enter__(self):
         self.start(threading.Event())
         self.flag.wait()
@@ -102,23 +120,21 @@ class ThreadedServer(threading.Thread):
 
     def run(self) -> None:
         self.socket.listen(1)
-
         self.active = True
         if self.flag:
             self.flag.set()
         while self.active:
             try:
                 newconn, connaddr = self.socket.accept()
-                sys.stdout.write("accepted!\n")
                 handler = self.ConnectionHandler(self, newconn, connaddr)
                 handler.start()
                 handler.join()
-                print("done with handler")
             except BlockingIOError:
                 # Would have blocked on accept; busy loop instead.
                 continue
-            except Exception as e:  # TODO
-                sys.stdout.write(f"uh oh: {e=}\n")
+            except Exception:
+                # TODO: Figure out if there are other things we should mask or
+                # catch here.
                 raise
 
         if self.socket:
@@ -129,7 +145,7 @@ class ThreadedServer(threading.Thread):
         self.active = False
 
 
-def limbo_server(id: str) -> tuple[ThreadedServer, TLSClientConfiguration]:
+def limbo_server(id: str) -> tuple[ThreadedEchoServer, TLSClientConfiguration]:
     """
     Return a `ThreadedServer` and a `TLSClientConfiguration` suitable for connecting to it,
     both instantiated with an `sslib` backend and state from the given Limbo testcase.
@@ -157,7 +173,7 @@ def limbo_server(id: str) -> tuple[ThreadedServer, TLSClientConfiguration]:
         trust_store=STDLIB_BACKEND.trust_store.from_buffer(b"\n".join(trusted_certs)),
     )
 
-    server = ThreadedServer(
+    server = ThreadedEchoServer(
         STDLIB_BACKEND,
         signing_chain,
         TLSVersion.MINIMUM_SUPPORTED,
