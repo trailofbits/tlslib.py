@@ -335,6 +335,7 @@ class OpenSSLTLSSocket:
         return (tls_socket, address)
 
     def getsockname(self) -> socket._RetAddress:
+        """Return the local address to which the socket is connected."""
         with _error_converter():
             return self._socket.getsockname()
 
@@ -345,7 +346,7 @@ class OpenSSLTLSSocket:
             return self._socket.getpeername()
 
     def fileno(self) -> int:
-        """Return the socket’s file descriptor (a small integer), or -1 on failure."""
+        """Return the socket's file descriptor (a small integer), or -1 on failure."""
 
         with _error_converter():
             return self._socket.fileno()
