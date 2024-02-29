@@ -1,0 +1,24 @@
+{
+  "id": "webpki::san::exact-san",
+  "conflicts_with": [],
+  "features": [],
+  "description": "Produces a chain with an EE cert.\n\nThis EE cert contains a Subject Alternative Name with the dNSName \"example.com\".\nThis should verify successfully against the domain \"example.com\", per\nRFC 6125 6.4.1.",
+  "validation_kind": "SERVER",
+  "trusted_certs": [
+    "-----BEGIN CERTIFICATE-----\nMIIBjjCCATWgAwIBAgIUF/5VQNzfCWuawjyPXIvSg2CYM1cwCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjAaMRgwFgYDVQQDDA94NTA5LWxpbWJvLXJvb3QwWTATBgcq\nhkjOPQIBBggqhkjOPQMBBwNCAAR0hka/O5QnTr7rA+iSqYShiq6uS9xjSErKeGAx\ny37KvmRW6EcjVDdQae6xnRRgg24dIhrslwd5Tr7LiatZWDd1o1cwVTAPBgNVHRMB\nAf8EBTADAQH/MAsGA1UdDwQEAwICBDAWBgNVHREEDzANggtleGFtcGxlLmNvbTAd\nBgNVHQ4EFgQUggDgjNY6fXHYM+xVi3j0hHZB7rwwCgYIKoZIzj0EAwIDRwAwRAIg\nPquqcQP6j1MZwQ/SKWzYaYsw+Q5w1FyI+KBy5qNt3ZECIB3RYPEaHsQxbL4fyOtg\nlI0raUTi5vEs1ib2nhr7FAL7\n-----END CERTIFICATE-----\n"
+  ],
+  "untrusted_intermediates": [],
+  "peer_certificate": "-----BEGIN CERTIFICATE-----\nMIIBsDCCAVagAwIBAgIUEzbKvIZZH0bMt3pR0yminO3tP0gwCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjAWMRQwEgYDVQQDDAtleGFtcGxlLmNvbTBZMBMGByqGSM49\nAgEGCCqGSM49AwEHA0IABNlzuhOzfrP5n4rmWl4ppZ0VuRC4bE/d/hhx98MmoRLM\nR5rnRs/rzqdxRiUBy8dfaK+TVuaXcmI8uJKSWXhw6TSjfDB6MB0GA1UdDgQWBBQk\nlHSA+/1GUmlvBs8wpF9kSb073TAfBgNVHSMEGDAWgBSCAOCM1jp9cdgz7FWLePSE\ndkHuvDALBgNVHQ8EBAMCB4AwEwYDVR0lBAwwCgYIKwYBBQUHAwEwFgYDVR0RBA8w\nDYILZXhhbXBsZS5jb20wCgYIKoZIzj0EAwIDSAAwRQIhAJ0pRNU65u2/OyH3QqqP\nGo0mXpHFU56VlhZR9M904QGhAiA7KZBhXL8CWPd9+ApvNHjM7y8XBKoS7lOHGyKG\n1xr5Fg==\n-----END CERTIFICATE-----\n",
+  "peer_certificate_key": "-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIM3nJl+SDnxnQ9zFA/Z5pfyMTe0zDFZ8qnR6PXTzwueMoAoGCCqGSM49\nAwEHoUQDQgAE2XO6E7N+s/mfiuZaXimlnRW5ELhsT93+GHH3wyahEsxHmudGz+vO\np3FGJQHLx19or5NW5pdyYjy4kpJZeHDpNA==\n-----END EC PRIVATE KEY-----\n",
+  "validation_time": null,
+  "signature_algorithms": [],
+  "key_usage": [],
+  "extended_key_usage": [],
+  "expected_result": "SUCCESS",
+  "expected_peer_name": {
+    "kind": "DNS",
+    "value": "example.com"
+  },
+  "expected_peer_names": [],
+  "max_chain_depth": null
+}

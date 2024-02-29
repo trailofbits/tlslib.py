@@ -7,6 +7,8 @@ from unittest import TestCase
 
 from tlslib import stdlib, tlslib
 
+from ._utils import limbo_server
+
 
 class TestOpenSSLTrustStore(TestCase):
     def test_init(self):
@@ -34,3 +36,14 @@ class TestBackend(TestCase):
         # invariant properties
         self.assertIs(backend.client_configuration, tlslib.TLSClientConfiguration)
         self.assertIs(backend.server_configuration, tlslib.TLSServerConfiguration)
+
+
+class TestBasic(TestBackend):
+    def test_trivial_connection(self):
+        server, client_config = limbo_server("webpki::san::exact-san")
+
+        with server:
+            client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
+            client_sock = client_context.connect(server.socket.getpeername())
+            client_sock.send(b"hello!")
+            client_sock.close()

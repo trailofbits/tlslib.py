@@ -502,7 +502,22 @@ class OpenSSLTrustStore:
         return cls(path=None)
 
     @classmethod
-    def from_pem_file(cls, path: os.PathLike) -> OpenSSLTrustStore:
+    def from_buffer(cls, buf: bytes) -> OpenSSLTrustStore:
+        """
+        Initializes a trust store from a buffer of PEM-encoded certificates.
+        """
+        # HACK: Python's ssl doesn't support loading a trust store from a buffer.
+        # Instead, we go the roundabout way with a temporary file, which we intentionally
+        # disable the delete-on-close behavior for. This means that the filename itself
+        # will stick around until process exit.
+        tmp_path = tempfile.NamedTemporaryFile(mode="w+b", delete=False, delete_on_close=False)
+        tmp_path.write(buf)
+        tmp_path.close()
+
+        return cls.from_file(Path(tmp_path.name))
+
+    @classmethod
+    def from_file(cls, path: os.PathLike) -> OpenSSLTrustStore:
         """
         Initializes a trust store from a single file full of PEMs.
         """

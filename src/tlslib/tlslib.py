@@ -35,14 +35,21 @@ class TrustStore(Protocol):
         Returns a TrustStore object that represents the system trust
         database.
         """
-        raise NotImplementedError("System trust store not supported")
+        ...
 
     @classmethod
-    def from_pem_file(cls, path: os.PathLike) -> TrustStore:
+    def from_buffer(cls, buffer: bytes) -> TrustStore:
+        """
+        Initializes a trust store from a buffer of PEM-encoded certificates.
+        """
+        ...
+
+    @classmethod
+    def from_file(cls, path: os.PathLike) -> TrustStore:
         """
         Initializes a trust store from a single file full of PEMs.
         """
-        raise NotImplementedError("Trust store from PEM not supported")
+        ...
 
 
 _TrustStore = TypeVar("_TrustStore", bound=TrustStore)
@@ -265,10 +272,6 @@ class TLSClientConfiguration(_TLSBaseConfiguration[_TrustStore, _Certificate, _P
 
 
 class _BaseContext(Protocol):
-    @abstractmethod
-    def __init__(self, configuration: _TLSBaseConfiguration) -> None:
-        """Create a new context object from a given TLS configuration."""
-
     @property
     @abstractmethod
     def configuration(self) -> _TLSBaseConfiguration:
@@ -277,6 +280,11 @@ class _BaseContext(Protocol):
 
 class ClientContext(_BaseContext, Protocol):
     """Context for setting up TLS connections for a client."""
+
+    @abstractmethod
+    def __init__(self, configuration: TLSClientConfiguration) -> None:
+        """Create a new context object from a given TLS client configuration."""
+        ...
 
     @abstractmethod
     def connect(self, address: tuple[str | None, int]) -> TLSSocket:
@@ -290,7 +298,12 @@ _ClientContext = TypeVar("_ClientContext", bound=ClientContext)
 
 
 class ServerContext(_BaseContext, Protocol):
-    """Context for setting up TLS connections for a client."""
+    """Context for setting up TLS connections for a server."""
+
+    @abstractmethod
+    def __init__(self, configuration: TLSServerConfiguration) -> None:
+        """Create a new context object from a given TLS server configuration."""
+        ...
 
     @abstractmethod
     def connect(self, address: tuple[str | None, int]) -> TLSSocket:
@@ -300,7 +313,7 @@ class ServerContext(_BaseContext, Protocol):
         """
 
 
-_ServerContext = TypeVar("_ServerContext", bound=ClientContext)
+_ServerContext = TypeVar("_ServerContext", bound=ServerContext)
 
 
 class TLSSocket(Protocol):
@@ -656,10 +669,12 @@ class SigningChain(Generic[_Certificate, _PrivateKey]):
     def __init__(
         self,
         leaf: tuple[_Certificate, _PrivateKey],
-        chain: Sequence[_Certificate],
+        chain: Sequence[_Certificate] | None = None,
     ):
         """Initializes a SigningChain object."""
         self.leaf = leaf
+        if chain is None:
+            chain = []
         self.chain = list(chain)
 
 
