@@ -40,7 +40,7 @@ class TestBackend(TestCase):
 
 class TestBasic(TestBackend):
     def test_trivial_connection(self):
-        server, client_config = limbo_server("webpki::san::exact-san")
+        server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
 
         with server:
             client_context = stdlib.STDLIB_BACKEND.client_context(client_config)

@@ -87,7 +87,7 @@ class ThreadedServer(threading.Thread):
 
     def start(self, flag=None) -> None:
         self.flag = flag
-        self.socket = self.server_context.connect(("", 0))
+        self.socket = self.server_context.connect(("127.0.0.1", 0))
         return super().start()
 
     def run(self) -> None:
