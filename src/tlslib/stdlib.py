@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
 import os
 import socket
 import ssl
@@ -184,12 +183,7 @@ def _configure_context_for_negotiation(
             # library.
             protocols.append(proto_string.decode("ascii"))
 
-        # If ALPN/NPN aren't supported, that's no problem.
-        with contextlib.suppress(NotImplementedError):
-            context.set_alpn_protocols(protocols)
-
-        with contextlib.suppress(NotImplementedError):
-            context.set_npn_protocols(protocols)
+        context.set_alpn_protocols(protocols)
 
     return context
 
@@ -357,8 +351,6 @@ class OpenSSLTLSSocket:
 
         # This is the OpenSSL cipher name. We want the ID, which we can get by
         # looking for this entry in the context's list of supported ciphers.
-        # FIXME: This works only on 3.6. To get this to work elsewhere, we may
-        # need to vendor tlsdb.
         ret = self._socket.cipher()
 
         if ret is None:
@@ -383,7 +375,7 @@ class OpenSSLTLSSocket:
         """
         Returns the protocol that was selected during the TLS handshake.
 
-        This selection may have been made using ALPN, NPN, or some future
+        This selection may have been made using ALPN or some future
         negotiation mechanism.
 
         If the negotiated protocol is one of the protocols defined in the
@@ -422,7 +414,7 @@ class OpenSSLTLSSocket:
 
 
 class OpenSSLClientContext:
-    """This class controls and creates wrapped sockets and buffers for using the
+    """This class controls and creates a socket that is wrapped using the
     standard library bindings to OpenSSL to perform TLS connections on the
     client side of a network connection.
     """
@@ -439,7 +431,7 @@ class OpenSSLClientContext:
         return self._configuration
 
     def connect(self, address: tuple[str | None, int]) -> OpenSSLTLSSocket:
-        """Create a buffered I/O object that can be used to do TLS."""
+        """Create a socket-like object that can be used to do TLS."""
         ossl_context = _init_context_client(self._configuration)
 
         return OpenSSLTLSSocket._create(
@@ -451,7 +443,7 @@ class OpenSSLClientContext:
 
 
 class OpenSSLServerContext:
-    """This class controls and creates wrapped sockets and buffers for using the
+    """This class controls and creates and creates a socket that is wrapped using the
     standard library bindings to OpenSSL to perform TLS connections on the
     server side of a network connection.
     """
@@ -468,7 +460,7 @@ class OpenSSLServerContext:
         return self._configuration
 
     def connect(self, address: tuple[str | None, int]) -> OpenSSLTLSSocket:
-        """Create a buffered I/O object that can be used to do TLS."""
+        """Create a socket-like object that can be used to do TLS."""
         ossl_context = _init_context_server(self._configuration)
 
         return OpenSSLTLSSocket._create(

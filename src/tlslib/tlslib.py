@@ -92,8 +92,7 @@ class _TLSBaseConfiguration:
     def inner_protocols(self) -> Sequence[NextProtocol | bytes]:
         """Protocols that connections should advertise as supported during the TLS handshake.
 
-        These may be advertised using either or both of ALPN or NPN. This list of
-        protocols is ordered by preference.
+        These may be advertised using ALPN. This list of protocols is ordered by preference.
         """
         return self._inner_protocols
 
@@ -266,7 +265,7 @@ class TLSSocket(Protocol):
         """
         Returns the protocol that was selected during the TLS handshake.
 
-        This selection may have been made using ALPN, NPN, or some future
+        This selection may have been made using ALPN or some future
         negotiation mechanism.
 
         If the negotiated protocol is one of the protocols defined in the
