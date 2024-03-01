@@ -47,12 +47,12 @@ class TestBasic(TestBackend):
             client_sock = client_context.connect(server.socket.getsockname())
             client_sock.send(b"message 1")
             client_sock.send(b"message 2")
-            
+
             received = 0
             while received < 2:
                 try:
                     client_sock.recv(1024)
-                    received+=1
+                    received += 1
                 except tlslib.WantReadError:
                     continue
             client_sock.close()

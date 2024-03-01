@@ -48,7 +48,7 @@ class ThreadedEchoServer(threading.Thread):
 
         def recv(self, amt: int) -> bytes:
             msg = self.sock.recv(amt)
-            if msg == b'':
+            if msg == b"":
                 return None
             self.server.server_recv.append(msg)
             return msg
