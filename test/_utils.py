@@ -48,6 +48,8 @@ class ThreadedEchoServer(threading.Thread):
 
         def recv(self, amt: int) -> bytes:
             msg = self.sock.recv(amt)
+            if msg == b'':
+                return None
             self.server.server_recv.append(msg)
             return msg
 
@@ -65,7 +67,7 @@ class ThreadedEchoServer(threading.Thread):
                         self.queue.append(msg)
                 except WantReadError:
                     try:
-                        msg = self.queue.pop()
+                        msg = self.queue.pop(0)
                         self.send(b"echo: " + msg)
                     except IndexError:
                         continue
