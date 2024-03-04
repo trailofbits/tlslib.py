@@ -28,9 +28,36 @@ __all__ = [
 
 class _TLSBaseConfiguration:
     """
-    "Base" configuration for a TLS connection, whether server or client initiated.
+    An immutable TLS Configuration object. This object has the following
+    properties, which are applicable to both clients and servers:
 
-    This class is not constructed or used directly.
+    :param certificate_chain SigningChain: A leaf certificate including
+        its corresponding private key and optionally a list of intermediate
+        certificates. These certificates will be offered to the remote
+        peer during the handshake if required.
+
+    :param ciphers Sequence[CipherSuite | int]:
+        The available ciphers for TLS connections created with this
+        configuration, in priority order.
+
+    :param inner_protocols Sequence[NextProtocol | bytes]:
+        Protocols that connections created with this configuration should
+        advertise as supported during the TLS handshake. These may be
+        advertised using either or both of ALPN or NPN. This list of
+        protocols should be ordered by preference.
+
+    :param lowest_supported_version TLSVersion:
+        The minimum version of TLS that should be allowed on TLS
+        connections using this configuration.
+
+    :param highest_supported_version TLSVersion:
+        The maximum version of TLS that should be allowed on TLS
+        connections using this configuration.
+
+    :param trust_store TrustStore:
+        The trust store that connections using this configuration will use
+        to validate certificates.
+
     """
 
     __slots__ = (
@@ -45,7 +72,7 @@ class _TLSBaseConfiguration:
     def __init__(
         self,
         certificate_chain: SigningChain | None = None,
-        ciphers: Sequence[CipherSuite] | None = None,
+        ciphers: Sequence[CipherSuite | int] | None = None,
         inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
         highest_supported_version: TLSVersion | None = None,
@@ -84,7 +111,7 @@ class _TLSBaseConfiguration:
         return self._certificate_chain
 
     @property
-    def ciphers(self) -> Sequence[CipherSuite]:
+    def ciphers(self) -> Sequence[CipherSuite | int]:
         """The list of available ciphers for TLS connections, in priority order."""
         return self._ciphers
 
@@ -92,8 +119,7 @@ class _TLSBaseConfiguration:
     def inner_protocols(self) -> Sequence[NextProtocol | bytes]:
         """Protocols that connections should advertise as supported during the TLS handshake.
 
-        These may be advertised using either or both of ALPN or NPN. This list of
-        protocols is ordered by preference.
+        These may be advertised using ALPN. This list of protocols is ordered by preference.
         """
         return self._inner_protocols
 
@@ -117,9 +143,9 @@ class _TLSBaseConfiguration:
 
 
 class TLSServerConfiguration(_TLSBaseConfiguration):
-    """TLS configuration for a "server" socket, i.e. a socket accepting connections from clients."""
-
-    __slots__ = ()
+    """TLS configuration for a "server" socket, i.e. a socket
+    accepting connections from clients. The server configuration
+    currently does not have any server-specific attributes."""
 
     def __init__(
         self,
@@ -143,7 +169,9 @@ class TLSServerConfiguration(_TLSBaseConfiguration):
 
 
 class TLSClientConfiguration(_TLSBaseConfiguration):
-    """TLS configuration for a "client" socket, i.e. a socket making a connection to a server."""
+    """TLS configuration for a "client" socket, i.e. a socket
+    making a connection to a server. The client configuration
+    currently does not have any server-specific attributes."""
 
     def __init__(
         self,
@@ -266,7 +294,7 @@ class TLSSocket(Protocol):
         """
         Returns the protocol that was selected during the TLS handshake.
 
-        This selection may have been made using ALPN, NPN, or some future
+        This selection may have been made using ALPN or some future
         negotiation mechanism.
 
         If the negotiated protocol is one of the protocols defined in the
