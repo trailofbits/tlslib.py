@@ -152,7 +152,8 @@ def _configure_context_for_certs(
 
 
 def _configure_context_for_ciphers(
-    context: truststore.SSLContext | ssl.SSLContext, ciphers: Sequence[CipherSuite] | None = None
+    context: truststore.SSLContext | ssl.SSLContext,
+    ciphers: Sequence[CipherSuite | int] | None = None,
 ) -> truststore.SSLContext | ssl.SSLContext:
     """Given a PEP 543 cipher suite list, configure the SSLContext to use those
     cipher suites.
@@ -606,18 +607,3 @@ STDLIB_BACKEND = Backend(
     server_context=OpenSSLServerContext,
     trust_store=OpenSSLTrustStore,
 )
-
-# The current main is just test-code. We should probably remove it from here and add it to /test
-if __name__ == "__main__":
-    client_config = TLSClientConfiguration(trust_store=OpenSSLTrustStore.system())
-    client_ctx = STDLIB_BACKEND.client_context(client_config)
-    tls_socket = client_ctx.connect(("www.python.org", 443))
-    print(tls_socket.negotiated_tls_version)
-    print(tls_socket.cipher)
-    print(tls_socket.negotiated_protocol)
-
-    tls_socket.send(
-        b"GET / HTTP/1.1\r\nHost: www.python.org\r\nConnection: close"
-        b"\r\nAccept-Encoding: identity\r\n\r\n",
-    )
-    print(tls_socket.recv(4096))
