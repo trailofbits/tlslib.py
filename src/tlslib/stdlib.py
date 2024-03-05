@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import contextlib
 import os
 import socket
 import ssl
 import tempfile
 import typing
+import weakref
 from collections.abc import Sequence
 from contextlib import contextmanager
 from pathlib import Path
@@ -136,13 +136,22 @@ def _configure_context_for_certs(
     """
 
     if cert_chain is not None:
-        # FIXME: support multiple certificates at different filesystem
-        # locations. This requires being prepared to create temporary
-        # files.
-
         cert = cert_chain.leaf[0]
         assert isinstance(cert, OpenSSLCertificate)
-        cert_path = cert._cert_path
+
+        if len(cert_chain.chain) == 0:
+            cert_path = cert._cert_path
+        else:
+            with tempfile.NamedTemporaryFile(mode="wb", delete=False) as io:
+                io.write(Path(cert._cert_path).read_bytes())
+                for cert in cert_chain.chain:
+                    # TODO: Typecheck this properly.
+                    assert isinstance(cert, OpenSSLCertificate)
+                    io.write(b"\n")
+                    io.write(Path(cert._cert_path).read_bytes())
+
+            weakref.finalize(context, os.remove, io.name)
+
         key_path = None
         password = None
         if cert_chain.leaf[1] is not None:
@@ -151,8 +160,8 @@ def _configure_context_for_certs(
             key_path = privkey._key_path
             password = privkey._password
 
-        if cert_path is not None:
-            context.load_cert_chain(cert_path, key_path, password)
+        assert cert_path is not None
+        context.load_cert_chain(cert_path, key_path, password)
 
     return context
 
@@ -189,12 +198,7 @@ def _configure_context_for_negotiation(
             # library.
             protocols.append(proto_string.decode("ascii"))
 
-        # If ALPN/NPN aren't supported, that's no problem.
-        with contextlib.suppress(NotImplementedError):
-            context.set_alpn_protocols(protocols)
-
-        with contextlib.suppress(NotImplementedError):
-            context.set_npn_protocols(protocols)
+        context.set_alpn_protocols(protocols)
 
     return context
 
@@ -367,8 +371,6 @@ class OpenSSLTLSSocket:
 
         # This is the OpenSSL cipher name. We want the ID, which we can get by
         # looking for this entry in the context's list of supported ciphers.
-        # FIXME: This works only on 3.6. To get this to work elsewhere, we may
-        # need to vendor tlsdb.
         ret = self._socket.cipher()
 
         if ret is None:
@@ -393,7 +395,7 @@ class OpenSSLTLSSocket:
         """
         Returns the protocol that was selected during the TLS handshake.
 
-        This selection may have been made using ALPN, NPN, or some future
+        This selection may have been made using ALPN or some future
         negotiation mechanism.
 
         If the negotiated protocol is one of the protocols defined in the
@@ -432,7 +434,7 @@ class OpenSSLTLSSocket:
 
 
 class OpenSSLClientContext:
-    """This class controls and creates wrapped sockets and buffers for using the
+    """This class controls and creates a socket that is wrapped using the
     standard library bindings to OpenSSL to perform TLS connections on the
     client side of a network connection.
     """
@@ -449,7 +451,7 @@ class OpenSSLClientContext:
         return self._configuration
 
     def connect(self, address: tuple[str | None, int]) -> OpenSSLTLSSocket:
-        """Create a buffered I/O object that can be used to do TLS."""
+        """Create a socket-like object that can be used to do TLS."""
         ossl_context = _init_context_client(self._configuration)
 
         return OpenSSLTLSSocket._create(
@@ -461,7 +463,7 @@ class OpenSSLClientContext:
 
 
 class OpenSSLServerContext:
-    """This class controls and creates wrapped sockets and buffers for using the
+    """This class controls and creates and creates a socket that is wrapped using the
     standard library bindings to OpenSSL to perform TLS connections on the
     server side of a network connection.
     """
@@ -478,7 +480,7 @@ class OpenSSLServerContext:
         return self._configuration
 
     def connect(self, address: tuple[str | None, int]) -> OpenSSLTLSSocket:
-        """Create a buffered I/O object that can be used to do TLS."""
+        """Create a socket-like object that can be used to do TLS."""
         ossl_context = _init_context_server(self._configuration)
 
         return OpenSSLTLSSocket._create(
@@ -541,7 +543,7 @@ class OpenSSLCertificate:
     be used for either server or client connectivity.
     """
 
-    def __init__(self, path: os.PathLike | None = None):
+    def __init__(self, path: os.PathLike):
         """Creates a certificate object, storing a path to the (temp)file."""
 
         self._cert_path = path
@@ -558,11 +560,12 @@ class OpenSSLCertificate:
         instead.
         """
 
-        fd, path = tempfile.mkstemp()
-        with os.fdopen(fd, "wb") as f:
-            f.write(buffer)
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False) as io:
+            io.write(buffer)
 
-        return cls(path=Path(path))
+        cert = cls(path=Path(io.name))
+        weakref.finalize(cert, os.remove, io.name)
+        return cert
 
     @classmethod
     def from_file(cls, path: os.PathLike) -> OpenSSLCertificate:
@@ -582,7 +585,7 @@ class OpenSSLPrivateKey:
     be used along with a certificate for either server or client connectivity.
     """
 
-    def __init__(self, path: os.PathLike | None = None, password: bytes | None = None):
+    def __init__(self, path: os.PathLike, password: bytes | None = None):
         """Creates a private key object, storing a path to the (temp)file."""
 
         self._key_path = path
@@ -610,10 +613,12 @@ class OpenSSLPrivateKey:
         private key is not encrypted and no password is needed.
         """
 
-        fd, path = tempfile.mkstemp()
-        with os.fdopen(fd, "wb") as f:
-            f.write(buffer)
-        return cls(path=Path(path), password=password)
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False) as io:
+            io.write(buffer)
+
+        key = cls(path=Path(io.name))
+        weakref.finalize(key, os.remove, io.name)
+        return key
 
     @classmethod
     def from_file(cls, path: os.PathLike, password: bytes | None = None) -> OpenSSLPrivateKey:
@@ -639,18 +644,3 @@ STDLIB_BACKEND = Backend(
     server_context=OpenSSLServerContext,
     trust_store=OpenSSLTrustStore,
 )
-
-# The current main is just test-code. We should probably remove it from here and add it to /test
-if __name__ == "__main__":
-    client_config = STDLIB_BACKEND.client_configuration(trust_store=OpenSSLTrustStore.system())
-    client_ctx = STDLIB_BACKEND.client_context(client_config)
-    tls_socket = client_ctx.connect(("www.python.org", 443))
-    print(tls_socket.negotiated_tls_version)
-    print(tls_socket.cipher)
-    print(tls_socket.negotiated_protocol)
-
-    tls_socket.send(
-        b"GET / HTTP/1.1\r\nHost: www.python.org\r\nConnection: close"
-        b"\r\nAccept-Encoding: identity\r\n\r\n",
-    )
-    print(tls_socket.recv(4096))
