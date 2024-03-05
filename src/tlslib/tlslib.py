@@ -31,7 +31,8 @@ class _TLSBaseConfiguration:
     An immutable TLS Configuration object. This object has the following
     properties, which are applicable to both clients and servers:
 
-    :param certificate_chain SigningChain: A leaf certificate including
+    :param certificate_chain Sequence[SigningChain]: A sequence of signing chains,
+        where each signing chain comprises a leaf certificate including
         its corresponding private key and optionally a list of intermediate
         certificates. These certificates will be offered to the remote
         peer during the handshake if required.
@@ -71,7 +72,7 @@ class _TLSBaseConfiguration:
 
     def __init__(
         self,
-        certificate_chain: SigningChain | None = None,
+        certificate_chain: Sequence[SigningChain] | None = None,
         ciphers: Sequence[CipherSuite | int] | None = None,
         inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
@@ -98,7 +99,7 @@ class _TLSBaseConfiguration:
         self._trust_store = trust_store
 
     @property
-    def certificate_chain(self) -> SigningChain | None:
+    def certificate_chain(self) -> Sequence[SigningChain] | None:
         """
         The certificate, intermediate certificates, and the corresponding
         private key for the leaf certificate. These certificates will be
@@ -149,7 +150,7 @@ class TLSServerConfiguration(_TLSBaseConfiguration):
 
     def __init__(
         self,
-        certificate_chain: SigningChain | None = None,
+        certificate_chain: Sequence[SigningChain] | None = None,
         ciphers: Sequence[CipherSuite] | None = None,
         inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
@@ -175,7 +176,7 @@ class TLSClientConfiguration(_TLSBaseConfiguration):
 
     def __init__(
         self,
-        certificate_chain: SigningChain | None = None,
+        certificate_chain: Sequence[SigningChain] | None = None,
         ciphers: Sequence[CipherSuite] | None = None,
         inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
