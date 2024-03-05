@@ -122,7 +122,7 @@ def _create_context_with_trust_store(
 
 def _sni_callback_builder(
     _name_to_chain_map: weakref.WeakValueDictionary[str, SigningChain],
-    original_config: TLSServerConfiguration
+    original_config: TLSServerConfiguration,
 ) -> typing.Callable[
     [ssl.SSLSocket, str, ssl.SSLContext | truststore.SSLContext], ssl.AlertDescription | None
 ]:
@@ -142,7 +142,7 @@ def _sni_callback_builder(
             inner_protocols=original_config.inner_protocols,
             lowest_supported_version=original_config.lowest_supported_version,
             highest_supported_version=original_config.highest_supported_version,
-            trust_store=original_config.trust_store
+            trust_store=original_config.trust_store,
         )
         ssl_socket.context = _init_context_server(new_config)
 
@@ -225,7 +225,7 @@ def _configure_context_for_certs(
                     _name_to_chain_map[server_name] = sign_chain
 
             assert sni_config is not None
-            context.sni_callback =_sni_callback_builder(_name_to_chain_map, sni_config)  # type: ignore[arg-type]
+            context.sni_callback = _sni_callback_builder(_name_to_chain_map, sni_config)
 
     return context
 

@@ -151,7 +151,7 @@ class TLSServerConfiguration(_TLSBaseConfiguration):
     def __init__(
         self,
         certificate_chain: Sequence[SigningChain] | None = None,
-        ciphers: Sequence[CipherSuite] | None = None,
+        ciphers: Sequence[CipherSuite | int] | None = None,
         inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
         highest_supported_version: TLSVersion | None = None,
@@ -177,7 +177,7 @@ class TLSClientConfiguration(_TLSBaseConfiguration):
     def __init__(
         self,
         certificate_chain: Sequence[SigningChain] | None = None,
-        ciphers: Sequence[CipherSuite] | None = None,
+        ciphers: Sequence[CipherSuite | int] | None = None,
         inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
         highest_supported_version: TLSVersion | None = None,
