@@ -7,6 +7,7 @@ import socket
 import ssl
 import tempfile
 import typing
+import weakref
 from collections.abc import Sequence
 from contextlib import contextmanager
 from pathlib import Path
@@ -130,13 +131,22 @@ def _configure_context_for_certs(
     """
 
     if cert_chain is not None:
-        # FIXME: support multiple certificates at different filesystem
-        # locations. This requires being prepared to create temporary
-        # files.
-
         cert = cert_chain.leaf[0]
         assert isinstance(cert, OpenSSLCertificate)
-        cert_path = cert._cert_path
+
+        if len(cert_chain.chain) == 0:
+            cert_path = cert._cert_path
+        else:
+            with tempfile.NamedTemporaryFile(mode="wb", delete=False) as io:
+                io.write(Path(cert._cert_path).read_bytes())
+                for cert in cert_chain.chain:
+                    # TODO: Typecheck this properly.
+                    assert isinstance(cert, OpenSSLCertificate)
+                    io.write(b"\n")
+                    io.write(Path(cert._cert_path).read_bytes())
+
+            weakref.finalize(context, os.remove, io.name)
+
         key_path = None
         password = None
         if cert_chain.leaf[1] is not None:
@@ -145,8 +155,8 @@ def _configure_context_for_certs(
             key_path = privkey._key_path
             password = privkey._password
 
-        if cert_path is not None:
-            context.load_cert_chain(cert_path, key_path, password)
+        assert cert_path is not None
+        context.load_cert_chain(cert_path, key_path, password)
 
     return context
 
@@ -477,7 +487,7 @@ class OpenSSLCertificate:
     be used for either server or client connectivity.
     """
 
-    def __init__(self, path: os.PathLike | None = None):
+    def __init__(self, path: os.PathLike):
         """Creates a certificate object, storing a path to the (temp)file."""
 
         self._cert_path = path
@@ -494,11 +504,12 @@ class OpenSSLCertificate:
         instead.
         """
 
-        fd, path = tempfile.mkstemp()
-        with os.fdopen(fd, "wb") as f:
-            f.write(buffer)
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False) as io:
+            io.write(buffer)
 
-        return cls(path=Path(path))
+        cert = cls(path=Path(io.name))
+        weakref.finalize(cert, os.remove, io.name)
+        return cert
 
     @classmethod
     def from_file(cls, path: os.PathLike) -> OpenSSLCertificate:
@@ -518,7 +529,7 @@ class OpenSSLPrivateKey:
     be used along with a certificate for either server or client connectivity.
     """
 
-    def __init__(self, path: os.PathLike | None = None, password: bytes | None = None):
+    def __init__(self, path: os.PathLike, password: bytes | None = None):
         """Creates a private key object, storing a path to the (temp)file."""
 
         self._key_path = path
@@ -546,10 +557,12 @@ class OpenSSLPrivateKey:
         private key is not encrypted and no password is needed.
         """
 
-        fd, path = tempfile.mkstemp()
-        with os.fdopen(fd, "wb") as f:
-            f.write(buffer)
-        return cls(path=Path(path), password=password)
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False) as io:
+            io.write(buffer)
+
+        key = cls(path=Path(io.name))
+        weakref.finalize(key, os.remove, io.name)
+        return key
 
     @classmethod
     def from_file(cls, path: os.PathLike, password: bytes | None = None) -> OpenSSLPrivateKey:
