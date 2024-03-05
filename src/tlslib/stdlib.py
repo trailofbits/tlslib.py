@@ -136,23 +136,16 @@ def _configure_context_for_certs(
 
         if len(cert_chain.chain) == 0:
             cert_path = cert._cert_path
-
         else:
-            # FIXME: we create a temporary file. How/when should it be deleted?
-            fd, path = tempfile.mkstemp()
-            print(path)
-
-            with os.fdopen(fd, "wb") as fo:
-                with open(cert._cert_path, "rb") as fi:
-                    fo.write(fi.read())
-
+            with tempfile.NamedTemporaryFile(mode="wb", delete=False) as io:
+                io.write(Path(cert._cert_path).read_bytes())
                 for cert in cert_chain.chain:
+                    # TODO: Typecheck this properly.
                     assert isinstance(cert, OpenSSLCertificate)
-                    with open(cert._cert_path, "rb") as fi:
-                        fo.write(fi.read())
+                    io.write(b"\n")
+                    io.write(Path(cert._cert_path).read_bytes())
 
-            cert_path = Path(path)
-            weakref.finalize(context, os.remove, cert_path)
+            weakref.finalize(context, os.remove, io.name)
 
         key_path = None
         password = None
@@ -511,13 +504,11 @@ class OpenSSLCertificate:
         instead.
         """
 
-        fd, path = tempfile.mkstemp()
-        with os.fdopen(fd, "wb") as f:
-            f.write(buffer)
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False) as io:
+            io.write(buffer)
 
-        cert_path = Path(path)
-        cert = cls(path=cert_path)
-        weakref.finalize(cert, os.remove, cert_path)
+        cert = cls(path=Path(io.name))
+        weakref.finalize(cert, os.remove, io.name)
         return cert
 
     @classmethod
@@ -566,13 +557,11 @@ class OpenSSLPrivateKey:
         private key is not encrypted and no password is needed.
         """
 
-        fd, path = tempfile.mkstemp()
-        with os.fdopen(fd, "wb") as f:
-            f.write(buffer)
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False) as io:
+            io.write(buffer)
 
-        key_path = Path(path)
-        key = cls(path=key_path)
-        weakref.finalize(key, os.remove, key_path)
+        key = cls(path=Path(io.name))
+        weakref.finalize(key, os.remove, io.name)
         return key
 
     @classmethod
