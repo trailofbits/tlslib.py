@@ -663,12 +663,12 @@ class TrustStore(Protocol):
 class SigningChain:
     """Object representing a certificate chain used in TLS."""
 
-    leaf: tuple[Certificate, PrivateKey]
+    leaf: tuple[Certificate, PrivateKey | None]
     chain: list[Certificate]
 
     def __init__(
         self,
-        leaf: tuple[Certificate, PrivateKey],
+        leaf: tuple[Certificate, PrivateKey | None],
         chain: Sequence[Certificate],
     ):
         """Initializes a SigningChain object."""
