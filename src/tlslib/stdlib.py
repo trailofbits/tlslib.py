@@ -167,7 +167,7 @@ def _configure_context_for_certs(
 
 
 def _configure_context_for_ciphers(
-    context: _SSLContext, ciphers: Sequence[CipherSuite] | None = None
+    context: _SSLContext, ciphers: Sequence[CipherSuite | int] | None = None
 ) -> _SSLContext:
     """Given a PEP 543 cipher suite list, configure the SSLContext to use those
     cipher suites.
