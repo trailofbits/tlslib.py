@@ -2,6 +2,7 @@
 Tests for `tlslib.stdlib`.
 """
 
+import time
 from pathlib import Path
 from unittest import TestCase
 
@@ -73,6 +74,8 @@ class TestBasic(TestBackend):
 
             self.assertEqual(client_sock.negotiated_tls_version, None)
             self.assertEqual(client_sock.cipher(), None)
+
+            time.sleep(1)
             self.assertEqual(server.server_recv, [b"message 1", b"message 2"])
             self.assertEqual(server.server_sent, [b"echo: message 1", b"echo: message 2"])
 
@@ -90,6 +93,7 @@ class TestBasic(TestBackend):
             client_sock = client_context.connect(server.socket.getsockname())
             self.assertEqual(client_sock.negotiated_protocol(), tlslib.NextProtocol.H2)
             client_sock.close()
+            time.sleep(1)
             self.assertEqual(server.server_negotiated_protocol, tlslib.NextProtocol.H2)
 
 
@@ -149,6 +153,7 @@ class TestConfig(TestBackend):
             client_sock = client_context.connect(server.socket.getsockname())
             self.assertEqual(client_sock.negotiated_protocol(), b"bla")
             client_sock.close()
+            time.sleep(1)
             self.assertEqual(server.server_negotiated_protocol, b"bla")
 
     def test_config_signingchain_empty(self):
