@@ -24,6 +24,12 @@ class TestOpenSSLTrustStore(TestCase):
         self.assertNotEqual(store, system_store_explicit)
 
 
+class TestOpenSSLTLSSocket(TestCase):
+    def test_socket_init(self):
+        with self.assertRaises(TypeError):
+            stdlib.OpenSSLTLSSocket()
+
+
 class TestBackend(TestCase):
     def test_backend_types(self):
         backend = stdlib.STDLIB_BACKEND
@@ -56,10 +62,35 @@ class TestBasic(TestBackend):
                     received += 1
                 except tlslib.WantReadError:
                     continue
+
+            self.assertEqual(client_sock.negotiated_tls_version, tlslib.TLSVersion.TLSv1_3)
+            self.assertEqual(client_sock.cipher(), tlslib.CipherSuite.TLS_AES_256_GCM_SHA384)
+            self.assertEqual(client_sock.negotiated_protocol(), None)
+            self.assertEqual(client_sock.getpeername(), server.socket.getsockname())
+            self.assertIsInstance(client_sock.fileno(), int)
+
             client_sock.close()
 
+            self.assertEqual(client_sock.negotiated_tls_version, None)
+            self.assertEqual(client_sock.cipher(), None)
             self.assertEqual(server.server_recv, [b"message 1", b"message 2"])
             self.assertEqual(server.server_sent, [b"echo: message 1", b"echo: message 2"])
+
+    def test_protocol_negotiation(self):
+        server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
+
+        new_client_config = tweak_client_config(
+            client_config, inner_protocols=(tlslib.NextProtocol.H2,)
+        )
+
+        server = tweak_server_config(server, inner_protocols=(tlslib.NextProtocol.H2,))
+
+        with server:
+            client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
+            client_sock = client_context.connect(server.socket.getsockname())
+            self.assertEqual(client_sock.negotiated_protocol(), tlslib.NextProtocol.H2)
+            self.assertEqual(server.server_negotiated_protocol, tlslib.NextProtocol.H2)
+            client_sock.close()
 
 
 class TestConfig(TestBackend):
@@ -85,6 +116,46 @@ class TestConfig(TestBackend):
             )
             client_sock.close()
 
+    def test_config_weird_cipher_id(self):
+        server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
+
+        new_client_config = tweak_client_config(
+            client_config,
+            ciphers=(49245,),
+            highest_supported_version=tlslib.TLSVersion.TLSv1_2,
+        )
+
+        server = tweak_server_config(
+            server,
+            ciphers=(49245,),
+        )
+
+        with server:
+            client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
+            with pytest.deprecated_call():
+                client_sock = client_context.connect(server.socket.getsockname())
+            self.assertEqual(client_sock.cipher(), 49245)
+            client_sock.close()
+
+    def test_config_weird_protocol(self):
+        server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
+
+        new_client_config = tweak_client_config(client_config, inner_protocols=(b"bla",))
+
+        server = tweak_server_config(server, inner_protocols=(b"bla",))
+
+        with server:
+            client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
+            client_sock = client_context.connect(server.socket.getsockname())
+            self.assertEqual(client_sock.negotiated_protocol(), b"bla")
+            self.assertEqual(server.server_negotiated_protocol, b"bla")
+            client_sock.close()
+
+    def test_config_signingchain_empty(self):
+        cert = stdlib.OpenSSLCertificate.from_buffer(b"")
+        key = stdlib.OpenSSLCertificate.from_buffer(b"")
+        tlslib.SigningChain((cert, key), None)
+
 
 class TestNegative(TestBackend):
     def test_no_client_ciphers(self):
@@ -96,7 +167,7 @@ class TestNegative(TestBackend):
         )
 
         with server:
-            client_context = server.backend.client_context(new_client_config)
+            client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
             with self.assertRaises(tlslib.TLSError):
                 client_sock = client_context.connect(server.socket.getsockname())
                 client_sock.close()
@@ -111,7 +182,7 @@ class TestNegative(TestBackend):
         )
 
         with server:
-            client_context = server.backend.client_context(new_client_config)
+            client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
             with self.assertRaises(tlslib.TLSError):
                 with pytest.deprecated_call():
                     client_sock = client_context.connect(server.socket.getsockname())
@@ -125,7 +196,7 @@ class TestNegative(TestBackend):
         )
 
         with server:
-            client_context = server.backend.client_context(new_client_config)
+            client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
             with self.assertRaises(tlslib.TLSError):
                 client_sock = client_context.connect(server.socket.getsockname())
                 client_sock.close()
@@ -144,7 +215,7 @@ class TestNegative(TestBackend):
 
         with pytest.deprecated_call():
             with server:
-                client_context = server.backend.client_context(new_client_config)
+                client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
                 with self.assertRaises(tlslib.TLSError):
                     with pytest.deprecated_call():
                         client_sock = client_context.connect(server.socket.getsockname())

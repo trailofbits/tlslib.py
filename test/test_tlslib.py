@@ -41,3 +41,28 @@ class TestBackend(TestCase):
         # invariant properties
         self.assertIs(backend.client_configuration, tlslib.TLSClientConfiguration)
         self.assertIs(backend.server_configuration, tlslib.TLSServerConfiguration)
+
+
+class AbstractFunctions(TestBackend):
+    def test_not_implemented(self):
+        with self.assertRaises(NotImplementedError):
+            tlslib.Certificate.from_buffer(b"")
+
+        with self.assertRaises(NotImplementedError):
+            tlslib.Certificate.from_file("")
+
+        with self.assertRaises(NotImplementedError):
+            tlslib.PrivateKey.from_buffer(b"")
+
+        with self.assertRaises(NotImplementedError):
+            tlslib.PrivateKey.from_file("")
+
+        with self.assertRaises(NotImplementedError):
+            tlslib.TLSSocket.fileno(tlslib.TLSSocket)
+
+    def test_empty_protocols(self):
+        tlslib.TrustStore.system()
+        tlslib.TrustStore.from_buffer(b"")
+        tlslib.TrustStore.from_file("")
+        tlslib.ClientContext.__init__(tlslib.ClientContext, tlslib.TLSClientConfiguration())
+        tlslib.ServerContext.__init__(tlslib.ClientContext, tlslib.TLSServerConfiguration())

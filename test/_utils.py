@@ -116,6 +116,8 @@ class ThreadedEchoServer(threading.Thread):
         self.server_sent = []
         self.server_recv = []
 
+        self.server_negotiated_protocol = None
+
     def __enter__(self):
         self.start(threading.Event())
         self.flag.wait()
@@ -138,9 +140,13 @@ class ThreadedEchoServer(threading.Thread):
         while self.active:
             try:
                 newconn, connaddr = self.socket.accept()
-                handler = self.ConnectionHandler(self, newconn, connaddr)
-                handler.start()
-                handler.join()
+
+                if newconn.negotiated_protocol() is None:
+                    handler = self.ConnectionHandler(self, newconn, connaddr)
+                    handler.start()
+                    handler.join()
+                else:
+                    self.server_negotiated_protocol = newconn.negotiated_protocol()
             except BlockingIOError:
                 # Would have blocked on accept; busy loop instead.
                 continue
