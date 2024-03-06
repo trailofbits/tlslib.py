@@ -89,8 +89,8 @@ class TestBasic(TestBackend):
             client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
             client_sock = client_context.connect(server.socket.getsockname())
             self.assertEqual(client_sock.negotiated_protocol(), tlslib.NextProtocol.H2)
-            self.assertEqual(server.server_negotiated_protocol, tlslib.NextProtocol.H2)
             client_sock.close()
+            self.assertEqual(server.server_negotiated_protocol, tlslib.NextProtocol.H2)
 
 
 class TestConfig(TestBackend):
@@ -148,8 +148,8 @@ class TestConfig(TestBackend):
             client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
             client_sock = client_context.connect(server.socket.getsockname())
             self.assertEqual(client_sock.negotiated_protocol(), b"bla")
-            self.assertEqual(server.server_negotiated_protocol, b"bla")
             client_sock.close()
+            self.assertEqual(server.server_negotiated_protocol, b"bla")
 
     def test_config_signingchain_empty(self):
         cert = stdlib.OpenSSLCertificate.from_buffer(b"")
