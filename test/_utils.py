@@ -2,17 +2,28 @@ from __future__ import annotations
 
 import json
 import threading
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from tlslib.stdlib import STDLIB_BACKEND, OpenSSLCertificate, OpenSSLPrivateKey, TLSVersion
+from tlslib.stdlib import (
+    STDLIB_BACKEND,
+    OpenSSLCertificate,
+    OpenSSLPrivateKey,
+    OpenSSLTrustStore,
+    TLSVersion,
+)
 from tlslib.tlslib import (
     DEFAULT_CIPHER_LIST,
     Backend,
+    CipherSuite,
+    NextProtocol,
     RaggedEOF,
     ServerContext,
     SigningChain,
     TLSClientConfiguration,
+    TLSError,
+    TLSServerConfiguration,
     TLSSocket,
     WantReadError,
     WantWriteError,
@@ -133,6 +144,11 @@ class ThreadedEchoServer(threading.Thread):
             except BlockingIOError:
                 # Would have blocked on accept; busy loop instead.
                 continue
+            except TLSError:
+                # Something went wrong during the handshake.
+                # TODO: Currently treating as busy loop, but we can also choose
+                # to gracefully shut down here?
+                continue
             except Exception:
                 # TODO: Figure out if there are other things we should mask or
                 # catch here.
@@ -155,7 +171,9 @@ def limbo_server(id: str) -> tuple[ThreadedEchoServer, TLSClientConfiguration]:
     testcase = limbo_asset(id)
 
     peer_cert = OpenSSLCertificate.from_buffer(testcase["peer_certificate"].encode())
-    peer_cert_key = OpenSSLPrivateKey.from_buffer(testcase["peer_certificate_key"].encode())
+    peer_cert_key = None
+    if testcase["peer_certificate_key"] is not None:
+        peer_cert_key = OpenSSLPrivateKey.from_buffer(testcase["peer_certificate_key"].encode())
     untrusted_intermediates = []
     for pem in testcase["untrusted_intermediates"]:
         untrusted_intermediates.append(OpenSSLCertificate.from_buffer(pem.encode()))
@@ -184,3 +202,83 @@ def limbo_server(id: str) -> tuple[ThreadedEchoServer, TLSClientConfiguration]:
     )
 
     return server, client_config
+
+
+def tweak_client_config(
+    old_config: TLSClientConfiguration,
+    certificate_chain: SigningChain[OpenSSLCertificate, OpenSSLPrivateKey] | None = None,
+    ciphers: Sequence[CipherSuite] | None = None,
+    inner_protocols: Sequence[NextProtocol | bytes] | None = None,
+    lowest_supported_version: TLSVersion | None = None,
+    highest_supported_version: TLSVersion | None = None,
+    trust_store: OpenSSLTrustStore | None = None,
+) -> TLSClientConfiguration:
+    if certificate_chain is None:
+        certificate_chain = old_config.certificate_chain
+
+    if ciphers is None:
+        ciphers = old_config.ciphers
+
+    if inner_protocols is None:
+        inner_protocols = old_config.inner_protocols
+
+    if lowest_supported_version is None:
+        lowest_supported_version = old_config.lowest_supported_version
+
+    if highest_supported_version is None:
+        highest_supported_version = old_config.highest_supported_version
+
+    if trust_store is None:
+        trust_store = old_config.trust_store
+
+    return TLSClientConfiguration(
+        certificate_chain=certificate_chain,
+        ciphers=ciphers,
+        inner_protocols=inner_protocols,
+        lowest_supported_version=lowest_supported_version,
+        highest_supported_version=highest_supported_version,
+        trust_store=trust_store,
+    )
+
+
+def tweak_server_config(
+    server: ThreadedEchoServer,
+    certificate_chain: SigningChain[OpenSSLCertificate, OpenSSLPrivateKey] | None = None,
+    ciphers: Sequence[CipherSuite] | None = None,
+    inner_protocols: Sequence[NextProtocol | bytes] | None = None,
+    lowest_supported_version: TLSVersion | None = None,
+    highest_supported_version: TLSVersion | None = None,
+    trust_store: OpenSSLTrustStore | None = None,
+) -> ThreadedEchoServer:
+    old_config = server.server_context.configuration
+
+    if certificate_chain is None:
+        certificate_chain = old_config.certificate_chain
+
+    if ciphers is None:
+        ciphers = old_config.ciphers
+
+    if inner_protocols is None:
+        inner_protocols = old_config.inner_protocols
+
+    if lowest_supported_version is None:
+        lowest_supported_version = old_config.lowest_supported_version
+
+    if highest_supported_version is None:
+        highest_supported_version = old_config.highest_supported_version
+
+    if trust_store is None:
+        trust_store = old_config.trust_store
+
+    new_config = TLSServerConfiguration(
+        certificate_chain=certificate_chain,
+        ciphers=ciphers,
+        inner_protocols=inner_protocols,
+        lowest_supported_version=lowest_supported_version,
+        highest_supported_version=highest_supported_version,
+        trust_store=trust_store,
+    )
+
+    server.server_context = server.backend.server_context(new_config)
+
+    return server

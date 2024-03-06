@@ -151,6 +151,7 @@ def _configure_context_for_certs(
                     io.write(Path(cert._cert_path).read_bytes())
 
             weakref.finalize(context, os.remove, io.name)
+            cert_path = Path(io.name)
 
         key_path = None
         password = None
@@ -161,7 +162,8 @@ def _configure_context_for_certs(
             password = privkey._password
 
         assert cert_path is not None
-        context.load_cert_chain(cert_path, key_path, password)
+        with _error_converter():
+            context.load_cert_chain(cert_path, key_path, password)
 
     return context
 
@@ -278,15 +280,17 @@ class OpenSSLTLSSocket:
 
         if server_side is True:
             sock = socket.create_server(address)
-            self._socket = ssl_context.wrap_socket(
-                sock, server_side=server_side, server_hostname=None
-            )
+            with _error_converter():
+                self._socket = ssl_context.wrap_socket(
+                    sock, server_side=server_side, server_hostname=None
+                )
         else:
             hostname, _ = address
             sock = socket.create_connection(address)
-            self._socket = ssl_context.wrap_socket(
-                sock, server_side=server_side, server_hostname=hostname
-            )
+            with _error_converter():
+                self._socket = ssl_context.wrap_socket(
+                    sock, server_side=server_side, server_hostname=hostname
+                )
 
         self._socket.setblocking(False)
 
@@ -329,7 +333,8 @@ class OpenSSLTLSSocket:
         new TLSSocket object usable to send and receive data on the connection, and
         address is the address bound to the socket on the other end of the connection."""
 
-        (sock, address) = self._socket.accept()
+        with _error_converter():
+            (sock, address) = self._socket.accept()
         tls_socket = OpenSSLTLSSocket.__new__(OpenSSLTLSSocket)
         tls_socket._parent_context = self._parent_context
         tls_socket._ssl_context = self._ssl_context
