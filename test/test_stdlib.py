@@ -101,7 +101,7 @@ class TestConfig(TestBackend):
     def test_config_system_trust_store(self):
         backend = stdlib.STDLIB_BACKEND
 
-        system_store = backend.trust_store.system()
+        system_store = None
 
         client_config = backend.client_configuration(trust_store=system_store)
         client_context = backend.client_context(client_config)

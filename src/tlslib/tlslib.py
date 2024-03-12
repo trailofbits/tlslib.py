@@ -27,15 +27,10 @@ __all__ = [
 
 
 class TrustStore(Protocol):
-    """The trust store that is used to verify certificate validity."""
-
-    @classmethod
-    def system(cls) -> TrustStore:
-        """
-        Returns a TrustStore object that represents the system trust
-        database.
-        """
-        ...
+    """
+    The trust store that is used to verify certificate validity.
+    Not providing a trust store means that the system trust store is used.
+    """
 
     @classmethod
     def from_buffer(cls, buffer: bytes) -> TrustStore:
@@ -131,15 +126,16 @@ class PrivateKey(Protocol):
 _PrivateKey = TypeVar("_PrivateKey", bound=PrivateKey)
 
 
-class _TLSBaseConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
+class TLSClientConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
     """
-    An immutable TLS Configuration object. This object has the following
-    properties, which are applicable to both clients and servers:
+    An immutable TLS Configuration object for a "client" socket, i.e. a socket
+    making a connection to a server. This object has the following
+    properties:
 
-    :param certificate_chain SigningChain: A leaf certificate including
-        its corresponding private key and optionally a list of intermediate
-        certificates. These certificates will be offered to the remote
-        peer during the handshake if required.
+    :param certificate_chain SigningChain: A single signing chain,
+        comprising a leaf certificate including its corresponding private key
+        and optionally a list of intermediate certificates. These certificates
+        will be offered to the server during the handshake if required.
 
     :param ciphers Sequence[CipherSuite | int]:
         The available ciphers for TLS connections created with this
@@ -148,8 +144,8 @@ class _TLSBaseConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
     :param inner_protocols Sequence[NextProtocol | bytes]:
         Protocols that connections created with this configuration should
         advertise as supported during the TLS handshake. These may be
-        advertised using either or both of ALPN or NPN. This list of
-        protocols should be ordered by preference.
+        advertised using ALPN. This list of protocols should be ordered
+        by preference.
 
     :param lowest_supported_version TLSVersion:
         The minimum version of TLS that should be allowed on TLS
@@ -161,8 +157,7 @@ class _TLSBaseConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
 
     :param trust_store TrustStore:
         The trust store that connections using this configuration will use
-        to validate certificates.
-
+        to validate certificates. None means that the system store is used.
     """
 
     __slots__ = (
@@ -183,6 +178,7 @@ class _TLSBaseConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
         highest_supported_version: TLSVersion | None = None,
         trust_store: _TrustStore | None = None,
     ) -> None:
+        """Initialize TLS client configuration."""
         if ciphers is None:
             ciphers = DEFAULT_CIPHER_LIST
 
@@ -205,13 +201,10 @@ class _TLSBaseConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
     @property
     def certificate_chain(self) -> SigningChain | None:
         """
-        The certificate, intermediate certificates, and the corresponding
-        private key for the leaf certificate. These certificates will be
-        offered to the remote peer during the handshake if required.
+        The leaf certificate and corresponding private key, with optionally a list of
+        intermediate certificates. These certificates will be offered to the server
+        during the handshake if required.
 
-        The first Certificate in the list is the leaf certificate. All
-        subsequent certificates will be offered as intermediate additional
-        certificates.
         """
         return self._certificate_chain
 
@@ -242,77 +235,140 @@ class _TLSBaseConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
     def trust_store(self) -> _TrustStore | None:
         """
         The trust store that connections using this configuration will use
-        to validate certificates.
+        to validate certificates. None means that the system store is used.
         """
         return self._trust_store
 
 
-class TLSServerConfiguration(_TLSBaseConfiguration[_TrustStore, _Certificate, _PrivateKey]):
-    """TLS configuration for a "server" socket, i.e. a socket
-    accepting connections from clients. The server configuration
-    currently does not have any server-specific attributes."""
+class TLSServerConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
+    """
+    An immutable TLS Configuration object for a "server" socket, i.e. a socket
+    making one or more connections to clients. This object has the following
+    properties:
+
+    :param certificate_chain Sequence[SigningChain]: A sequence of signing chains,
+        where each signing chain comprises a leaf certificate including
+        its corresponding private key and optionally a list of intermediate
+        certificates. These certificates will be offered to the client during
+        the handshake if required.
+
+    :param ciphers Sequence[CipherSuite | int]:
+        The available ciphers for TLS connections created with this
+        configuration, in priority order.
+
+    :param inner_protocols Sequence[NextProtocol | bytes]:
+        Protocols that connections created with this configuration should
+        advertise as supported during the TLS handshake. These may be
+        advertised using ALPN. This list of protocols should be ordered
+        by preference.
+
+    :param lowest_supported_version TLSVersion:
+        The minimum version of TLS that should be allowed on TLS
+        connections using this configuration.
+
+    :param highest_supported_version TLSVersion:
+        The maximum version of TLS that should be allowed on TLS
+        connections using this configuration.
+
+    :param trust_store TrustStore:
+        The trust store that connections using this configuration will use
+        to validate certificates. None means that the system store is used.
+    """
+
+    __slots__ = (
+        "_certificate_chain",
+        "_ciphers",
+        "_inner_protocols",
+        "_lowest_supported_version",
+        "_highest_supported_version",
+        "_trust_store",
+    )
 
     def __init__(
         self,
-        certificate_chain: SigningChain[_Certificate, _PrivateKey] | None = None,
-        ciphers: Sequence[CipherSuite] | None = None,
+        certificate_chain: Sequence[SigningChain[_Certificate, _PrivateKey]] | None = None,
+        ciphers: Sequence[CipherSuite | int] | None = None,
         inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
         highest_supported_version: TLSVersion | None = None,
         trust_store: _TrustStore | None = None,
     ) -> None:
-        """Initializes the TLS server configuration with all attributes"""
+        """Initialize TLS server configuration."""
+        if ciphers is None:
+            ciphers = DEFAULT_CIPHER_LIST
 
-        super().__init__(
-            certificate_chain,
-            ciphers,
-            inner_protocols,
-            lowest_supported_version,
-            highest_supported_version,
-            trust_store,
-        )
+        if inner_protocols is None:
+            inner_protocols = []
 
+        if lowest_supported_version is None:
+            lowest_supported_version = TLSVersion.TLSv1
 
-class TLSClientConfiguration(_TLSBaseConfiguration[_TrustStore, _Certificate, _PrivateKey]):
-    """TLS configuration for a "client" socket, i.e. a socket
-    making a connection to a server. The client configuration
-    currently does not have any server-specific attributes."""
+        if highest_supported_version is None:
+            highest_supported_version = TLSVersion.MAXIMUM_SUPPORTED
 
-    def __init__(
-        self,
-        certificate_chain: SigningChain[_Certificate, _PrivateKey] | None = None,
-        ciphers: Sequence[CipherSuite] | None = None,
-        inner_protocols: Sequence[NextProtocol | bytes] | None = None,
-        lowest_supported_version: TLSVersion | None = None,
-        highest_supported_version: TLSVersion | None = None,
-        trust_store: _TrustStore | None = None,
-    ) -> None:
-        """Initializes the TLS client configuration with all attributes"""
+        self._certificate_chain = certificate_chain
+        self._ciphers = ciphers
+        self._inner_protocols = inner_protocols
+        self._lowest_supported_version = lowest_supported_version
+        self._highest_supported_version = highest_supported_version
+        self._trust_store = trust_store
 
-        super().__init__(
-            certificate_chain,
-            ciphers,
-            inner_protocols,
-            lowest_supported_version,
-            highest_supported_version,
-            trust_store,
-        )
-
-
-class _BaseContext(Protocol):
     @property
-    @abstractmethod
-    def configuration(self) -> _TLSBaseConfiguration:
-        """Returns the TLS configuration that was used to create the context."""
+    def certificate_chain(self) -> Sequence[SigningChain] | None:
+        """
+        The set of signing chains, where each signing chain comprises a
+        leaf certificate and its corresponding private key, with optionally
+        a list of intermediate certificates. The certificates corresponding to
+        the signing chain that includes the correct certificate for the hostname
+        requested by the client will beoffered to the client during the handshake
+        if required.
+        """
+        return self._certificate_chain
+
+    @property
+    def ciphers(self) -> Sequence[CipherSuite | int]:
+        """The list of available ciphers for TLS connections, in priority order."""
+        return self._ciphers
+
+    @property
+    def inner_protocols(self) -> Sequence[NextProtocol | bytes]:
+        """Protocols that connections should advertise as supported during the TLS handshake.
+
+        These may be advertised using ALPN. This list of protocols is ordered by preference.
+        """
+        return self._inner_protocols
+
+    @property
+    def lowest_supported_version(self) -> TLSVersion:
+        """The minimum version of TLS that is allowed on TLS connections."""
+        return self._lowest_supported_version
+
+    @property
+    def highest_supported_version(self) -> TLSVersion:
+        """The maximum version of TLS that will be allowed on TLS connections."""
+        return self._highest_supported_version
+
+    @property
+    def trust_store(self) -> _TrustStore | None:
+        """
+        The trust store that connections using this configuration will use
+        to validate certificates. None means that the system store is used.
+        """
+        return self._trust_store
 
 
-class ClientContext(_BaseContext, Protocol):
+class ClientContext(Protocol):
     """Context for setting up TLS connections for a client."""
 
     @abstractmethod
     def __init__(self, configuration: TLSClientConfiguration) -> None:
-        """Create a new context object from a given TLS client configuration."""
+        """Create a new client context object from a given TLS client configuration."""
         ...
+
+    @property
+    @abstractmethod
+    def configuration(self) -> TLSClientConfiguration:
+        """Returns the TLS client configuration that was used to create the client context."""
 
     @abstractmethod
     def connect(self, address: tuple[str | None, int]) -> TLSSocket:
@@ -325,13 +381,18 @@ class ClientContext(_BaseContext, Protocol):
 _ClientContext = TypeVar("_ClientContext", bound=ClientContext)
 
 
-class ServerContext(_BaseContext, Protocol):
+class ServerContext(Protocol):
     """Context for setting up TLS connections for a server."""
 
     @abstractmethod
     def __init__(self, configuration: TLSServerConfiguration) -> None:
-        """Create a new context object from a given TLS server configuration."""
+        """Create a new server context object from a given TLS server configuration."""
         ...
+
+    @property
+    @abstractmethod
+    def configuration(self) -> TLSServerConfiguration:
+        """Returns the TLS server configuration that was used to create the server context."""
 
     @abstractmethod
     def connect(self, address: tuple[str | None, int]) -> TLSSocket:

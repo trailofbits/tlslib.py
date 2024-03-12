@@ -61,7 +61,6 @@ class AbstractFunctions(TestBackend):
             tlslib.TLSSocket.fileno(tlslib.TLSSocket)
 
     def test_empty_protocols(self):
-        tlslib.TrustStore.system()
         tlslib.TrustStore.from_buffer(b"")
         tlslib.TrustStore.from_file("")
         tlslib.ClientContext.__init__(tlslib.ClientContext, tlslib.TLSClientConfiguration())

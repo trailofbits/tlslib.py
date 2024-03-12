@@ -200,7 +200,7 @@ def limbo_server(id: str) -> tuple[ThreadedEchoServer, TLSClientConfiguration]:
 
     server = ThreadedEchoServer(
         STDLIB_BACKEND,
-        signing_chain,
+        (signing_chain,),
         TLSVersion.MINIMUM_SUPPORTED,
         TLSVersion.MAXIMUM_SUPPORTED,
         inner_protocols=None,
