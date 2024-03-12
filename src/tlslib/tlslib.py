@@ -78,6 +78,7 @@ class TLSClientConfiguration:
         highest_supported_version: TLSVersion | None = None,
         trust_store: TrustStore | None = None,
     ) -> None:
+        """Initialize TLS client configuration."""
         if ciphers is None:
             ciphers = DEFAULT_CIPHER_LIST
 
@@ -192,6 +193,7 @@ class TLSServerConfiguration:
         highest_supported_version: TLSVersion | None = None,
         trust_store: TrustStore | None = None,
     ) -> None:
+        """Initialize TLS server configuration."""
         if ciphers is None:
             ciphers = DEFAULT_CIPHER_LIST
 
