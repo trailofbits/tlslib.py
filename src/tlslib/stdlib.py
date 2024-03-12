@@ -101,16 +101,16 @@ def _version_options_from_version_range(min: TLSVersion, max: TLSVersion) -> int
         raise TLSError(msg)
 
 
-def _create_context_with_trust_store(
-    protocol: ssl._SSLMethod, trust_store: TrustStore | None
+def _create_client_context_with_trust_store(
+    trust_store: TrustStore | None,
 ) -> truststore.SSLContext | ssl.SSLContext:
     some_context: truststore.SSLContext | ssl.SSLContext
     assert isinstance(trust_store, OpenSSLTrustStore | None)
 
     if trust_store is _SYSTEMTRUSTSTORE:
-        some_context = truststore.SSLContext(protocol)
+        some_context = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     else:
-        some_context = ssl.SSLContext(protocol)
+        some_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         if trust_store is not None:
             assert isinstance(trust_store, OpenSSLTrustStore)
             some_context.load_verify_locations(trust_store._trust_path)
@@ -120,7 +120,75 @@ def _create_context_with_trust_store(
     return some_context
 
 
-def _configure_context_for_certs(
+def _create_server_context_with_trust_store(trust_store: TrustStore | None) -> ssl.SSLContext:
+    some_context: ssl.SSLContext
+    assert isinstance(trust_store, OpenSSLTrustStore | None)
+
+    # truststore does not support server side
+    some_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+
+    if trust_store is _SYSTEMTRUSTSTORE:
+        some_context.load_default_certs(ssl.Purpose.CLIENT_AUTH)
+    else:
+        if trust_store is not None:
+            assert isinstance(trust_store, OpenSSLTrustStore)
+            some_context.load_verify_locations(trust_store._trust_path)
+
+    some_context.options |= ssl.OP_NO_COMPRESSION
+
+    return some_context
+
+
+def _sni_callback_builder(
+    _name_to_chain_map: weakref.WeakValueDictionary[str, SigningChain],
+    original_config: TLSServerConfiguration,
+) -> typing.Callable[[ssl.SSLSocket, str, ssl.SSLContext], ssl.AlertDescription | None]:
+    def pep543_callback(
+        ssl_socket: ssl.SSLSocket,
+        server_name: str,
+        stdlib_context: ssl.SSLContext,
+    ) -> ssl.AlertDescription | None:
+        try:
+            sign_chain = _name_to_chain_map[server_name]
+        except KeyError:
+            return ssl.ALERT_DESCRIPTION_INTERNAL_ERROR
+
+        new_config = TLSServerConfiguration(
+            certificate_chain=(sign_chain,),
+            ciphers=original_config.ciphers,
+            inner_protocols=original_config.inner_protocols,
+            lowest_supported_version=original_config.lowest_supported_version,
+            highest_supported_version=original_config.highest_supported_version,
+            trust_store=original_config.trust_store,
+        )
+        ssl_socket.context = _init_context_server(new_config)
+
+        # Returning None, perversely, is how one signals success from this
+        # function. Will wonders never cease?
+        return None
+
+    return pep543_callback
+
+
+def _configure_server_context_for_certs(
+    context: ssl.SSLContext,
+    cert_chain: Sequence[SigningChain] | None = None,
+    sni_config: TLSServerConfiguration | None = None,
+) -> ssl.SSLContext:
+    if cert_chain is not None:
+        if len(cert_chain) == 1:
+            # Only one SigningChain, no need to configure SNI
+            return _configure_context_for_single_signing_chain(context, cert_chain[0])
+
+        elif len(cert_chain) > 1:
+            # We have multiple SigningChains, need to configure SNI
+            assert sni_config is not None
+            return _configure_context_for_sni(context, cert_chain, sni_config)
+
+    return context
+
+
+def _configure_context_for_single_signing_chain(
     context: truststore.SSLContext | ssl.SSLContext,
     cert_chain: SigningChain | None = None,
 ) -> truststore.SSLContext | ssl.SSLContext:
@@ -136,6 +204,7 @@ def _configure_context_for_certs(
 
         if len(cert_chain.chain) == 0:
             cert_path = cert._cert_path
+
         else:
             with tempfile.NamedTemporaryFile(mode="wb", delete=False) as io:
                 io.write(Path(cert._cert_path).read_bytes())
@@ -146,6 +215,7 @@ def _configure_context_for_certs(
                     io.write(Path(cert._cert_path).read_bytes())
 
             weakref.finalize(context, os.remove, io.name)
+            cert_path = Path(io.name)
 
         key_path = None
         password = None
@@ -157,6 +227,41 @@ def _configure_context_for_certs(
 
         assert cert_path is not None
         context.load_cert_chain(cert_path, key_path, password)
+
+    return context
+
+
+def _configure_context_for_sni(
+    context: ssl.SSLContext,
+    cert_chain: Sequence[SigningChain],
+    sni_config: TLSServerConfiguration,
+) -> ssl.SSLContext:
+    # This is a mapping of concrete server names to the corresponding SigningChain
+    _name_to_chain_map: weakref.WeakValueDictionary[str, SigningChain] = (
+        weakref.WeakValueDictionary()
+    )
+
+    for sign_chain in cert_chain:
+        # Parse leaf certificates to find server names
+        cert = sign_chain.leaf[0]
+        assert isinstance(cert, OpenSSLCertificate)
+        dec_cert = ssl._ssl._test_decode_cert(cert._cert_path)  # type: ignore[attr-defined]
+        try:
+            alt_names = dec_cert["subjectAltName"]
+        except KeyError:
+            continue
+
+        server_name = None
+        for name in alt_names:
+            assert len(name) == 2
+            if name[0] == "DNS":
+                server_name = name[1]
+                break
+
+        if server_name is not None:
+            _name_to_chain_map[server_name] = sign_chain
+
+    context.sni_callback = _sni_callback_builder(_name_to_chain_map, sni_config)  # type: ignore[assignment]
 
     return context
 
@@ -203,8 +308,6 @@ def _init_context_common(
     some_context: truststore.SSLContext | ssl.SSLContext,
     config: TLSClientConfiguration | TLSServerConfiguration,
 ) -> truststore.SSLContext | ssl.SSLContext:
-    some_context = _configure_context_for_certs(some_context, config.certificate_chain)
-
     some_context = _configure_context_for_ciphers(
         some_context,
         config.ciphers,
@@ -223,14 +326,22 @@ def _init_context_common(
 
 def _init_context_client(config: TLSClientConfiguration) -> truststore.SSLContext | ssl.SSLContext:
     """Initialize an ssl.SSLContext object with a given client configuration."""
-    some_context = _create_context_with_trust_store(ssl.PROTOCOL_TLS_CLIENT, config.trust_store)
+    some_context = _create_client_context_with_trust_store(config.trust_store)
+
+    some_context = _configure_context_for_single_signing_chain(
+        some_context, config.certificate_chain
+    )
 
     return _init_context_common(some_context, config)
 
 
 def _init_context_server(config: TLSServerConfiguration) -> truststore.SSLContext | ssl.SSLContext:
     """Initialize an ssl.SSLContext object with a given server configuration."""
-    some_context = _create_context_with_trust_store(ssl.PROTOCOL_TLS_SERVER, config.trust_store)
+    some_context = _create_server_context_with_trust_store(config.trust_store)
+
+    some_context = _configure_server_context_for_certs(
+        some_context, config.certificate_chain, config
+    )
 
     return _init_context_common(some_context, config)
 
