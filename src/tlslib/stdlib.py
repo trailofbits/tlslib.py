@@ -82,6 +82,10 @@ def _create_client_context_with_trust_store(trust_store: OpenSSLTrustStore | Non
 
     some_context.options |= ssl.OP_NO_COMPRESSION
 
+    some_context.verify_flags = (
+        ssl.VerifyFlags.VERIFY_X509_STRICT | ssl.VerifyFlags.VERIFY_X509_PARTIAL_CHAIN
+    )
+
     return some_context
 
 
