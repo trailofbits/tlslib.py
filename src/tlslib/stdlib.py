@@ -29,39 +29,16 @@ from .tlslib import (
 
 _SSLContext = ssl.SSLContext | truststore.SSLContext
 
-
-# We need all the various TLS options. We hard code this as their integer
-# values to deal with the fact that the symbolic constants are only exposed if
-# both OpenSSL and Python agree that they should be. That's problematic for
-# something that should be generic. This way works better.
-_OP_NO_SSLv2 = 0x01000000
-_OP_NO_SSLv3 = 0x02000000
-_OP_NO_TLSv1 = 0x04000000
-_OP_NO_TLSv1_2 = 0x08000000
-_OP_NO_TLSv1_1 = 0x10000000
-_OP_NO_TLSv1_3 = 0x20000000
-
-_opts_from_min_version = {
-    TLSVersion.MINIMUM_SUPPORTED: 0,
-    TLSVersion.SSLv2: 0,
-    TLSVersion.SSLv3: _OP_NO_SSLv2,
-    TLSVersion.TLSv1: _OP_NO_SSLv2 | _OP_NO_SSLv3,
-    TLSVersion.TLSv1_1: _OP_NO_SSLv2 | _OP_NO_SSLv3 | _OP_NO_TLSv1,
-    TLSVersion.TLSv1_2: _OP_NO_SSLv2 | _OP_NO_SSLv3 | _OP_NO_TLSv1 | _OP_NO_TLSv1_1,
-    TLSVersion.TLSv1_3: (
-        _OP_NO_SSLv2 | _OP_NO_SSLv3 | _OP_NO_TLSv1 | _OP_NO_TLSv1_1 | _OP_NO_TLSv1_2
-    ),
+_TLSMinVersionOpts = {
+    TLSVersion.MINIMUM_SUPPORTED: ssl.TLSVersion.MINIMUM_SUPPORTED,
+    TLSVersion.TLSv1_2: ssl.TLSVersion.TLSv1_2,
+    TLSVersion.TLSv1_3: ssl.TLSVersion.TLSv1_3,
 }
-_opts_from_max_version = {
-    TLSVersion.SSLv2: (
-        _OP_NO_TLSv1_3 | _OP_NO_TLSv1_2 | _OP_NO_TLSv1_1 | _OP_NO_TLSv1 | _OP_NO_SSLv3
-    ),
-    TLSVersion.SSLv3: _OP_NO_TLSv1_3 | _OP_NO_TLSv1_2 | _OP_NO_TLSv1_1 | _OP_NO_TLSv1,
-    TLSVersion.TLSv1: _OP_NO_TLSv1_3 | _OP_NO_TLSv1_2 | _OP_NO_TLSv1_1,
-    TLSVersion.TLSv1_1: _OP_NO_TLSv1_3 | _OP_NO_TLSv1_2,
-    TLSVersion.TLSv1_2: _OP_NO_TLSv1_3,
-    TLSVersion.TLSv1_3: 0,
-    TLSVersion.MAXIMUM_SUPPORTED: 0,
+
+_TLSMaxVersionOpts = {
+    TLSVersion.TLSv1_2: ssl.TLSVersion.TLSv1_2,
+    TLSVersion.TLSv1_3: ssl.TLSVersion.TLSv1_3,
+    TLSVersion.MAXIMUM_SUPPORTED: ssl.TLSVersion.MAXIMUM_SUPPORTED,
 }
 
 # We need to populate a dictionary of ciphers that OpenSSL supports, in the
@@ -90,17 +67,6 @@ def _error_converter(
         raise WantWriteError("Must write data") from None
     except ssl.SSLError as e:
         raise TLSError(e) from None
-
-
-def _version_options_from_version_range(min: TLSVersion, max: TLSVersion) -> int:
-    """Given a TLS version range, we need to convert that into options that
-    exclude TLS versions as appropriate.
-    """
-    try:
-        return _opts_from_min_version[min] | _opts_from_max_version[max]
-    except KeyError:
-        msg = "Bad maximum/minimum options"
-        raise TLSError(msg)
 
 
 def _create_client_context_with_trust_store(trust_store: OpenSSLTrustStore | None) -> _SSLContext:
@@ -278,9 +244,10 @@ def _configure_context_for_ciphers(
     if ciphers is not None:
         ossl_names = [_cipher_map[cipher] for cipher in ciphers if cipher in _cipher_map]
     if not ossl_names:
-        msg = "Unable to find any supported ciphers!"
+        msg = "None of the provided ciphers are supported by the OpenSSL backend!"
         raise TLSError(msg)
-    context.set_ciphers(":".join(ossl_names))
+    with _error_converter():
+        context.set_ciphers(":".join(ossl_names))
     return context
 
 
@@ -316,10 +283,12 @@ def _init_context_common(
         some_context,
         config.inner_protocols,
     )
-    some_context.options |= _version_options_from_version_range(
-        config.lowest_supported_version,
-        config.highest_supported_version,
-    )
+
+    try:
+        some_context.minimum_version = _TLSMinVersionOpts[config.lowest_supported_version]
+        some_context.maximum_version = _TLSMaxVersionOpts[config.highest_supported_version]
+    except KeyError:
+        raise TLSError("Bad maximum/minimum options")
 
     return some_context
 

@@ -6,10 +6,9 @@ import time
 from pathlib import Path
 from unittest import TestCase
 
-import pytest
 from tlslib import stdlib, tlslib
 
-from ._utils import limbo_server, tweak_client_config, tweak_server_config
+from ._utils import limbo_server, limbo_server_ssl, tweak_client_config, tweak_server_config
 
 
 class TestOpenSSLTrustStore(TestCase):
@@ -59,7 +58,7 @@ class TestBasic(TestBackend):
             received = 0
             while received < 2:
                 try:
-                    print(client_sock.recv(1024))
+                    client_sock.recv(1024)
                     received += 1
                 except tlslib.WantReadError:
                     continue
@@ -136,8 +135,7 @@ class TestConfig(TestBackend):
 
         with server:
             client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
-            with pytest.deprecated_call():
-                client_sock = client_context.connect(server.socket.getsockname())
+            client_sock = client_context.connect(server.socket.getsockname())
             self.assertEqual(client_sock.cipher(), 49245)
             client_sock.close()
 
@@ -189,9 +187,8 @@ class TestNegative(TestBackend):
         with server:
             client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
             with self.assertRaises(tlslib.TLSError):
-                with pytest.deprecated_call():
-                    client_sock = client_context.connect(server.socket.getsockname())
-                    client_sock.close()
+                client_sock = client_context.connect(server.socket.getsockname())
+                client_sock.close()
 
     def test_bad_tls_version_option(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
@@ -215,13 +212,68 @@ class TestNegative(TestBackend):
         )
 
         new_client_config = tweak_client_config(
-            client_config, highest_supported_version=tlslib.TLSVersion.SSLv2
+            client_config, highest_supported_version=tlslib.TLSVersion.TLSv1_2
         )
 
-        with pytest.deprecated_call():
-            with server:
+        with server:
+            client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
+            with self.assertRaises(tlslib.TLSError):
+                client_sock = client_context.connect(server.socket.getsockname())
+                client_sock.close()
+
+
+class TestClientAgainstSSL(TestBackend):
+    def test_trivial_connection_ssl(self):
+        server, client_config = limbo_server_ssl("webpki::san::exact-localhost-ip-san")
+
+        with server:
+            client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
+            client_sock = client_context.connect(server.socket.getsockname())
+            client_sock.send(b"message 1")
+            client_sock.send(b"message 2")
+
+            received = 0
+            while received < 2:
+                try:
+                    client_sock.recv(1024)
+                    received += 1
+                except tlslib.WantReadError:
+                    continue
+
+            self.assertEqual(client_sock.negotiated_tls_version, tlslib.TLSVersion.TLSv1_3)
+            self.assertEqual(client_sock.cipher(), tlslib.CipherSuite.TLS_AES_256_GCM_SHA384)
+            self.assertEqual(client_sock.negotiated_protocol(), None)
+            self.assertEqual(client_sock.getpeername(), server.socket.getsockname())
+            self.assertIsInstance(client_sock.fileno(), int)
+
+            client_sock.close()
+
+            self.assertEqual(client_sock.negotiated_tls_version, None)
+            self.assertEqual(client_sock.cipher(), None)
+
+            time.sleep(1)
+            self.assertEqual(server.server_recv, [b"message 1", b"message 2"])
+            self.assertEqual(server.server_sent, [b"echo: message 1", b"echo: message 2"])
+
+    def test_all_ciphers(self):
+        server, client_config = limbo_server_ssl("webpki::san::exact-localhost-ip-san")
+        with server:
+            for cipher in tlslib.CipherSuite:
+                new_client_config = tweak_client_config(
+                    client_config,
+                    ciphers=(cipher,),
+                    highest_supported_version=tlslib.TLSVersion.TLSv1_2,
+                )
                 client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
-                with self.assertRaises(tlslib.TLSError):
-                    with pytest.deprecated_call():
-                        client_sock = client_context.connect(server.socket.getsockname())
-                        client_sock.close()
+                try:
+                    client_sock = client_context.connect(server.socket.getsockname())
+                except tlslib.TLSError:
+                    continue
+
+                self.assertEqual(client_sock.negotiated_tls_version, tlslib.TLSVersion.TLSv1_2)
+                self.assertEqual(client_sock.cipher(), cipher)
+                self.assertEqual(client_sock.negotiated_protocol(), None)
+                self.assertEqual(client_sock.getpeername(), server.socket.getsockname())
+                client_sock.close()
+                self.assertEqual(client_sock.negotiated_tls_version, None)
+                self.assertEqual(client_sock.cipher(), None)

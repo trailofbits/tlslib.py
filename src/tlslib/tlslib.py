@@ -186,7 +186,7 @@ class TLSClientConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
             inner_protocols = []
 
         if lowest_supported_version is None:
-            lowest_supported_version = TLSVersion.TLSv1
+            lowest_supported_version = TLSVersion.TLSv1_2
 
         if highest_supported_version is None:
             highest_supported_version = TLSVersion.MAXIMUM_SUPPORTED
@@ -301,7 +301,7 @@ class TLSServerConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
             inner_protocols = []
 
         if lowest_supported_version is None:
-            lowest_supported_version = TLSVersion.TLSv1
+            lowest_supported_version = TLSVersion.TLSv1_2
 
         if highest_supported_version is None:
             highest_supported_version = TLSVersion.MAXIMUM_SUPPORTED
@@ -689,10 +689,6 @@ class TLSVersion(Enum):
     """
 
     MINIMUM_SUPPORTED = "MINIMUM_SUPPORTED"
-    SSLv2 = "SSLv2"
-    SSLv3 = "SSLv3"
-    TLSv1 = "TLSv1"
-    TLSv1_1 = "TLSv1.1"
     TLSv1_2 = "TLSv1.2"
     TLSv1_3 = "TLSv1.3"
     MAXIMUM_SUPPORTED = "MAXIMUM_SUPPORTED"
