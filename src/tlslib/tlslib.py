@@ -29,8 +29,15 @@ __all__ = [
 class TrustStore(Protocol):
     """
     The trust store that is used to verify certificate validity.
-    Not providing a trust store means that the system trust store is used.
     """
+
+    @classmethod
+    def system(cls) -> TrustStore:
+        """
+        Returns a TrustStore object that represents the system trust
+        database.
+        """
+        ...
 
     @classmethod
     def from_buffer(cls, buffer: bytes) -> TrustStore:
@@ -272,7 +279,8 @@ class TLSServerConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
 
     :param trust_store TrustStore:
         The trust store that connections using this configuration will use
-        to validate certificates. None means that the system store is used.
+        to validate certificates. None means that client authentication is disabled,
+        whereas any other option enable client authentication.
     """
 
     __slots__ = (
@@ -447,6 +455,10 @@ class TLSSocket(Protocol):
     @abstractmethod
     def getsockname(self) -> tuple[str | None, int]:
         """Return the local address to which the socket is connected."""
+
+    @abstractmethod
+    def getpeercert(self) -> Certificate | None:
+        """Return the certificate provided by the peer during the handshake, if applicable."""
 
     @abstractmethod
     def getpeername(self) -> tuple[str | None, int]:

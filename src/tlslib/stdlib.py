@@ -73,7 +73,7 @@ def _create_client_context_with_trust_store(trust_store: OpenSSLTrustStore | Non
     some_context: _SSLContext
     assert isinstance(trust_store, OpenSSLTrustStore | None)
 
-    if trust_store is not None:
+    if trust_store is not None and trust_store._trust_path is not None:
         some_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         assert isinstance(trust_store, OpenSSLTrustStore)
         some_context.load_verify_locations(trust_store._trust_path)
@@ -98,11 +98,13 @@ def _create_server_context_with_trust_store(
     # truststore does not support server side
     some_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 
-    if trust_store is None:
-        some_context.load_default_certs(ssl.Purpose.CLIENT_AUTH)
-    else:
+    if trust_store is not None:
+        some_context.verify_mode = ssl.CERT_REQUIRED
         assert isinstance(trust_store, OpenSSLTrustStore)
-        some_context.load_verify_locations(trust_store._trust_path)
+        if trust_store._trust_path is None:
+            some_context.load_default_certs(ssl.Purpose.CLIENT_AUTH)
+        else:
+            some_context.load_verify_locations(trust_store._trust_path)
 
     some_context.options |= ssl.OP_NO_COMPRESSION
 
@@ -426,6 +428,15 @@ class OpenSSLTLSSocket:
         with _error_converter():
             return self._socket.getsockname()
 
+    def getpeercert(self) -> OpenSSLCertificate | None:
+        """Return the certificate provided by the peer during the handshake, if applicable."""
+        with _error_converter():
+            cert = self._socket.getpeercert(True)
+        if cert is None:
+            return None
+        else:
+            return OpenSSLCertificate.from_buffer(cert)
+
     def getpeername(self) -> socket._RetAddress:
         """Return the remote address to which the socket is connected."""
 
@@ -587,6 +598,15 @@ class OpenSSLTrustStore:
         """
 
         self._trust_path = path
+
+    @classmethod
+    def system(cls) -> OpenSSLTrustStore:
+        """
+        Returns a TrustStore object that represents the system trust
+        database. For the stdlib shim, this is represented by a trust store without a path.
+        """
+
+        return cls(path=None)
 
     @classmethod
     def from_buffer(cls, buf: bytes) -> OpenSSLTrustStore:

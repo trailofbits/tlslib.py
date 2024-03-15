@@ -105,6 +105,7 @@ class ThreadedEchoServer(threading.Thread):
         max_tls_version,
         inner_protocols,
         ciphers,
+        trust_store,
     ):
         self.server_context: ServerContext | ssl.SSLContext
         if backend is not None:
@@ -115,14 +116,14 @@ class ThreadedEchoServer(threading.Thread):
                 inner_protocols=inner_protocols,
                 lowest_supported_version=min_tls_version,
                 highest_supported_version=max_tls_version,
-                trust_store=None,
+                trust_store=trust_store,
             )
             self.server_context = backend.server_context(server_configuration)
         else:
             self.backend = None
             server_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-            server_context.minimum_version = ssl.TLSVersion.MINIMUM_SUPPORTED
-            server_context.maximum_version = ssl.TLSVersion.MAXIMUM_SUPPORTED
+            server_context.minimum_version = min_tls_version
+            server_context.maximum_version = max_tls_version
             server_context.options |= ssl.OP_NO_COMPRESSION
             server_context.verify_flags = (
                 ssl.VerifyFlags.VERIFY_X509_STRICT | ssl.VerifyFlags.VERIFY_X509_PARTIAL_CHAIN
@@ -130,6 +131,12 @@ class ThreadedEchoServer(threading.Thread):
             assert isinstance(cert_chain, os.PathLike)
             server_context.load_cert_chain(cert_chain)
             server_context.set_ciphers("ALL:COMPLEMENTOFALL")
+            if inner_protocols is not None:
+                server_context.set_alpn_protocols(inner_protocols)
+            if trust_store is not None:
+                assert isinstance(cert_chain, os.PathLike)
+                server_context.load_verify_locations(trust_store)
+                server_context.verify_mode = ssl.CERT_REQUIRED
             self.server_context = server_context
 
         self.active = False
@@ -137,6 +144,7 @@ class ThreadedEchoServer(threading.Thread):
         threading.Thread.__init__(self)
         self.name = "server"
         self.daemon = True
+        self.peer_cert = None
 
         self.server_sent = []
         self.server_recv = []
@@ -171,23 +179,28 @@ class ThreadedEchoServer(threading.Thread):
         while self.active:
             try:
                 newconn, connaddr = self.socket.accept()
-
+                prot = None
+                print("Yeah")
                 if self.backend is not None:
-                    if newconn.negotiated_protocol() is None:
-                        handler = self.ConnectionHandler(self, newconn, connaddr)
-                        handler.start()
-                        handler.join()
-                    else:
-                        self.server_negotiated_protocol = newconn.negotiated_protocol()
+                    prot = newconn.negotiated_protocol()
                 else:
                     newconn.setblocking(False)
+                    prot = newconn.selected_alpn_protocol()
+                    self.peer_cert = newconn.getpeercert(True)
+                    print(self.peer_cert)
+
+                if prot is None:
                     handler = self.ConnectionHandler(self, newconn, connaddr)
                     handler.start()
                     handler.join()
+                else:
+                    self.server_negotiated_protocol = prot
+
             except BlockingIOError:
                 # Would have blocked on accept; busy loop instead.
                 continue
-            except (TLSError, ssl.SSLError):
+            except (TLSError, ssl.SSLError) as exc:
+                print(exc)
                 # Something went wrong during the handshake.
                 # TODO: Currently treating as busy loop, but we can also choose
                 # to gracefully shut down here?
@@ -242,6 +255,7 @@ def limbo_server(id: str) -> tuple[ThreadedEchoServer, TLSClientConfiguration]:
         TLSVersion.MAXIMUM_SUPPORTED,
         inner_protocols=None,
         ciphers=DEFAULT_CIPHER_LIST,
+        trust_store=None,
     )
 
     return server, client_config
@@ -327,7 +341,9 @@ def tweak_server_config(
     return server
 
 
-def limbo_server_ssl(id: str) -> tuple[ThreadedEchoServer, TLSClientConfiguration]:
+def limbo_server_ssl(
+    id: str, client_id: str | None = None
+) -> tuple[ThreadedEchoServer, TLSClientConfiguration]:
     """
     Return a `ThreadedServer` and a `TLSClientConfiguration` suitable for connecting to it,
     both instantiated with an `sslib` backend and state from the given Limbo testcase.
@@ -349,8 +365,35 @@ def limbo_server_ssl(id: str) -> tuple[ThreadedEchoServer, TLSClientConfiguratio
     for pem in testcase["trusted_certs"]:
         trusted_certs.append(pem.encode())
 
+    sign_chain_client = None
+    server_trust_store = None
+    if client_id is not None:
+        testcase_client = limbo_asset(client_id)
+        peer_cert = OpenSSLCertificate.from_buffer(testcase_client["peer_certificate"].encode())
+        peer_cert_key = None
+        if testcase_client["peer_certificate_key"] is not None:
+            peer_cert_key = OpenSSLPrivateKey.from_buffer(
+                testcase_client["peer_certificate_key"].encode()
+            )
+        untrusted_intermediates = []
+        for pem in testcase_client["untrusted_intermediates"]:
+            untrusted_intermediates.append(OpenSSLCertificate.from_buffer(pem.encode()))
+        sign_chain_client = SigningChain(
+            leaf=(peer_cert, peer_cert_key), chain=untrusted_intermediates
+        )
+
+        trusted_certs_client = []
+        for pem in testcase_client["trusted_certs"]:
+            trusted_certs_client.append(pem.encode())
+
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False) as io_client:
+            for pem in testcase_client["trusted_certs"]:
+                io_client.write(pem.encode())
+                io_client.write(b"\n")
+        server_trust_store = Path(io_client.name)
+
     client_config = STDLIB_BACKEND.client_configuration(
-        certificate_chain=None,
+        certificate_chain=sign_chain_client,
         ciphers=DEFAULT_CIPHER_LIST,
         inner_protocols=None,
         lowest_supported_version=TLSVersion.MINIMUM_SUPPORTED,
@@ -358,14 +401,21 @@ def limbo_server_ssl(id: str) -> tuple[ThreadedEchoServer, TLSClientConfiguratio
         trust_store=STDLIB_BACKEND.trust_store.from_buffer(b"\n".join(trusted_certs)),
     )
 
+    protocols = []
+    for np in NextProtocol:
+        protocols.append(np.value.decode("ascii"))
+
     server = ThreadedEchoServer(
         None,
         Path(io.name),
-        TLSVersion.MINIMUM_SUPPORTED,
-        TLSVersion.MAXIMUM_SUPPORTED,
-        inner_protocols=None,
+        ssl.TLSVersion.MINIMUM_SUPPORTED,
+        ssl.TLSVersion.MAXIMUM_SUPPORTED,
+        inner_protocols=protocols,
         ciphers=DEFAULT_CIPHER_LIST,
+        trust_store=server_trust_store,
     )
+    if client_id is not None:
+        weakref.finalize(server, os.remove, io_client.name)
 
     weakref.finalize(server, os.remove, io.name)
 
