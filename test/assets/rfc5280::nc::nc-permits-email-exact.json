@@ -1,0 +1,31 @@
+{
+  "id": "rfc5280::nc::nc-permits-email-exact",
+  "conflicts_with": [],
+  "features": [],
+  "description": "Produces the following **valid** graph:\n\n```\nroot -> ICA (permit: foo@example.com) -> EE (SAN: foo@example.com)\n```\n\nPer RFC 5280 4.2.1.10 an email name constraint may specify a particular mailbox,\nlike in this graph.",
+  "validation_kind": "CLIENT",
+  "trusted_certs": [
+    "-----BEGIN CERTIFICATE-----\nMIIBjzCCATWgAwIBAgIURSO5Q8QVl0p2X6qFjk63a/TLGhEwCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjAaMRgwFgYDVQQDDA94NTA5LWxpbWJvLXJvb3QwWTATBgcq\nhkjOPQIBBggqhkjOPQMBBwNCAASX0rA++CUsgWBSodw2CSA+HX9bO/02vEaQ44bI\nGPcsaP8VqZ+l8oqQABLWfuhM8MH7EjhFRxGVEHRfO95Y4aLLo1cwVTAPBgNVHRMB\nAf8EBTADAQH/MAsGA1UdDwQEAwICBDAWBgNVHREEDzANggtleGFtcGxlLmNvbTAd\nBgNVHQ4EFgQUlgnpxxW76q1nzdh1l0wqyddYVTwwCgYIKoZIzj0EAwIDSAAwRQIh\nALaFyx1opOCsQwV9ieCyPbDO4hk4irnBFYOQMx0S5oDpAiBnwBbudDdXSFe0N7cz\nR4VNOUtohVAs5Jmp7ievk58IUw==\n-----END CERTIFICATE-----\n"
+  ],
+  "untrusted_intermediates": [
+    "-----BEGIN CERTIFICATE-----\nMIICDjCCAbOgAwIBAgIUMAogzjzUJ4dkUHIHaWOnuIq5TjcwCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjBqMTkwNwYDVQQLDDAzOTQ3MTcwMjgxMDEyNTAyNTIyODE3\nODkxNTk0ODAwMDU4MzE1NjA0MTMyNTYyMDkxLTArBgNVBAMMJHg1MDktbGltYm8t\naW50ZXJtZWRpYXRlLXBhdGhsZW4tTm9uZTBZMBMGByqGSM49AgEGCCqGSM49AwEH\nA0IABMPcOT78CLPmLW8KBl7+58/4pC83yWRqk0uOXTd8Woy99AmnQsJarhunW/rd\n12mR0Mg58HUrkHe45Uc57uDqe+ujgYQwgYEwDwYDVR0TAQH/BAUwAwEB/zALBgNV\nHQ8EBAMCAgQwHwYDVR0jBBgwFoAUlgnpxxW76q1nzdh1l0wqyddYVTwwHQYDVR0O\nBBYEFLQeIPERfqZt5UB0IsRip9uI7sj+MCEGA1UdHgEB/wQXMBWgEzARgQ9mb29A\nZXhhbXBsZS5jb20wCgYIKoZIzj0EAwIDSQAwRgIhAJQ3VuhT2XqRh8VA5xgfHMg9\nbvOwvWDkBX1d0oVfNS2cAiEAomAcUI/RBqIx5bF7e0BD8lDQ+m2qoNJ06l0PItcC\n0O0=\n-----END CERTIFICATE-----\n"
+  ],
+  "peer_certificate": "-----BEGIN CERTIFICATE-----\nMIICBTCCAaugAwIBAgIUGBz+hrxTNw1qAAxZilDO5yVY7okwCgYIKoZIzj0EAwIw\najE5MDcGA1UECwwwMzk0NzE3MDI4MTAxMjUwMjUyMjgxNzg5MTU5NDgwMDA1ODMx\nNTYwNDEzMjU2MjA5MS0wKwYDVQQDDCR4NTA5LWxpbWJvLWludGVybWVkaWF0ZS1w\nYXRobGVuLU5vbmUwIBcNNzAwMTAxMDAwMDAxWhgPMjk2OTA1MDMwMDAwMDFaMBYx\nFDASBgNVBAMMC2V4YW1wbGUuY29tMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE\ncySP8RkOf4eO2ELYlJUFQzTA0Z5Nw3MmMrcnkKPuD2AYyvmWNJSF0K1yIWkQUjrD\n7iJebQM2C/xcVn1+TLhqoqOBgDB+MB0GA1UdDgQWBBSf+CxRQjZfMakBR6oBBMjw\nmZgTwzAfBgNVHSMEGDAWgBS0HiDxEX6mbeVAdCLEYqfbiO7I/jALBgNVHQ8EBAMC\nB4AwEwYDVR0lBAwwCgYIKwYBBQUHAwIwGgYDVR0RBBMwEYEPZm9vQGV4YW1wbGUu\nY29tMAoGCCqGSM49BAMCA0gAMEUCIHmQi5rf3vlfbTFf7eRYe3dbiIO155MK7lXN\ni3xbM1ocAiEAuVGseH5s0I9vwjFX9LJHhCYtbQmkZZWAph12hs1WRU0=\n-----END CERTIFICATE-----\n",
+  "peer_certificate_key": "-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEINsrbNQLPci0dOuTaNUTKfQrq/Bj0sDcsV+iUv5HYKLfoAoGCCqGSM49\nAwEHoUQDQgAEcySP8RkOf4eO2ELYlJUFQzTA0Z5Nw3MmMrcnkKPuD2AYyvmWNJSF\n0K1yIWkQUjrD7iJebQM2C/xcVn1+TLhqog==\n-----END EC PRIVATE KEY-----\n",
+  "validation_time": null,
+  "signature_algorithms": [],
+  "key_usage": [],
+  "extended_key_usage": [],
+  "expected_result": "SUCCESS",
+  "expected_peer_name": {
+    "kind": "DNS",
+    "value": "example.com"
+  },
+  "expected_peer_names": [
+    {
+      "kind": "RFC822",
+      "value": "foo@example.com"
+    }
+  ],
+  "max_chain_depth": null
+}
