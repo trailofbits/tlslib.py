@@ -134,7 +134,6 @@ class ThreadedEchoServer(threading.Thread):
             if inner_protocols is not None:
                 server_context.set_alpn_protocols(inner_protocols)
             if trust_store is not None:
-                assert isinstance(cert_chain, os.PathLike)
                 server_context.load_verify_locations(trust_store)
                 server_context.verify_mode = ssl.CERT_REQUIRED
             self.server_context = server_context
