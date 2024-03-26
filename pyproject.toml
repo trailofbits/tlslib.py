@@ -17,7 +17,7 @@ dependencies = ["truststore"]
 requires-python = ">=3.12"
 
 [project.optional-dependencies]
-doc = []
+doc = ["pdoc"]
 test = ["pytest", "pytest-cov", "pretend", "coverage[toml]"]
 lint = [
     "ruff",
