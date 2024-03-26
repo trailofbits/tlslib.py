@@ -63,5 +63,6 @@ class AbstractFunctions(TestBackend):
     def test_empty_protocols(self):
         tlslib.TrustStore.from_buffer(b"")
         tlslib.TrustStore.from_file("")
+        tlslib.TrustStore.system()
         tlslib.ClientContext.__init__(tlslib.ClientContext, tlslib.TLSClientConfiguration())
         tlslib.ServerContext.__init__(tlslib.ClientContext, tlslib.TLSServerConfiguration())
