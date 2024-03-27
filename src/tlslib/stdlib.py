@@ -23,43 +23,22 @@ from .tlslib import (
     TLSError,
     TLSServerConfiguration,
     TLSVersion,
-    TrustStore,
     WantReadError,
     WantWriteError,
 )
 
-# We need all the various TLS options. We hard code this as their integer
-# values to deal with the fact that the symbolic constants are only exposed if
-# both OpenSSL and Python agree that they should be. That's problematic for
-# something that should be generic. This way works better.
-_OP_NO_SSLv2 = 0x01000000
-_OP_NO_SSLv3 = 0x02000000
-_OP_NO_TLSv1 = 0x04000000
-_OP_NO_TLSv1_2 = 0x08000000
-_OP_NO_TLSv1_1 = 0x10000000
-_OP_NO_TLSv1_3 = 0x20000000
+_SSLContext = ssl.SSLContext | truststore.SSLContext
 
-_opts_from_min_version = {
-    TLSVersion.MINIMUM_SUPPORTED: 0,
-    TLSVersion.SSLv2: 0,
-    TLSVersion.SSLv3: _OP_NO_SSLv2,
-    TLSVersion.TLSv1: _OP_NO_SSLv2 | _OP_NO_SSLv3,
-    TLSVersion.TLSv1_1: _OP_NO_SSLv2 | _OP_NO_SSLv3 | _OP_NO_TLSv1,
-    TLSVersion.TLSv1_2: _OP_NO_SSLv2 | _OP_NO_SSLv3 | _OP_NO_TLSv1 | _OP_NO_TLSv1_1,
-    TLSVersion.TLSv1_3: (
-        _OP_NO_SSLv2 | _OP_NO_SSLv3 | _OP_NO_TLSv1 | _OP_NO_TLSv1_1 | _OP_NO_TLSv1_2
-    ),
+_TLSMinVersionOpts = {
+    TLSVersion.MINIMUM_SUPPORTED: ssl.TLSVersion.MINIMUM_SUPPORTED,
+    TLSVersion.TLSv1_2: ssl.TLSVersion.TLSv1_2,
+    TLSVersion.TLSv1_3: ssl.TLSVersion.TLSv1_3,
 }
-_opts_from_max_version = {
-    TLSVersion.SSLv2: (
-        _OP_NO_TLSv1_3 | _OP_NO_TLSv1_2 | _OP_NO_TLSv1_1 | _OP_NO_TLSv1 | _OP_NO_SSLv3
-    ),
-    TLSVersion.SSLv3: _OP_NO_TLSv1_3 | _OP_NO_TLSv1_2 | _OP_NO_TLSv1_1 | _OP_NO_TLSv1,
-    TLSVersion.TLSv1: _OP_NO_TLSv1_3 | _OP_NO_TLSv1_2 | _OP_NO_TLSv1_1,
-    TLSVersion.TLSv1_1: _OP_NO_TLSv1_3 | _OP_NO_TLSv1_2,
-    TLSVersion.TLSv1_2: _OP_NO_TLSv1_3,
-    TLSVersion.TLSv1_3: 0,
-    TLSVersion.MAXIMUM_SUPPORTED: 0,
+
+_TLSMaxVersionOpts = {
+    TLSVersion.TLSv1_2: ssl.TLSVersion.TLSv1_2,
+    TLSVersion.TLSv1_3: ssl.TLSVersion.TLSv1_3,
+    TLSVersion.MAXIMUM_SUPPORTED: ssl.TLSVersion.MAXIMUM_SUPPORTED,
 }
 
 # We need to populate a dictionary of ciphers that OpenSSL supports, in the
@@ -81,7 +60,7 @@ def _error_converter(
     try:
         yield
     except ignore_filter:
-        raise
+        pass
     except ssl.SSLWantReadError:
         raise WantReadError("Must read data") from None
     except ssl.SSLWantWriteError:
@@ -90,48 +69,41 @@ def _error_converter(
         raise TLSError(e) from None
 
 
-def _version_options_from_version_range(min: TLSVersion, max: TLSVersion) -> int:
-    """Given a TLS version range, we need to convert that into options that
-    exclude TLS versions as appropriate.
-    """
-    try:
-        return _opts_from_min_version[min] | _opts_from_max_version[max]
-    except KeyError:
-        msg = "Bad maximum/minimum options"
-        raise TLSError(msg)
-
-
-def _create_client_context_with_trust_store(
-    trust_store: TrustStore | None,
-) -> truststore.SSLContext | ssl.SSLContext:
-    some_context: truststore.SSLContext | ssl.SSLContext
+def _create_client_context_with_trust_store(trust_store: OpenSSLTrustStore | None) -> _SSLContext:
+    some_context: _SSLContext
     assert isinstance(trust_store, OpenSSLTrustStore | None)
 
-    if trust_store is _SYSTEMTRUSTSTORE:
-        some_context = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    else:
+    if trust_store is not None and trust_store._trust_path is not None:
         some_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        if trust_store is not None:
-            assert isinstance(trust_store, OpenSSLTrustStore)
-            some_context.load_verify_locations(trust_store._trust_path)
+        assert isinstance(trust_store, OpenSSLTrustStore)
+        some_context.load_verify_locations(trust_store._trust_path)
+    else:
+        some_context = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 
     some_context.options |= ssl.OP_NO_COMPRESSION
+
+    some_context.verify_flags = (
+        ssl.VerifyFlags.VERIFY_X509_STRICT | ssl.VerifyFlags.VERIFY_X509_PARTIAL_CHAIN
+    )
 
     return some_context
 
 
-def _create_server_context_with_trust_store(trust_store: TrustStore | None) -> ssl.SSLContext:
+def _create_server_context_with_trust_store(
+    trust_store: OpenSSLTrustStore | None,
+) -> ssl.SSLContext:
     some_context: ssl.SSLContext
     assert isinstance(trust_store, OpenSSLTrustStore | None)
 
     # truststore does not support server side
     some_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 
-    if trust_store is _SYSTEMTRUSTSTORE:
-        some_context.load_default_certs(ssl.Purpose.CLIENT_AUTH)
-    else:
-        if trust_store is not None:
-            assert isinstance(trust_store, OpenSSLTrustStore)
+    if trust_store is not None:
+        some_context.verify_mode = ssl.CERT_REQUIRED
+        assert isinstance(trust_store, OpenSSLTrustStore)
+        if trust_store._trust_path is None:
+            some_context.load_default_certs(ssl.Purpose.CLIENT_AUTH)
+        else:
             some_context.load_verify_locations(trust_store._trust_path)
 
     some_context.options |= ssl.OP_NO_COMPRESSION
@@ -153,7 +125,7 @@ def _sni_callback_builder(
         except KeyError:
             return ssl.ALERT_DESCRIPTION_INTERNAL_ERROR
 
-        new_config = TLSServerConfiguration(
+        new_config: TLSServerConfiguration = TLSServerConfiguration(
             certificate_chain=(sign_chain,),
             ciphers=original_config.ciphers,
             inner_protocols=original_config.inner_protocols,
@@ -189,9 +161,9 @@ def _configure_server_context_for_certs(
 
 
 def _configure_context_for_single_signing_chain(
-    context: truststore.SSLContext | ssl.SSLContext,
+    context: _SSLContext,
     cert_chain: SigningChain | None = None,
-) -> truststore.SSLContext | ssl.SSLContext:
+) -> _SSLContext:
     """Given a PEP 543 cert chain, configure the SSLContext to send that cert
     chain in the handshake.
 
@@ -226,7 +198,8 @@ def _configure_context_for_single_signing_chain(
             password = privkey._password
 
         assert cert_path is not None
-        context.load_cert_chain(cert_path, key_path, password)
+        with _error_converter():
+            context.load_cert_chain(cert_path, key_path, password)
 
     return context
 
@@ -267,9 +240,8 @@ def _configure_context_for_sni(
 
 
 def _configure_context_for_ciphers(
-    context: truststore.SSLContext | ssl.SSLContext,
-    ciphers: Sequence[CipherSuite | int] | None = None,
-) -> truststore.SSLContext | ssl.SSLContext:
+    context: _SSLContext, ciphers: Sequence[CipherSuite | int] | None = None
+) -> _SSLContext:
     """Given a PEP 543 cipher suite list, configure the SSLContext to use those
     cipher suites.
 
@@ -278,16 +250,17 @@ def _configure_context_for_ciphers(
     if ciphers is not None:
         ossl_names = [_cipher_map[cipher] for cipher in ciphers if cipher in _cipher_map]
     if not ossl_names:
-        msg = "Unable to find any supported ciphers!"
+        msg = "None of the provided ciphers are supported by the OpenSSL backend!"
         raise TLSError(msg)
-    context.set_ciphers(":".join(ossl_names))
+    with _error_converter():
+        context.set_ciphers(":".join(ossl_names))
     return context
 
 
 def _configure_context_for_negotiation(
-    context: truststore.SSLContext | ssl.SSLContext,
+    context: _SSLContext,
     inner_protocols: Sequence[NextProtocol | bytes] | None = None,
-) -> truststore.SSLContext | ssl.SSLContext:
+) -> _SSLContext:
     """Given a PEP 543 list of protocols to negotiate, configures the SSLContext
     to negotiate those protocols.
     """
@@ -305,9 +278,9 @@ def _configure_context_for_negotiation(
 
 
 def _init_context_common(
-    some_context: truststore.SSLContext | ssl.SSLContext,
+    some_context: _SSLContext,
     config: TLSClientConfiguration | TLSServerConfiguration,
-) -> truststore.SSLContext | ssl.SSLContext:
+) -> _SSLContext:
     some_context = _configure_context_for_ciphers(
         some_context,
         config.ciphers,
@@ -316,16 +289,18 @@ def _init_context_common(
         some_context,
         config.inner_protocols,
     )
-    some_context.options |= _version_options_from_version_range(
-        config.lowest_supported_version,
-        config.highest_supported_version,
-    )
+
+    try:
+        some_context.minimum_version = _TLSMinVersionOpts[config.lowest_supported_version]
+        some_context.maximum_version = _TLSMaxVersionOpts[config.highest_supported_version]
+    except KeyError:
+        raise TLSError("Bad maximum/minimum options")
 
     return some_context
 
 
-def _init_context_client(config: TLSClientConfiguration) -> truststore.SSLContext | ssl.SSLContext:
-    """Initialize an ssl.SSLContext object with a given client configuration."""
+def _init_context_client(config: TLSClientConfiguration) -> _SSLContext:
+    """Initialize an SSL context object with a given client configuration."""
     some_context = _create_client_context_with_trust_store(config.trust_store)
 
     some_context = _configure_context_for_single_signing_chain(
@@ -335,8 +310,8 @@ def _init_context_client(config: TLSClientConfiguration) -> truststore.SSLContex
     return _init_context_common(some_context, config)
 
 
-def _init_context_server(config: TLSServerConfiguration) -> truststore.SSLContext | ssl.SSLContext:
-    """Initialize an ssl.SSLContext object with a given server configuration."""
+def _init_context_server(config: TLSServerConfiguration) -> _SSLContext:
+    """Initialize an SSL context object with a given server configuration."""
     some_context = _create_server_context_with_trust_store(config.trust_store)
 
     some_context = _configure_server_context_for_certs(
@@ -357,7 +332,7 @@ class OpenSSLTLSSocket:
 
     _parent_context: OpenSSLClientContext | OpenSSLServerContext
     _socket: ssl.SSLSocket
-    _ssl_context: truststore.SSLContext | ssl.SSLContext
+    _ssl_context: _SSLContext
 
     def __init__(self, *args: tuple, **kwargs: tuple) -> None:
         """OpenTLSSockets should not be constructed by the user.
@@ -377,7 +352,7 @@ class OpenSSLTLSSocket:
         address: tuple[str | None, int],
         parent_context: OpenSSLClientContext | OpenSSLServerContext,
         server_side: bool,
-        ssl_context: truststore.SSLContext | ssl.SSLContext,
+        ssl_context: _SSLContext,
     ) -> OpenSSLTLSSocket:
         self = cls.__new__(cls)
         self._parent_context = parent_context
@@ -385,15 +360,17 @@ class OpenSSLTLSSocket:
 
         if server_side is True:
             sock = socket.create_server(address)
-            self._socket = ssl_context.wrap_socket(
-                sock, server_side=server_side, server_hostname=None
-            )
+            with _error_converter():
+                self._socket = ssl_context.wrap_socket(
+                    sock, server_side=server_side, server_hostname=None
+                )
         else:
             hostname, _ = address
             sock = socket.create_connection(address)
-            self._socket = ssl_context.wrap_socket(
-                sock, server_side=server_side, server_hostname=hostname
-            )
+            with _error_converter():
+                self._socket = ssl_context.wrap_socket(
+                    sock, server_side=server_side, server_hostname=hostname
+                )
 
         self._socket.setblocking(False)
 
@@ -417,11 +394,11 @@ class OpenSSLTLSSocket:
     def close(self) -> None:
         """Unwraps the TLS connection, shuts down both halves of the connection and
         mark the socket closed."""
-        with _error_converter():
-            sock = self._socket.unwrap()
 
-        sock.shutdown(socket.SHUT_RDWR)
-        return sock.close()
+        # NOTE: OSError indicates that the other side has already hung up.
+        with _error_converter(ignore_filter=(OSError,)):
+            self._socket.shutdown(socket.SHUT_RDWR)
+        return self._socket.close()
 
     def listen(self, backlog: int) -> None:
         """Enable a server to accept connections. If backlog is specified, it
@@ -436,7 +413,8 @@ class OpenSSLTLSSocket:
         new TLSSocket object usable to send and receive data on the connection, and
         address is the address bound to the socket on the other end of the connection."""
 
-        (sock, address) = self._socket.accept()
+        with _error_converter():
+            (sock, address) = self._socket.accept()
         tls_socket = OpenSSLTLSSocket.__new__(OpenSSLTLSSocket)
         tls_socket._parent_context = self._parent_context
         tls_socket._ssl_context = self._ssl_context
@@ -445,6 +423,20 @@ class OpenSSLTLSSocket:
             tls_socket._socket.setblocking(False)
         return (tls_socket, address)
 
+    def getsockname(self) -> socket._RetAddress:
+        """Return the local address to which the socket is connected."""
+        with _error_converter():
+            return self._socket.getsockname()
+
+    def getpeercert(self) -> OpenSSLCertificate | None:
+        """Return the certificate provided by the peer during the handshake, if applicable."""
+        with _error_converter():
+            cert = self._socket.getpeercert(True)
+        if cert is None:
+            return None
+        else:
+            return OpenSSLCertificate.from_buffer(cert)
+
     def getpeername(self) -> socket._RetAddress:
         """Return the remote address to which the socket is connected."""
 
@@ -452,7 +444,7 @@ class OpenSSLTLSSocket:
             return self._socket.getpeername()
 
     def fileno(self) -> int:
-        """Return the socket’s file descriptor (a small integer), or -1 on failure."""
+        """Return the socket's file descriptor (a small integer), or -1 on failure."""
 
         with _error_converter():
             return self._socket.fileno()
@@ -593,6 +585,53 @@ class OpenSSLServerContext:
         )
 
 
+class OpenSSLTrustStore:
+    """A handle to a trust store object, either on disk or the system trust store,
+    that can be used to validate the certificates presented by a remote peer.
+    """
+
+    def __init__(self, path: os.PathLike | None = None):
+        """
+        Creates a TrustStore object from a path or representing the system trust store.
+
+        If no path is given, the default system trust store is used.
+        """
+
+        self._trust_path = path
+
+    @classmethod
+    def system(cls) -> OpenSSLTrustStore:
+        """
+        Returns a TrustStore object that represents the system trust
+        database. For the stdlib shim, this is represented by a trust store without a path.
+        """
+
+        return cls(path=None)
+
+    @classmethod
+    def from_buffer(cls, buf: bytes) -> OpenSSLTrustStore:
+        """
+        Initializes a trust store from a buffer of PEM-encoded certificates.
+        """
+        # HACK: Python's ssl doesn't support loading a trust store from a buffer.
+        # Instead, we go the roundabout way with a temporary file, which we intentionally
+        # disable the delete-on-close behavior for. This means that the filename itself
+        # will stick around until process exit.
+        tmp_path = tempfile.NamedTemporaryFile(mode="w+b", delete=False, delete_on_close=False)
+        tmp_path.write(buf)
+        tmp_path.close()
+
+        return cls.from_file(Path(tmp_path.name))
+
+    @classmethod
+    def from_file(cls, path: os.PathLike) -> OpenSSLTrustStore:
+        """
+        Initializes a trust store from a single file full of PEMs.
+        """
+
+        return cls(path=Path(path))
+
+
 class OpenSSLCertificate:
     """A handle to a certificate object, either on disk or in a buffer, that can
     be used for either server or client connectivity.
@@ -690,38 +729,6 @@ class OpenSSLPrivateKey:
 
         return cls(path=path, password=password)
 
-
-class OpenSSLTrustStore:
-    """A handle to a trust store object, either on disk or the system trust store,
-    that can be used to validate the certificates presented by a remote peer.
-    """
-
-    def __init__(self, path: os.PathLike | object):
-        """Creates a TrustStore object from a path or representing the system trust store."""
-        if isinstance(path, os.PathLike):
-            self._trust_path = path
-
-    @classmethod
-    def system(cls) -> OpenSSLTrustStore:
-        """
-        Returns a TrustStore object that represents the system trust
-        database.
-        """
-
-        return _SYSTEMTRUSTSTORE
-
-    @classmethod
-    def from_pem_file(cls, path: os.PathLike | str) -> OpenSSLTrustStore:
-        """
-        Initializes a trust store from a single file full of PEMs.
-        """
-
-        return cls(path=Path(path))
-
-
-# We use a sentinel object for the system trust store that is guaranteed not
-# to compare equal to any other object.
-_SYSTEMTRUSTSTORE = OpenSSLTrustStore(object())
 
 #: The stdlib ``Backend`` object.
 STDLIB_BACKEND = Backend(

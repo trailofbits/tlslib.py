@@ -1,0 +1,24 @@
+{
+  "id": "webpki::san::exact-localhost-ip-san",
+  "conflicts_with": [],
+  "features": [],
+  "description": "Produces a chain with a valid EE cert, for IP 127.0.0.1, i.e. localhost.",
+  "validation_kind": "SERVER",
+  "trusted_certs": [
+    "-----BEGIN CERTIFICATE-----\nMIIBjzCCATWgAwIBAgIUb3goWAuIXtQ0iGiby1p8ZGrsDnowCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjAaMRgwFgYDVQQDDA94NTA5LWxpbWJvLXJvb3QwWTATBgcq\nhkjOPQIBBggqhkjOPQMBBwNCAASLdp/8/RVVLMnZJ0SQ7lNmsCTfZuWGaA11AFgz\nZTVgXulfYU1tHF23X5w6tWDUX08TILJl47aXZg0kOBmF1BxEo1cwVTAPBgNVHRMB\nAf8EBTADAQH/MAsGA1UdDwQEAwICBDAWBgNVHREEDzANggtleGFtcGxlLmNvbTAd\nBgNVHQ4EFgQUffMvbyxgnNxKzSak80HvHybKy/MwCgYIKoZIzj0EAwIDSAAwRQIg\ne+GBHLG3wcdi0XX1Jrjmp7rseG/ahnd1nQ2od5gcJYMCIQDcbSmmSO8cr2BNZ7kr\nFM/B8UkNJ4KZyQRd3+pxIosHAg==\n-----END CERTIFICATE-----\n"
+  ],
+  "untrusted_intermediates": [],
+  "peer_certificate": "-----BEGIN CERTIFICATE-----\nMIIBqTCCAU+gAwIBAgIUGEWsboTZ2z5gXm977epAyrr+WpswCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjAWMRQwEgYDVQQDDAtleGFtcGxlLmNvbTBZMBMGByqGSM49\nAgEGCCqGSM49AwEHA0IABANblBHAMcSSIQJkWLaV50QiP7Xc70nJVdfWREDM/dIk\nSFwuao0blCdO2ynLtRtNogQWLXGR9e4E1om3cAJolpSjdTBzMB0GA1UdDgQWBBSb\nEUnWlnT/N4dkRMxuip4QTgHrdzAfBgNVHSMEGDAWgBR98y9vLGCc3ErNJqTzQe8f\nJsrL8zALBgNVHQ8EBAMCB4AwEwYDVR0lBAwwCgYIKwYBBQUHAwEwDwYDVR0RBAgw\nBocEfwAAATAKBggqhkjOPQQDAgNIADBFAiEA22pnMz0a5Uzy/T1PbYRy2lN/bZ/y\n1Ke7T4nWyBucvcQCICNaP68U+geWA2gymcE8DHyDNavwwQ2KNPIzlVgQM+d1\n-----END CERTIFICATE-----\n",
+  "peer_certificate_key": "-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEICepOsR5rXdJGGl7AxUT17rEBXWJtYlULQA7wXa0wNCRoAoGCCqGSM49\nAwEHoUQDQgAEA1uUEcAxxJIhAmRYtpXnRCI/tdzvSclV19ZEQMz90iRIXC5qjRuU\nJ07bKcu1G02iBBYtcZH17gTWibdwAmiWlA==\n-----END EC PRIVATE KEY-----\n",
+  "validation_time": null,
+  "signature_algorithms": [],
+  "key_usage": [],
+  "extended_key_usage": [],
+  "expected_result": "SUCCESS",
+  "expected_peer_name": {
+    "kind": "IP",
+    "value": "127.0.0.1"
+  },
+  "expected_peer_names": [],
+  "max_chain_depth": null
+}

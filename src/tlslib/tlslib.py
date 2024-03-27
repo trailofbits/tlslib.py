@@ -6,7 +6,7 @@ import os
 from abc import abstractmethod
 from collections.abc import Sequence
 from enum import Enum, IntEnum
-from typing import Protocol
+from typing import Generic, Protocol, TypeVar
 
 __all__ = [
     "TLSServerConfiguration",
@@ -26,7 +26,114 @@ __all__ = [
 ]
 
 
-class TLSClientConfiguration:
+class TrustStore(Protocol):
+    """
+    The trust store that is used to verify certificate validity.
+    """
+
+    @classmethod
+    def system(cls) -> TrustStore:
+        """
+        Returns a TrustStore object that represents the system trust
+        database.
+        """
+        ...
+
+    @classmethod
+    def from_buffer(cls, buffer: bytes) -> TrustStore:
+        """
+        Initializes a trust store from a buffer of PEM-encoded certificates.
+        """
+        ...
+
+    @classmethod
+    def from_file(cls, path: os.PathLike) -> TrustStore:
+        """
+        Initializes a trust store from a single file full of PEMs.
+        """
+        ...
+
+
+_TrustStore = TypeVar("_TrustStore", bound=TrustStore)
+
+
+class Certificate(Protocol):
+    """Object representing a certificate used in TLS."""
+
+    @classmethod
+    def from_buffer(cls, buffer: bytes) -> Certificate:
+        """
+        Creates a Certificate object from a byte buffer. This byte buffer
+        may be either PEM-encoded or DER-encoded. If the buffer is PEM
+        encoded it *must* begin with the standard PEM preamble (a series of
+        dashes followed by the ASCII bytes "BEGIN CERTIFICATE" and another
+        series of dashes). In the absence of that preamble, the
+        implementation may assume that the certificate is DER-encoded
+        instead.
+        """
+        raise NotImplementedError("Certificates from buffers not supported")
+
+    @classmethod
+    def from_file(cls, path: os.PathLike) -> Certificate:
+        """
+        Creates a Certificate object from a file on disk. This method may
+        be a convenience method that wraps ``open`` and ``from_buffer``,
+        but some TLS implementations may be able to provide more-secure or
+        faster methods of loading certificates that do not involve Python
+        code.
+        """
+        raise NotImplementedError("Certificates from files not supported")
+
+
+_Certificate = TypeVar("_Certificate", bound=Certificate)
+
+
+class PrivateKey(Protocol):
+    """Object representing a private key corresponding to a public key
+    for a certificate used in TLS."""
+
+    @classmethod
+    def from_buffer(cls, buffer: bytes, password: bytes | None = None) -> PrivateKey:
+        """
+        Creates a PrivateKey object from a byte buffer. This byte buffer
+        may be either PEM-encoded or DER-encoded. If the buffer is PEM
+        encoded it *must* begin with the standard PEM preamble (a series of
+        dashes followed by the ASCII bytes "BEGIN", the key type, and
+        another series of dashes). In the absence of that preamble, the
+        implementation may assume that the certificate is DER-encoded
+        instead.
+
+        The key may additionally be encrypted. If it is, the ``password``
+        argument can be used to decrypt the key. The ``password`` argument
+        may be a function to call to get the password for decrypting the
+        private key. It will only be called if the private key is encrypted
+        and a password is necessary. It will be called with no arguments,
+        and it should return either bytes or bytearray containing the
+        password. Alternatively a bytes, or bytearray value may be supplied
+        directly as the password argument. It will be ignored if the
+        private key is not encrypted and no password is needed.
+        """
+        raise NotImplementedError("Private Keys from buffers not supported")
+
+    @classmethod
+    def from_file(cls, path: os.PathLike, password: bytes | None = None) -> PrivateKey:
+        """
+        Creates a PrivateKey object from a file on disk. This method may
+        be a convenience method that wraps ``open`` and ``from_buffer``,
+        but some TLS implementations may be able to provide more-secure or
+        faster methods of loading certificates that do not involve Python
+        code.
+
+        The ``password`` parameter behaves exactly as the equivalent
+        parameter on ``from_buffer``.
+        """
+        raise NotImplementedError("Private Keys from buffers not supported")
+
+
+_PrivateKey = TypeVar("_PrivateKey", bound=PrivateKey)
+
+
+class TLSClientConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
     """
     An immutable TLS Configuration object for a "client" socket, i.e. a socket
     making a connection to a server. This object has the following
@@ -57,7 +164,7 @@ class TLSClientConfiguration:
 
     :param trust_store TrustStore:
         The trust store that connections using this configuration will use
-        to validate certificates.
+        to validate certificates. None means that the system store is used.
     """
 
     __slots__ = (
@@ -71,12 +178,12 @@ class TLSClientConfiguration:
 
     def __init__(
         self,
-        certificate_chain: SigningChain | None = None,
-        ciphers: Sequence[CipherSuite | int] | None = None,
+        certificate_chain: SigningChain[_Certificate, _PrivateKey] | None = None,
+        ciphers: Sequence[CipherSuite] | None = None,
         inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
         highest_supported_version: TLSVersion | None = None,
-        trust_store: TrustStore | None = None,
+        trust_store: _TrustStore | None = None,
     ) -> None:
         """Initialize TLS client configuration."""
         if ciphers is None:
@@ -86,7 +193,7 @@ class TLSClientConfiguration:
             inner_protocols = []
 
         if lowest_supported_version is None:
-            lowest_supported_version = TLSVersion.TLSv1
+            lowest_supported_version = TLSVersion.TLSv1_2
 
         if highest_supported_version is None:
             highest_supported_version = TLSVersion.MAXIMUM_SUPPORTED
@@ -132,15 +239,15 @@ class TLSClientConfiguration:
         return self._highest_supported_version
 
     @property
-    def trust_store(self) -> TrustStore | None:
+    def trust_store(self) -> _TrustStore | None:
         """
         The trust store that connections using this configuration will use
-        to validate certificates.
+        to validate certificates. None means that the system store is used.
         """
         return self._trust_store
 
 
-class TLSServerConfiguration:
+class TLSServerConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
     """
     An immutable TLS Configuration object for a "server" socket, i.e. a socket
     making one or more connections to clients. This object has the following
@@ -172,7 +279,8 @@ class TLSServerConfiguration:
 
     :param trust_store TrustStore:
         The trust store that connections using this configuration will use
-        to validate certificates.
+        to validate certificates. None means that client authentication is disabled,
+        whereas any other option enable client authentication.
     """
 
     __slots__ = (
@@ -186,12 +294,12 @@ class TLSServerConfiguration:
 
     def __init__(
         self,
-        certificate_chain: Sequence[SigningChain] | None = None,
+        certificate_chain: Sequence[SigningChain[_Certificate, _PrivateKey]] | None = None,
         ciphers: Sequence[CipherSuite | int] | None = None,
         inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
         highest_supported_version: TLSVersion | None = None,
-        trust_store: TrustStore | None = None,
+        trust_store: _TrustStore | None = None,
     ) -> None:
         """Initialize TLS server configuration."""
         if ciphers is None:
@@ -201,7 +309,7 @@ class TLSServerConfiguration:
             inner_protocols = []
 
         if lowest_supported_version is None:
-            lowest_supported_version = TLSVersion.TLSv1
+            lowest_supported_version = TLSVersion.TLSv1_2
 
         if highest_supported_version is None:
             highest_supported_version = TLSVersion.MAXIMUM_SUPPORTED
@@ -249,10 +357,10 @@ class TLSServerConfiguration:
         return self._highest_supported_version
 
     @property
-    def trust_store(self) -> TrustStore | None:
+    def trust_store(self) -> _TrustStore | None:
         """
         The trust store that connections using this configuration will use
-        to validate certificates.
+        to validate certificates. None means that the system store is used.
         """
         return self._trust_store
 
@@ -263,6 +371,7 @@ class ClientContext(Protocol):
     @abstractmethod
     def __init__(self, configuration: TLSClientConfiguration) -> None:
         """Create a new client context object from a given TLS client configuration."""
+        ...
 
     @property
     @abstractmethod
@@ -277,12 +386,16 @@ class ClientContext(Protocol):
         """
 
 
+_ClientContext = TypeVar("_ClientContext", bound=ClientContext)
+
+
 class ServerContext(Protocol):
     """Context for setting up TLS connections for a server."""
 
     @abstractmethod
     def __init__(self, configuration: TLSServerConfiguration) -> None:
         """Create a new server context object from a given TLS server configuration."""
+        ...
 
     @property
     @abstractmethod
@@ -295,6 +408,9 @@ class ServerContext(Protocol):
         contains information about the TLS exchange
         (cipher, negotiated_protocol, negotiated_tls_version, etc.).
         """
+
+
+_ServerContext = TypeVar("_ServerContext", bound=ServerContext)
 
 
 class TLSSocket(Protocol):
@@ -335,6 +451,14 @@ class TLSSocket(Protocol):
         for connections. The return value is a pair (conn, address) where conn is a
         new TLSSocket object usable to send and receive data on the connection, and
         address is the address bound to the socket on the other end of the connection."""
+
+    @abstractmethod
+    def getsockname(self) -> tuple[str | None, int]:
+        """Return the local address to which the socket is connected."""
+
+    @abstractmethod
+    def getpeercert(self) -> Certificate | None:
+        """Return the certificate provided by the peer during the handshake, if applicable."""
 
     @abstractmethod
     def getpeername(self) -> tuple[str | None, int]:
@@ -530,10 +654,6 @@ class TLSVersion(Enum):
     """
 
     MINIMUM_SUPPORTED = "MINIMUM_SUPPORTED"
-    SSLv2 = "SSLv2"
-    SSLv3 = "SSLv3"
-    TLSv1 = "TLSv1"
-    TLSv1_1 = "TLSv1.1"
     TLSv1_2 = "TLSv1.2"
     TLSv1_3 = "TLSv1.3"
     MAXIMUM_SUPPORTED = "MAXIMUM_SUPPORTED"
@@ -594,112 +714,25 @@ class RaggedEOF(TLSError):
     """
 
 
-class Certificate(Protocol):
-    """Object representing a certificate used in TLS."""
-
-    @classmethod
-    def from_buffer(cls, buffer: bytes) -> Certificate:
-        """
-        Creates a Certificate object from a byte buffer. This byte buffer
-        may be either PEM-encoded or DER-encoded. If the buffer is PEM
-        encoded it *must* begin with the standard PEM preamble (a series of
-        dashes followed by the ASCII bytes "BEGIN CERTIFICATE" and another
-        series of dashes). In the absence of that preamble, the
-        implementation may assume that the certificate is DER-encoded
-        instead.
-        """
-        raise NotImplementedError("Certificates from buffers not supported")
-
-    @classmethod
-    def from_file(cls, path: os.PathLike) -> Certificate:
-        """
-        Creates a Certificate object from a file on disk. This method may
-        be a convenience method that wraps ``open`` and ``from_buffer``,
-        but some TLS implementations may be able to provide more-secure or
-        faster methods of loading certificates that do not involve Python
-        code.
-        """
-        raise NotImplementedError("Certificates from files not supported")
-
-
-class PrivateKey(Protocol):
-    """Object representing a private key corresponding to a public key
-    for a certificate used in TLS."""
-
-    @classmethod
-    def from_buffer(cls, buffer: bytes, password: bytes | None = None) -> PrivateKey:
-        """
-        Creates a PrivateKey object from a byte buffer. This byte buffer
-        may be either PEM-encoded or DER-encoded. If the buffer is PEM
-        encoded it *must* begin with the standard PEM preamble (a series of
-        dashes followed by the ASCII bytes "BEGIN", the key type, and
-        another series of dashes). In the absence of that preamble, the
-        implementation may assume that the certificate is DER-encoded
-        instead.
-
-        The key may additionally be encrypted. If it is, the ``password``
-        argument can be used to decrypt the key. The ``password`` argument
-        may be a function to call to get the password for decrypting the
-        private key. It will only be called if the private key is encrypted
-        and a password is necessary. It will be called with no arguments,
-        and it should return either bytes or bytearray containing the
-        password. Alternatively a bytes, or bytearray value may be supplied
-        directly as the password argument. It will be ignored if the
-        private key is not encrypted and no password is needed.
-        """
-        raise NotImplementedError("Private Keys from buffers not supported")
-
-    @classmethod
-    def from_file(cls, path: os.PathLike, password: bytes | None = None) -> PrivateKey:
-        """
-        Creates a PrivateKey object from a file on disk. This method may
-        be a convenience method that wraps ``open`` and ``from_buffer``,
-        but some TLS implementations may be able to provide more-secure or
-        faster methods of loading certificates that do not involve Python
-        code.
-
-        The ``password`` parameter behaves exactly as the equivalent
-        parameter on ``from_buffer``.
-        """
-        raise NotImplementedError("Private Keys from buffers not supported")
-
-
-class TrustStore(Protocol):
-    """The trust store that is used to verify certificate validity."""
-
-    @classmethod
-    def system(cls) -> TrustStore:
-        """
-        Returns a TrustStore object that represents the system trust
-        database.
-        """
-        raise NotImplementedError("System trust store not supported")
-
-    @classmethod
-    def from_pem_file(cls, path: os.PathLike) -> TrustStore:
-        """
-        Initializes a trust store from a single file full of PEMs.
-        """
-        raise NotImplementedError("Trust store from PEM not supported")
-
-
-class SigningChain:
+class SigningChain(Generic[_Certificate, _PrivateKey]):
     """Object representing a certificate chain used in TLS."""
 
-    leaf: tuple[Certificate, PrivateKey | None]
-    chain: list[Certificate]
+    leaf: tuple[_Certificate, _PrivateKey | None]
+    chain: list[_Certificate]
 
     def __init__(
         self,
-        leaf: tuple[Certificate, PrivateKey | None],
-        chain: Sequence[Certificate],
+        leaf: tuple[_Certificate, _PrivateKey | None],
+        chain: Sequence[_Certificate] | None = None,
     ):
         """Initializes a SigningChain object."""
         self.leaf = leaf
+        if chain is None:
+            chain = []
         self.chain = list(chain)
 
 
-class Backend:
+class Backend(Generic[_TrustStore, _Certificate, _PrivateKey, _ClientContext, _ServerContext]):
     """An object representing the collection of classes that implement the
     PEP 543 abstract TLS API for a specific TLS implementation.
     """
@@ -712,13 +745,42 @@ class Backend:
         "_trust_store",
     )
 
+    @property
+    def client_configuration(
+        self,
+    ) -> type[TLSClientConfiguration[_TrustStore, _Certificate, _PrivateKey]]:
+        """
+        Returns a type object for `TLSClientConfiguration`.
+
+        This is identical to using `TLSClientConfiguration` directly, except
+        that this property defines generic annotations that bind the
+        created object to a specific backend's types. As such, you should
+        prefer it in type-checked code.
+        """
+        return TLSClientConfiguration
+
+    @property
+    def server_configuration(
+        self,
+    ) -> type[TLSServerConfiguration[_TrustStore, _Certificate, _PrivateKey]]:
+        """
+        Returns a type object for `TLSServerConfiguration`.
+
+        This is identical to using `TLSServerConfiguration` directly, except
+        that this property defines generic annotations that bind the
+        created object to a specific backend's types. As such, you should
+        prefer it in type-checked code.
+        """
+
+        return TLSServerConfiguration
+
     def __init__(
         self,
-        certificate: type[Certificate],
-        client_context: type[ClientContext],
-        private_key: type[PrivateKey],
-        server_context: type[ServerContext],
-        trust_store: type[TrustStore],
+        certificate: type[_Certificate],
+        client_context: type[_ClientContext],
+        private_key: type[_PrivateKey],
+        server_context: type[_ServerContext],
+        trust_store: type[_TrustStore],
     ) -> None:
         """Initializes all attributes of the backend."""
 
@@ -729,35 +791,35 @@ class Backend:
         self._trust_store = trust_store
 
     @property
-    def certificate(self) -> type[Certificate]:
+    def certificate(self) -> type[_Certificate]:
         """The concrete implementation of the PEP 543 Certificate object used
         by this TLS backend.
         """
         return self._certificate
 
     @property
-    def client_context(self) -> type[ClientContext]:
+    def client_context(self) -> type[_ClientContext]:
         """The concrete implementation of the PEP 543 Client Context object,
         if this TLS backend supports being the client on a TLS connection.
         """
         return self._client_context
 
     @property
-    def private_key(self) -> type[PrivateKey]:
+    def private_key(self) -> type[_PrivateKey]:
         """The concrete implementation of the PEP 543 Private Key object used
         by this TLS backend.
         """
         return self._private_key
 
     @property
-    def server_context(self) -> type[ServerContext]:
+    def server_context(self) -> type[_ServerContext]:
         """The concrete implementation of the PEP 543 Server Context object,
         if this TLS backend supports being a server on a TLS connection.
         """
         return self._server_context
 
     @property
-    def trust_store(self) -> type[TrustStore]:
+    def trust_store(self) -> type[_TrustStore]:
         """The concrete implementation of the PEP 543 TrustStore object used
         by this TLS backend.
         """
