@@ -74,7 +74,7 @@ class ThreadedEchoServer(threading.Thread):
         def run(self) -> None:
             self.running = True
 
-            while self.running:
+            while self.running and self.server.active:
                 # Normally there'd be some kind of real state machine here,
                 # but ours is just a single transition of read->write.
                 try:
@@ -179,7 +179,6 @@ class ThreadedEchoServer(threading.Thread):
             try:
                 newconn, connaddr = self.socket.accept()
                 prot = None
-                print("Yeah")
                 if self.backend is not None:
                     prot = newconn.negotiated_protocol()
                 else:
