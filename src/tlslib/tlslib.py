@@ -49,7 +49,7 @@ class TrustStore(Protocol):
     @classmethod
     def from_file(cls, path: os.PathLike) -> TrustStore:
         """
-        Initializes a trust store from a single file full of PEMs.
+        Initializes a trust store from a single file containing PEMs.
         """
         ...
 

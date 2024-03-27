@@ -626,7 +626,7 @@ class OpenSSLTrustStore:
     @classmethod
     def from_file(cls, path: os.PathLike) -> OpenSSLTrustStore:
         """
-        Initializes a trust store from a single file full of PEMs.
+        Initializes a trust store from a single file containing PEMs.
         """
 
         return cls(path=Path(path))
