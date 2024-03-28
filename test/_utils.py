@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import socket
 import ssl
 import tempfile
 import threading
+import time
 import weakref
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -418,3 +420,44 @@ def limbo_server_ssl(
     weakref.finalize(server, os.remove, io.name)
 
     return server, client_config
+
+
+class RetryContextManager(contextlib.ContextDecorator):
+    """
+    Context manager used by `retry_loop()` to ignore exceptions
+    and retry until a max number of attempts has been reached.
+    See `retry_loop()` for more details.
+    """
+
+    def __init__(self, is_last_attempt: bool):
+        self.exit_success: bool = False
+        self.is_last_attempt: bool = is_last_attempt
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.exit_success = exc_type is None
+        # Supress any exception if this is not the last attempt
+        if not self.is_last_attempt:
+            return True
+
+
+def retry_loop(max_attempts: int, wait: float) -> Iterator[RetryContextManager]:
+    """
+    Generator that yields a context manager to use in code blocks that should be retried
+    if an exception occurs. Usage:
+    ```
+    for attempt in retry_loop(max_attempts=3, wait=0.1):
+        with attempt:
+            self.assertEqual(server.server_recv, [b"message 1", b"message 2"])
+    ```
+    """
+    for i in range(max_attempts):
+        is_last_attempt = i == max_attempts - 1
+        current_attempt = RetryContextManager(is_last_attempt)
+        yield current_attempt
+        if current_attempt.exit_success:
+            break
+        else:
+            time.sleep(wait)

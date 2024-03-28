@@ -2,13 +2,18 @@
 Tests for `tlslib.stdlib`.
 """
 
-import time
 from pathlib import Path
 from unittest import TestCase
 
 from tlslib import stdlib, tlslib
 
-from ._utils import limbo_server, limbo_server_ssl, tweak_client_config, tweak_server_config
+from ._utils import (
+    limbo_server,
+    limbo_server_ssl,
+    retry_loop,
+    tweak_client_config,
+    tweak_server_config,
+)
 
 
 class TestOpenSSLTrustStore(TestCase):
@@ -78,9 +83,10 @@ class TestBasic(TestBackend):
             self.assertEqual(client_sock.negotiated_tls_version, None)
             self.assertEqual(client_sock.cipher(), None)
 
-            time.sleep(0.1)
-            self.assertEqual(server.server_recv, [b"message 1", b"message 2"])
-            self.assertEqual(server.server_sent, [b"echo: message 1", b"echo: message 2"])
+            for attempt in retry_loop(max_attempts=3, wait=0.1):
+                with attempt:
+                    self.assertEqual(server.server_recv, [b"message 1", b"message 2"])
+                    self.assertEqual(server.server_sent, [b"echo: message 1", b"echo: message 2"])
 
     def test_protocol_negotiation(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
@@ -96,8 +102,9 @@ class TestBasic(TestBackend):
             client_sock = client_context.connect(server.socket.getsockname())
             self.assertEqual(client_sock.negotiated_protocol(), tlslib.NextProtocol.H2)
             client_sock.close()
-            time.sleep(0.1)
-            self.assertEqual(server.server_negotiated_protocol, tlslib.NextProtocol.H2)
+            for attempt in retry_loop(max_attempts=3, wait=0.1):
+                with attempt:
+                    self.assertEqual(server.server_negotiated_protocol, tlslib.NextProtocol.H2)
 
 
 class TestConfig(TestBackend):
@@ -155,8 +162,9 @@ class TestConfig(TestBackend):
             client_sock = client_context.connect(server.socket.getsockname())
             self.assertEqual(client_sock.negotiated_protocol(), b"bla")
             client_sock.close()
-            time.sleep(0.1)
-            self.assertEqual(server.server_negotiated_protocol, b"bla")
+            for attempt in retry_loop(max_attempts=3, wait=0.1):
+                with attempt:
+                    self.assertEqual(server.server_negotiated_protocol, b"bla")
 
     def test_config_signingchain_empty(self):
         cert = stdlib.OpenSSLCertificate.from_buffer(b"")
@@ -255,9 +263,10 @@ class TestClientAgainstSSL(TestBackend):
             self.assertEqual(client_sock.negotiated_tls_version, None)
             self.assertEqual(client_sock.cipher(), None)
 
-            time.sleep(0.1)
-            self.assertEqual(server.server_recv, [b"message 1", b"message 2"])
-            self.assertEqual(server.server_sent, [b"echo: message 1", b"echo: message 2"])
+            for attempt in retry_loop(max_attempts=3, wait=0.1):
+                with attempt:
+                    self.assertEqual(server.server_recv, [b"message 1", b"message 2"])
+                    self.assertEqual(server.server_sent, [b"echo: message 1", b"echo: message 2"])
 
     def test_all_protocol_versions(self):
         server, client_config = limbo_server_ssl("webpki::san::exact-localhost-ip-san")
@@ -321,8 +330,11 @@ class TestClientAgainstSSL(TestBackend):
                 client_sock = client_context.connect(server.socket.getsockname())
                 self.assertEqual(client_sock.negotiated_protocol(), np)
                 client_sock.close()
-                time.sleep(0.1)
-                self.assertEqual(server.server_negotiated_protocol, np.value.decode("ascii"))
+                for attempt in retry_loop(max_attempts=3, wait=0.1):
+                    with attempt:
+                        self.assertEqual(
+                            server.server_negotiated_protocol, np.value.decode("ascii")
+                        )
 
     def test_client_auth(self):
         server, client_config = limbo_server_ssl(
@@ -334,6 +346,7 @@ class TestClientAgainstSSL(TestBackend):
             client_sock = client_context.connect(server.socket.getsockname())
             self.assertEqual(client_sock.negotiated_tls_version, tlslib.TLSVersion.TLSv1_3)
 
-            time.sleep(0.1)
-            self.assertIsNotNone(server.peer_cert)
+            for attempt in retry_loop(max_attempts=3, wait=0.1):
+                with attempt:
+                    self.assertIsNotNone(server.peer_cert)
             client_sock.close()
