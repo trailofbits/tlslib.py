@@ -2,6 +2,7 @@
 Tests for `tlslib.stdlib`.
 """
 
+import tempfile
 from pathlib import Path
 from unittest import TestCase
 
@@ -170,6 +171,11 @@ class TestConfig(TestBackend):
         cert = stdlib.OpenSSLCertificate.from_buffer(b"")
         key = stdlib.OpenSSLPrivateKey.from_buffer(b"")
         tlslib.SigningChain((cert, key), None)
+
+        with tempfile.NamedTemporaryFile(mode="wb") as empty_file:
+            cert = stdlib.OpenSSLCertificate.from_file(Path(empty_file.name))
+            key = stdlib.OpenSSLPrivateKey.from_file(Path(empty_file.name))
+            tlslib.SigningChain((cert, key), None)
 
 
 class TestNegative(TestBackend):
