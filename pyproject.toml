@@ -18,7 +18,7 @@ requires-python = ">=3.12"
 
 [project.optional-dependencies]
 doc = ["pdoc"]
-test = ["pytest", "pytest-cov", "pretend", "coverage[toml]"]
+test = ["pytest", "pytest-cov", "pytest-subtests", "pretend", "coverage[toml]"]
 lint = [
     "ruff",
     "mypy >= 1.0",
