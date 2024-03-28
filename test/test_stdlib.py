@@ -168,7 +168,7 @@ class TestConfig(TestBackend):
 
     def test_config_signingchain_empty(self):
         cert = stdlib.OpenSSLCertificate.from_buffer(b"")
-        key = stdlib.OpenSSLCertificate.from_buffer(b"")
+        key = stdlib.OpenSSLPrivateKey.from_buffer(b"")
         tlslib.SigningChain((cert, key), None)
 
 
