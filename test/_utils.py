@@ -264,7 +264,7 @@ def limbo_server(id: str) -> tuple[ThreadedEchoServer, TLSClientConfiguration]:
 def tweak_client_config(
     old_config: TLSClientConfiguration,
     certificate_chain: SigningChain[OpenSSLCertificate, OpenSSLPrivateKey] | None = None,
-    ciphers: Sequence[CipherSuite] | None = None,
+    ciphers: Sequence[CipherSuite | int] | None = None,
     inner_protocols: Sequence[NextProtocol | bytes] | None = None,
     lowest_supported_version: TLSVersion | None = None,
     highest_supported_version: TLSVersion | None = None,
@@ -301,7 +301,7 @@ def tweak_client_config(
 def tweak_server_config(
     server: ThreadedEchoServer,
     certificate_chain: SigningChain[OpenSSLCertificate, OpenSSLPrivateKey] | None = None,
-    ciphers: Sequence[CipherSuite] | None = None,
+    ciphers: Sequence[CipherSuite | int] | None = None,
     inner_protocols: Sequence[NextProtocol | bytes] | None = None,
     lowest_supported_version: TLSVersion | None = None,
     highest_supported_version: TLSVersion | None = None,
