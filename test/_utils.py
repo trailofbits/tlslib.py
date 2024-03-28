@@ -180,13 +180,13 @@ class ThreadedEchoServer(threading.Thread):
         while self.active:
             try:
                 newconn, connaddr = self.socket.accept()
+                self.peer_cert = newconn.getpeercert()
                 prot = None
                 if self.backend is not None:
                     prot = newconn.negotiated_protocol()
                 else:
                     newconn.setblocking(False)
                     prot = newconn.selected_alpn_protocol()
-                    self.peer_cert = newconn.getpeercert(True)
                     print(self.peer_cert)
 
                 if prot is None:

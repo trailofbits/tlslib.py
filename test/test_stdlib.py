@@ -96,6 +96,7 @@ class TestBasic(TestBackend):
                 with attempt:
                     self.assertEqual(server.server_recv, [b"message 1", b"message 2"])
                     self.assertEqual(server.server_sent, [b"echo: message 1", b"echo: message 2"])
+                    self.assertEqual(server.peer_cert, None)
 
     def test_protocol_negotiation(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
@@ -282,6 +283,7 @@ class TestClientAgainstSSL(TestBackend):
                 with attempt:
                     self.assertEqual(server.server_recv, [b"message 1", b"message 2"])
                     self.assertEqual(server.server_sent, [b"echo: message 1", b"echo: message 2"])
+                    self.assertEqual(server.peer_cert, None)
 
     def test_all_protocol_versions(self):
         server, client_config = limbo_server_ssl("webpki::san::exact-localhost-ip-san")
