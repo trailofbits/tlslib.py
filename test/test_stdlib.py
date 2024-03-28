@@ -33,6 +33,13 @@ class TestOpenSSLTrustStore(TestCase):
         # are also not equal.
         self.assertNotEqual(system_store, system_store_explicit)
 
+    def test_system_store_method(self):
+        system_store = stdlib.OpenSSLTrustStore.system()
+        system_store_init = stdlib.OpenSSLTrustStore()
+
+        # Separate instantiations of the  system store not equal.
+        self.assertNotEqual(system_store, system_store_init)
+
 
 class TestOpenSSLTLSSocket(TestCase):
     def test_socket_init(self):
