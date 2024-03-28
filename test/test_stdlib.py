@@ -84,6 +84,7 @@ class TestBasic(TestBackend):
             self.assertEqual(client_sock.cipher(), tlslib.CipherSuite.TLS_AES_256_GCM_SHA384)
             self.assertEqual(client_sock.negotiated_protocol(), None)
             self.assertEqual(client_sock.getpeername(), server.socket.getsockname())
+            self.assertIsInstance(client_sock.getpeercert(), stdlib.OpenSSLCertificate)
             self.assertIsInstance(client_sock.fileno(), int)
 
             client_sock.close()
@@ -269,6 +270,7 @@ class TestClientAgainstSSL(TestBackend):
             self.assertEqual(client_sock.cipher(), tlslib.CipherSuite.TLS_AES_256_GCM_SHA384)
             self.assertEqual(client_sock.negotiated_protocol(), None)
             self.assertEqual(client_sock.getpeername(), server.socket.getsockname())
+            self.assertIsInstance(client_sock.getpeercert(), stdlib.OpenSSLCertificate)
             self.assertIsInstance(client_sock.fileno(), int)
 
             client_sock.close()
