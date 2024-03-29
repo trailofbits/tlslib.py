@@ -2,6 +2,7 @@
 Tests for `tlslib.stdlib`.
 """
 
+import tempfile
 from pathlib import Path
 from unittest import TestCase
 
@@ -31,6 +32,13 @@ class TestOpenSSLTrustStore(TestCase):
         # Separate instantiations of the same store (even the system store)
         # are also not equal.
         self.assertNotEqual(system_store, system_store_explicit)
+
+    def test_system_store_method(self):
+        system_store = stdlib.OpenSSLTrustStore.system()
+        system_store_init = stdlib.OpenSSLTrustStore()
+
+        # Separate instantiations of the  system store not equal.
+        self.assertNotEqual(system_store, system_store_init)
 
 
 class TestOpenSSLTLSSocket(TestCase):
@@ -76,6 +84,7 @@ class TestBasic(TestBackend):
             self.assertEqual(client_sock.cipher(), tlslib.CipherSuite.TLS_AES_256_GCM_SHA384)
             self.assertEqual(client_sock.negotiated_protocol(), None)
             self.assertEqual(client_sock.getpeername(), server.socket.getsockname())
+            self.assertIsInstance(client_sock.getpeercert(), stdlib.OpenSSLCertificate)
             self.assertIsInstance(client_sock.fileno(), int)
 
             client_sock.close()
@@ -87,6 +96,7 @@ class TestBasic(TestBackend):
                 with attempt:
                     self.assertEqual(server.server_recv, [b"message 1", b"message 2"])
                     self.assertEqual(server.server_sent, [b"echo: message 1", b"echo: message 2"])
+                    self.assertEqual(server.peer_cert, None)
 
     def test_protocol_negotiation(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
@@ -170,6 +180,11 @@ class TestConfig(TestBackend):
         cert = stdlib.OpenSSLCertificate.from_buffer(b"")
         key = stdlib.OpenSSLPrivateKey.from_buffer(b"")
         tlslib.SigningChain((cert, key), None)
+
+        with tempfile.NamedTemporaryFile(mode="wb") as empty_file:
+            cert = stdlib.OpenSSLCertificate.from_file(Path(empty_file.name))
+            key = stdlib.OpenSSLPrivateKey.from_file(Path(empty_file.name))
+            tlslib.SigningChain((cert, key), None)
 
 
 class TestNegative(TestBackend):
@@ -256,6 +271,7 @@ class TestClientAgainstSSL(TestBackend):
             self.assertEqual(client_sock.cipher(), tlslib.CipherSuite.TLS_AES_256_GCM_SHA384)
             self.assertEqual(client_sock.negotiated_protocol(), None)
             self.assertEqual(client_sock.getpeername(), server.socket.getsockname())
+            self.assertIsInstance(client_sock.getpeercert(), stdlib.OpenSSLCertificate)
             self.assertIsInstance(client_sock.fileno(), int)
 
             client_sock.close()
@@ -267,6 +283,7 @@ class TestClientAgainstSSL(TestBackend):
                 with attempt:
                     self.assertEqual(server.server_recv, [b"message 1", b"message 2"])
                     self.assertEqual(server.server_sent, [b"echo: message 1", b"echo: message 2"])
+                    self.assertEqual(server.peer_cert, None)
 
     def test_all_protocol_versions(self):
         server, client_config = limbo_server_ssl("webpki::san::exact-localhost-ip-san")
