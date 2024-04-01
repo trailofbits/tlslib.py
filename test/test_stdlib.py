@@ -176,6 +176,16 @@ class TestConfig(TestBackend):
                 with attempt:
                     self.assertEqual(server.server_negotiated_protocol, b"bla")
 
+    def test_config_connection_signingchain_empty(self):
+        server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
+        server = tweak_server_config(server, certificate_chain=[])
+
+        with server:
+            client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
+            with self.assertRaises(tlslib.TLSError):
+                client_sock = client_context.connect(server.socket.getsockname())
+                client_sock.close()
+
     def test_config_signingchain_empty(self):
         cert = stdlib.OpenSSLCertificate.from_buffer(b"")
         key = stdlib.OpenSSLPrivateKey.from_buffer(b"")
@@ -370,3 +380,43 @@ class TestClientAgainstSSL(TestBackend):
                 with attempt:
                     self.assertIsNotNone(server.peer_cert)
             client_sock.close()
+
+
+class TestSNI(TestBackend):
+    def test_trivial_connection_sni(self):
+        server, client_config = limbo_server("webpki::san::exact-localhost-dns-san")
+        server_example_com, _ = limbo_server("webpki::san::exact-dns-san")
+
+        cert_chain_example_com = server_example_com.server_context.configuration.certificate_chain[
+            0
+        ]
+        cert_chain_localhost = server.server_context.configuration.certificate_chain[0]
+
+        server = tweak_server_config(
+            server, certificate_chain=[cert_chain_example_com, cert_chain_localhost]
+        )
+
+        with server:
+            client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
+            # Manually set the socket address to localhost instead of 127.0.0.1, so that the
+            # certificate is valid
+            client_sock = client_context.connect(("localhost", server.socket.getsockname()[1]))
+            client_sock.close()
+
+    def test_connection_sni_no_appropriate_certchain(self):
+        server_example_com, client_config = limbo_server("webpki::san::exact-dns-san")
+        cert_chain_example_com = server_example_com.server_context.configuration.certificate_chain[
+            0
+        ]
+
+        # Use two certificates (to trigger the SNI logic) but make them both for `example.com`, so
+        # that neither are correct for this server (127.0.0.1)
+        server = tweak_server_config(
+            server_example_com, certificate_chain=[cert_chain_example_com, cert_chain_example_com]
+        )
+
+        with server:
+            client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
+            with self.assertRaises(tlslib.TLSError):
+                client_sock = client_context.connect(server.socket.getsockname())
+                client_sock.close()

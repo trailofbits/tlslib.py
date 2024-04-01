@@ -1,0 +1,25 @@
+{
+  "id": "webpki::san::exact-localhost-dns-san",
+  "conflicts_with": [],
+  "features": [],
+  "importance": "undetermined",
+  "description": "Produces a chain with a valid EE cert for `localhost`.\n\nThis EE cert contains a Subject Alternative Name with the dNSName \"localhost\".\nThis should verify successfully against the domain \"localhost\", per\nRFC 6125 6.4.1.",
+  "validation_kind": "SERVER",
+  "trusted_certs": [
+    "-----BEGIN CERTIFICATE-----\nMIIBjzCCATWgAwIBAgIUSpvwQMFpEPf6kpqWjxFlS7HJPB0wCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjAaMRgwFgYDVQQDDA94NTA5LWxpbWJvLXJvb3QwWTATBgcq\nhkjOPQIBBggqhkjOPQMBBwNCAASWvXQ3A9poMeCXmMX+fjpAk1hRN9QE0hU6EyvO\nrqv0Xt1lgqnV/gl8E5WhcqLXGGPMjhCjJ4IQ5LRIldNhi7LEo1cwVTAPBgNVHRMB\nAf8EBTADAQH/MAsGA1UdDwQEAwICBDAWBgNVHREEDzANggtleGFtcGxlLmNvbTAd\nBgNVHQ4EFgQUDTGXZ95Gd6HWcXOrpVBgJWR73KUwCgYIKoZIzj0EAwIDSAAwRQIg\nJ43cmFuw2IZg7knKOUP9wQaXK/QpvCOZ8we5Gvw/1vACIQC6s1CTZsoDSvC54v4H\nwo2PJR+xEuKrS8ZvpEAh/eifWg==\n-----END CERTIFICATE-----\n"
+  ],
+  "untrusted_intermediates": [],
+  "peer_certificate": "-----BEGIN CERTIFICATE-----\nMIIBrTCCAVSgAwIBAgIUQ6fN895y2Ts8pRJ+II1IoWwjhhQwCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjAWMRQwEgYDVQQDDAtleGFtcGxlLmNvbTBZMBMGByqGSM49\nAgEGCCqGSM49AwEHA0IABCW2Wgvtxhs1yQo0GnWNYhDoHD+2EhQBeWRaNG4mVWxH\nm8HtX+14ByzMwQJszJZ9RSpW3ETLvCmT04WM4psYz+yjejB4MB0GA1UdDgQWBBRm\nJ7xDxV0GroApCoUjhA4Hoh41PzAfBgNVHSMEGDAWgBQNMZdn3kZ3odZxc6ulUGAl\nZHvcpTALBgNVHQ8EBAMCB4AwEwYDVR0lBAwwCgYIKwYBBQUHAwEwFAYDVR0RBA0w\nC4IJbG9jYWxob3N0MAoGCCqGSM49BAMCA0cAMEQCIACs0gUawlpsJAr1dHtKA4Uu\n3dZ9wj9rFl2Ob+gzoYPEAiB8w2U15NC7BoBiZZ4IKCD5UC4Nnf35rPRNfDLXzrYj\nog==\n-----END CERTIFICATE-----\n",
+  "peer_certificate_key": "-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIL4YgMPqD6MC7W4kQEytsTtRKJyriFCGfgFGm/m0lY/yoAoGCCqGSM49\nAwEHoUQDQgAEJbZaC+3GGzXJCjQadY1iEOgcP7YSFAF5ZFo0biZVbEebwe1f7XgH\nLMzBAmzMln1FKlbcRMu8KZPThYzimxjP7A==\n-----END EC PRIVATE KEY-----\n",
+  "validation_time": null,
+  "signature_algorithms": [],
+  "key_usage": [],
+  "extended_key_usage": [],
+  "expected_result": "SUCCESS",
+  "expected_peer_name": {
+    "kind": "DNS",
+    "value": "localhost"
+  },
+  "expected_peer_names": [],
+  "max_chain_depth": null
+}
