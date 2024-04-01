@@ -176,6 +176,16 @@ class TestConfig(TestBackend):
                 with attempt:
                     self.assertEqual(server.server_negotiated_protocol, b"bla")
 
+    def test_config_connection_signingchain_empty(self):
+        server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
+        server = tweak_server_config(server, certificate_chain=[])
+
+        with server:
+            client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
+            with self.assertRaises(tlslib.TLSError):
+                client_sock = client_context.connect(server.socket.getsockname())
+                client_sock.close()
+
     def test_config_signingchain_empty(self):
         cert = stdlib.OpenSSLCertificate.from_buffer(b"")
         key = stdlib.OpenSSLPrivateKey.from_buffer(b"")
