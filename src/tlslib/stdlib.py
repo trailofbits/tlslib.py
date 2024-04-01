@@ -475,9 +475,9 @@ class OpenSSLTLSSocket:
         for cipher in self._ssl_context.get_ciphers():
             if cipher["name"] == ossl_cipher:
                 break
-        else:
-            msg = "Unable to identify cipher suite"
-            raise TLSError(msg)
+        # Since the cipher was negotiated using the OpenSSL context,
+        # it must exist in the list of the OpenSSL supported ciphers.
+        assert cipher["name"] == ossl_cipher
 
         cipher_id = cipher["id"] & 0xFFFF
         try:
