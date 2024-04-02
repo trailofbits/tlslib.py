@@ -118,7 +118,7 @@ class TestBasic(TestBackend):
 
 
 class TestConfig(TestBackend):
-    def test_config_system_trust_store(self):
+    def test_config_system_trust_store_client(self):
         backend = stdlib.STDLIB_BACKEND
 
         system_store = None
@@ -129,7 +129,7 @@ class TestConfig(TestBackend):
         self.assertEqual(client_sock.context.configuration.trust_store, system_store)
         client_sock.close()
 
-    def test_config_file_trust_store(self):
+    def test_config_file_trust_store_client(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
 
         with server:
@@ -138,6 +138,30 @@ class TestConfig(TestBackend):
             self.assertEqual(
                 client_sock.context.configuration.trust_store, client_config.trust_store
             )
+            client_sock.close()
+
+    def test_config_file_truststore_server(self):
+        server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
+        # Add the server's signing certificate to the server's trust store, just so that it's not
+        # empty
+        truststore = stdlib.OpenSSLTrustStore.from_file(
+            server.server_context.configuration.certificate_chain[0].leaf[0]._cert_path
+        )
+        server = tweak_server_config(server, trust_store=truststore)
+
+        with server:
+            client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
+            client_sock = client_context.connect(server.socket.getsockname())
+            client_sock.close()
+
+    def test_config_explicit_system_trust_store_server(self):
+        server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
+        truststore = stdlib.OpenSSLTrustStore(None)
+        server = tweak_server_config(server, trust_store=truststore)
+
+        with server:
+            client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
+            client_sock = client_context.connect(server.socket.getsockname())
             client_sock.close()
 
     def test_config_weird_cipher_id(self):
