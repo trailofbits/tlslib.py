@@ -1,0 +1,25 @@
+{
+  "id": "webpki::san::no-san",
+  "conflicts_with": [],
+  "features": [],
+  "importance": "undetermined",
+  "description": "Produces the following **invalid** chain:\n\n```\nroot -> EE\n```\n\nThe chain is correctly constructed, but the EE cert does not have a\nSubject Alternative Name, which is required. This is invalid even when\nthe Subject contains a valid domain name in its Common Name component.",
+  "validation_kind": "SERVER",
+  "trusted_certs": [
+    "-----BEGIN CERTIFICATE-----\nMIIBjzCCATWgAwIBAgIUJBSEJGpB6SsbPTH2uUKSWhd0NS4wCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjAaMRgwFgYDVQQDDA94NTA5LWxpbWJvLXJvb3QwWTATBgcq\nhkjOPQIBBggqhkjOPQMBBwNCAAQ+9xB4b0gF9wfoXeTUckMkCwPPDnpKb4s/9RVe\nFebUVYCz3PAuzz9xyDo6ALp1vHkvTstldWP3YEjg5tF3/pkjo1cwVTAPBgNVHRMB\nAf8EBTADAQH/MAsGA1UdDwQEAwICBDAWBgNVHREEDzANggtleGFtcGxlLmNvbTAd\nBgNVHQ4EFgQUy/j8+gfVIaLuJJzJd4TiB9F14K8wCgYIKoZIzj0EAwIDSAAwRQIh\nAOt5aqwQRT4ew+JXuWq5Ak1b4y4XS3t/ef7whWRPSIPTAiBGKjtAjXYpSp+/uyjT\nP28K3cxpYc6q8Ju4J52iG9DVCA==\n-----END CERTIFICATE-----\n"
+  ],
+  "untrusted_intermediates": [],
+  "peer_certificate": "-----BEGIN CERTIFICATE-----\nMIIBlzCCAT6gAwIBAgIUd98tRM5Qub7xM70I8b3fBMis2bowCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjAWMRQwEgYDVQQDDAtleGFtcGxlLmNvbTBZMBMGByqGSM49\nAgEGCCqGSM49AwEHA0IABAAjJlpD4xlE9geSgBva7efZ4/VtuJCGh/0c3UOKjFqf\nJgTcyJLQCZ1h/Dlcr/9XHy2GaB+0bXJbAIpytL5D+4ijZDBiMB0GA1UdDgQWBBTN\nuYgM8aHXu8IQwcKlr06kyeg6czAfBgNVHSMEGDAWgBTL+Pz6B9Uhou4knMl3hOIH\n0XXgrzALBgNVHQ8EBAMCB4AwEwYDVR0lBAwwCgYIKwYBBQUHAwEwCgYIKoZIzj0E\nAwIDRwAwRAIgJC9t+y200xshgByy9CiEYhA5+yM2p6PU/W7C7tFN41UCIBmPSwmN\n1wfgGR0IpGwbNR+Hg6Kt5ooWxHHQIV+g6W0H\n-----END CERTIFICATE-----\n",
+  "peer_certificate_key": "-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEINUcUpurH7rhZOXzEAFWYYho73pcjR03jJ6zhiBoWvcQoAoGCCqGSM49\nAwEHoUQDQgAEACMmWkPjGUT2B5KAG9rt59nj9W24kIaH/RzdQ4qMWp8mBNzIktAJ\nnWH8OVyv/1cfLYZoH7RtclsAinK0vkP7iA==\n-----END EC PRIVATE KEY-----\n",
+  "validation_time": null,
+  "signature_algorithms": [],
+  "key_usage": [],
+  "extended_key_usage": [],
+  "expected_result": "FAILURE",
+  "expected_peer_name": {
+    "kind": "DNS",
+    "value": "example.com"
+  },
+  "expected_peer_names": [],
+  "max_chain_depth": null
+}

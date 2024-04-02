@@ -420,3 +420,22 @@ class TestSNI(TestBackend):
             with self.assertRaises(tlslib.TLSError):
                 client_sock = client_context.connect(server.socket.getsockname())
                 client_sock.close()
+
+    def test_connection_sni_cert_no_san(self):
+        server, client_config = limbo_server("webpki::san::exact-localhost-dns-san")
+        server_no_san, _ = limbo_server("webpki::san::no-san")
+
+        cert_chain_no_san = server_no_san.server_context.configuration.certificate_chain[0]
+        cert_chain_localhost = server.server_context.configuration.certificate_chain[0]
+
+        # The cert with no SAN should be ignored since there is another cert present that is valid
+        server = tweak_server_config(
+            server, certificate_chain=[cert_chain_no_san, cert_chain_localhost]
+        )
+
+        with server:
+            client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
+            # Manually set the socket address to localhost instead of 127.0.0.1, so that the
+            # certificate is valid
+            client_sock = client_context.connect(("localhost", server.socket.getsockname()[1]))
+            client_sock.close()
