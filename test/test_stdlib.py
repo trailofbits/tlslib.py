@@ -152,6 +152,11 @@ class TestConfig(TestBackend):
         with server:
             client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
             client_sock = client_context.connect(server.socket.getsockname())
+            for attempt in retry_loop(max_attempts=3, wait=0.5):
+                with attempt:
+                    # Connection should have failed due to client not authenticating
+                    with self.assertRaises(tlslib.TLSError):
+                        client_sock.send(b"message")
             client_sock.close()
 
     def test_config_explicit_system_trust_store_server(self):
@@ -162,6 +167,11 @@ class TestConfig(TestBackend):
         with server:
             client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
             client_sock = client_context.connect(server.socket.getsockname())
+            for attempt in retry_loop(max_attempts=3, wait=0.5):
+                with attempt:
+                    # Connection should have failed due to client not authenticating
+                    with self.assertRaises(tlslib.TLSError):
+                        client_sock.send(b"message")
             client_sock.close()
 
     def test_config_weird_cipher_id(self):
