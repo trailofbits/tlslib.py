@@ -292,6 +292,15 @@ class TestNegative(TestBackend):
                 client_sock = client_context.connect(server.socket.getsockname())
                 client_sock.close()
 
+    def test_send_too_much_data(self):
+        server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
+
+        with server:
+            client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
+            client_sock = client_context.connect(server.socket.getsockname())
+            with self.assertRaises(tlslib.WantWriteError):
+                client_sock.send(b"a" * 10000000)
+
 
 class TestClientAgainstSSL(TestBackend):
     def test_trivial_connection_ssl(self):
