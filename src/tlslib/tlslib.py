@@ -532,6 +532,13 @@ class CipherSuite(IntEnum):
     TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 = 0xCCA9
 
 
+"""
+This default cipher list for TLS v1.2 is based on the CloudFlare recommendations,
+see: <https://developers.cloudflare.com/ssl/reference/cipher-suites/recommendations/>
+
+The default cipher list for TLS v1.3 should comprise the five fixed cipher suites
+from the TLS v1.3 specification.
+"""
 DEFAULT_CIPHER_LIST = [
     CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
     CipherSuite.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
