@@ -60,7 +60,6 @@ def _error_converter(
     try:
         yield
     except ignore_filter:
-        print("LOL")
         pass
     except ssl.SSLWantReadError:
         raise WantReadError("Must read data") from None
@@ -620,7 +619,6 @@ class OpenSSLTLSBuffer:
             with _error_converter(ignore_filter=(ssl.SSLZeroReturnError,)):
                 return self._object.read(amt)
         except ssl.SSLZeroReturnError:
-            print("You know it")
             return b""
 
     def readinto(self, buffer: Buffer, amt: int) -> int:

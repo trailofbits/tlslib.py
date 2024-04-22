@@ -618,6 +618,3 @@ class TestBuffer(TestBackend):
 
         self.assertEqual(client_buffer.negotiated_protocol(), protocol)
         self.assertEqual(server_buffer.negotiated_protocol(), protocol)
-
-
-# 387, 621-622, 654-655, 774, 788-789, 815-820, 828
