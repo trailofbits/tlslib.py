@@ -608,15 +608,13 @@ class OpenSSLTrustStore:
         """
         Initializes a trust store from a buffer of PEM-encoded certificates.
         """
-        # HACK: Python's ssl doesn't support loading a trust store from a buffer.
-        # Instead, we go the roundabout way with a temporary file, which we intentionally
-        # disable the delete-on-close behavior for. This means that the filename itself
-        # will stick around until process exit.
         tmp_path = tempfile.NamedTemporaryFile(mode="w+b", delete=False, delete_on_close=False)
         tmp_path.write(buf)
         tmp_path.close()
 
-        return cls.from_file(Path(tmp_path.name))
+        trust_store = cls.from_file(Path(tmp_path.name))
+        weakref.finalize(trust_store, os.remove, tmp_path.name)
+        return trust_store
 
     @classmethod
     def from_file(cls, path: os.PathLike) -> OpenSSLTrustStore:
@@ -659,11 +657,7 @@ class OpenSSLCertificate:
     @classmethod
     def from_file(cls, path: os.PathLike) -> OpenSSLCertificate:
         """
-        Creates a Certificate object from a file on disk. This method may
-        be a convenience method that wraps ``open`` and ``from_buffer``,
-        but some TLS implementations may be able to provide more-secure or
-        faster methods of loading certificates that do not involve Python
-        code.
+        Creates a Certificate object from a file on disk.
         """
 
         return cls(path=path)
@@ -701,11 +695,7 @@ class OpenSSLPrivateKey:
     @classmethod
     def from_file(cls, path: os.PathLike) -> OpenSSLPrivateKey:
         """
-        Creates a PrivateKey object from a file on disk. This method may
-        be a convenience method that wraps ``open`` and ``from_buffer``,
-        but some TLS implementations may be able to provide more-secure or
-        faster methods of loading certificates that do not involve Python
-        code.
+        Creates a PrivateKey object from a file on disk.
         """
 
         return cls(path=path)
