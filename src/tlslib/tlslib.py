@@ -93,7 +93,7 @@ class PrivateKey(Protocol):
     for a certificate used in TLS."""
 
     @classmethod
-    def from_buffer(cls, buffer: bytes, password: bytes | None = None) -> PrivateKey:
+    def from_buffer(cls, buffer: bytes) -> PrivateKey:
         """
         Creates a PrivateKey object from a byte buffer. This byte buffer
         may be either PEM-encoded or DER-encoded. If the buffer is PEM
@@ -102,30 +102,17 @@ class PrivateKey(Protocol):
         another series of dashes). In the absence of that preamble, the
         implementation may assume that the certificate is DER-encoded
         instead.
-
-        The key may additionally be encrypted. If it is, the ``password``
-        argument can be used to decrypt the key. The ``password`` argument
-        may be a function to call to get the password for decrypting the
-        private key. It will only be called if the private key is encrypted
-        and a password is necessary. It will be called with no arguments,
-        and it should return either bytes or bytearray containing the
-        password. Alternatively a bytes, or bytearray value may be supplied
-        directly as the password argument. It will be ignored if the
-        private key is not encrypted and no password is needed.
         """
         raise NotImplementedError("Private Keys from buffers not supported")
 
     @classmethod
-    def from_file(cls, path: os.PathLike, password: bytes | None = None) -> PrivateKey:
+    def from_file(cls, path: os.PathLike) -> PrivateKey:
         """
         Creates a PrivateKey object from a file on disk. This method may
         be a convenience method that wraps ``open`` and ``from_buffer``,
         but some TLS implementations may be able to provide more-secure or
         faster methods of loading certificates that do not involve Python
         code.
-
-        The ``password`` parameter behaves exactly as the equivalent
-        parameter on ``from_buffer``.
         """
         raise NotImplementedError("Private Keys from buffers not supported")
 
