@@ -380,11 +380,8 @@ class OpenSSLTLSSocket:
         """Receive data from the socket. The return value is a bytes object
         representing the data received. Should not work before the handshake
         is completed."""
-        try:
-            with _error_converter(ignore_filter=(ssl.SSLZeroReturnError,)):
-                return self._socket.recv(bufsize)
-        except ssl.SSLZeroReturnError:
-            return b""
+        with _error_converter():
+            return self._socket.recv(bufsize)
 
     def send(self, bytes: bytes) -> int:
         """Send data to the socket. The socket must be connected to a remote socket."""
