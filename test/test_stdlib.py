@@ -524,7 +524,7 @@ class TestBuffer(TestBackend):
 
         loop_until_success(client_buffer, server_buffer, "shutdown")
 
-    def test_read_into(self):
+    def test_read_into_buffer(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-dns-san")
         server_config = server.server_context.configuration
         backend = server.backend
@@ -538,7 +538,7 @@ class TestBuffer(TestBackend):
         message = b"message 1"
         write_until_complete(client_buffer, server_buffer, message)
         read_buf = bytearray(1024)
-        read_len = server_buffer.readinto(read_buf, 2 * len(message))
+        read_len = server_buffer.read(2 * len(message), read_buf)
         assert read_buf[:read_len] == message
 
     def test_create_client_buffer(self):

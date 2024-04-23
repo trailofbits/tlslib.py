@@ -484,10 +484,9 @@ def loop_until_success(client: TLSBuffer, server: TLSBuffer, func: Callable) -> 
             else:
                 client_complete = True
 
-        client_bytes = client.peek_outgoing(client.bytes_buffered())
+        client_bytes = client.process_outgoing(client.outgoing_bytes_buffered())
         if client_bytes:
-            server.receive_from_network(client_bytes)
-            client.consume_outgoing(len(client_bytes))
+            server.process_incoming(client_bytes)
 
         while not server_complete:
             try:
@@ -497,10 +496,9 @@ def loop_until_success(client: TLSBuffer, server: TLSBuffer, func: Callable) -> 
             else:
                 server_complete = True
 
-        server_bytes = server.peek_outgoing(server.bytes_buffered())
+        server_bytes = server.process_outgoing(server.outgoing_bytes_buffered())
         if server_bytes:
-            client.receive_from_network(server_bytes)
-            server.consume_outgoing(len(server_bytes))
+            client.process_incoming(server_bytes)
 
 
 def write_until_complete(writer: TLSBuffer, reader: TLSBuffer, message: bytes) -> None:
@@ -517,10 +515,9 @@ def write_until_complete(writer: TLSBuffer, reader: TLSBuffer, message: bytes) -
         else:
             message_written = True
 
-        written_data = writer.peek_outgoing(writer.bytes_buffered())
-        writer.consume_outgoing(len(written_data))
+        written_data = writer.process_outgoing(writer.outgoing_bytes_buffered())
         if written_data:
-            reader.receive_from_network(written_data)
+            reader.process_incoming(written_data)
 
 
 def write_until_read(writer: TLSBuffer, reader: TLSBuffer, message: bytes) -> None:

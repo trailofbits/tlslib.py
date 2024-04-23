@@ -587,10 +587,12 @@ class OpenSSLTLSBuffer:
 
         return self
 
-    def read(self, amt: int) -> bytes:
+    def read(self, amt: int, buffer: Buffer | None = None) -> bytes | int:
         """
         Read up to ``amt`` bytes of data from the input buffer and return
-        the result as a ``bytes`` instance.
+        the result as a ``bytes`` instance. If an optional buffer is
+        provided, the result is written into the buffer and the number of
+        bytes is returned instead.
 
         Once EOF is reached, all further calls to this method return the
         empty byte string ``b''``.
@@ -611,37 +613,8 @@ class OpenSSLTLSBuffer:
         """
 
         with _error_converter():
-            return self._object.read(amt)
-
-    def readinto(self, buffer: Buffer, amt: int) -> int:
-        """
-        Read up to ``amt`` bytes of data from the input buffer into
-        ``buffer``, which must be an object that implements the buffer
-        protocol. Returns the number of bytes read.
-
-        Once EOF is reached, all further calls to this method return the
-        empty byte string ``b''``.
-
-        Raises ``WantReadError`` or ``WantWriteError`` if there is
-        insufficient data in either the input or output buffer and the
-        operation would have caused data to be written or read.
-
-        May read "short": that is, fewer bytes may be read than were
-        requested.
-
-        May raise ``RaggedEOF`` if the connection has been closed without a
-        graceful TLS shutdown. Whether this is an exception that should be
-        ignored or not is up to the specific application.
-
-        As at any time a re-negotiation is possible, a call to
-        ``readinto()`` can also cause write operations.
-        """
-
-        with _error_converter():
-            # MyPy does not recognize:
-            # - that the read function can return integers if a buffer is provided
-            # - that the buffer can be something other than a bytearray
-            return self._object.read(amt, buffer)  # type: ignore[return-value,arg-type]
+            # MyPy insists that buffer must be a bytearray
+            return self._object.read(amt, buffer)  # type: ignore[arg-type]
 
     def write(self, buf: Buffer) -> int:
         """
@@ -677,9 +650,6 @@ class OpenSSLTLSBuffer:
         with _error_converter():
             self._object.do_handshake()
 
-        # self._connection_established = True
-        # return rc
-
     def shutdown(self) -> None:
         """
         Performs a clean TLS shut down. This should generally be used
@@ -690,55 +660,34 @@ class OpenSSLTLSBuffer:
         with _error_converter():
             self._object.unwrap()
 
-        # self._connection_established = False
-        # return rc
-
-    def receive_from_network(self, data: bytes) -> None:
+    def process_incoming(self, data_from_network: bytes) -> None:
         """
         Receives some TLS data from the network and stores it in an
         internal buffer.
 
         If the internal buffer is overfull, this method will raise
         ``WantReadError`` and store no data. At this point, the user must
-        call ``read`` or ``readinto`` to remove some data from the internal
-        buffer before repeating this call.
+        call ``read`` to remove some data from the internal buffer
+        before repeating this call.
         """
-
-        # TODO: This method returns a length. Can it return short? What do we
-        # do if it does?
 
         with _error_converter():
-            written_len = self._in_bio.write(data)
+            written_len = self._in_bio.write(data_from_network)
 
-        assert written_len == len(data)
+        assert written_len == len(data_from_network)
 
-    def peek_outgoing(self, amt: int) -> bytes:
+    def process_outgoing(self, amount_bytes_for_network: int) -> bytes:
         """
         Returns the next ``amt`` bytes of data that should be written to
-        the network from the outgoing data buffer, without removing it from
-        the internal buffer.
+        the network from the outgoing data buffer, removing it from the
+        internal buffer.
         """
 
-        # TODO: Evaluate this for what happens when it's called with no data.
-        # What about EOF?
-        ciphertext_bytes = len(self._ciphertext_buffer)
-        if ciphertext_bytes < amt:
-            self._ciphertext_buffer += self._out_bio.read(amt - ciphertext_bytes)
+        return self._out_bio.read(amount_bytes_for_network)
 
-        return self._ciphertext_buffer[:amt]
-
-    def consume_outgoing(self, amt: int) -> None:
+    def outgoing_bytes_buffered(self) -> int:
         """
-        Discard the next ``amt`` bytes from the outgoing data buffer. This
-        should be used when ``amt`` bytes have been sent on the network, to
-        signal that the data no longer needs to be buffered.
-        """
-
-        del self._ciphertext_buffer[:amt]
-
-    def bytes_buffered(self) -> int:
-        """
-        Returns how many bytes are in the send buffer waiting to be sent.
+        Returns how many bytes are in the outgoing buffer waiting to be sent.
         """
 
         return self._out_bio.pending
