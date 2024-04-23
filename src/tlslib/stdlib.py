@@ -610,11 +610,8 @@ class OpenSSLTLSBuffer:
         can also cause write operations.
         """
 
-        try:
-            with _error_converter(ignore_filter=(ssl.SSLZeroReturnError,)):
-                return self._object.read(amt)
-        except ssl.SSLZeroReturnError:
-            return b""
+        with _error_converter():
+            return self._object.read(amt)
 
     def readinto(self, buffer: Buffer, amt: int) -> int:
         """
@@ -639,15 +636,13 @@ class OpenSSLTLSBuffer:
         As at any time a re-negotiation is possible, a call to
         ``readinto()`` can also cause write operations.
         """
+        
+        with _error_converter():
+            # MyPy does not recognize:
+            # - that the read function can return integers if a buffer is provided
+            # - that the buffer can be something other than a bytearray
+            return self._object.read(amt, buffer)  # type: ignore[return-value,arg-type]
 
-        try:
-            with _error_converter(ignore_filter=(ssl.SSLZeroReturnError,)):
-                # MyPy does not recognize:
-                # - that the read function can return integers if a buffer is provided
-                # - that the buffer can be something other than a bytearray
-                return self._object.read(amt, buffer)  # type: ignore[return-value,arg-type]
-        except ssl.SSLZeroReturnError:
-            return 0
 
     def write(self, buf: Buffer) -> int:
         """
