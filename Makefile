@@ -33,8 +33,7 @@ ifneq ($(TESTS),)
 	COV_ARGS :=
 else
 	TEST_ARGS :=
-#	COV_ARGS := --fail-under 100
-	COV_ARGS :=
+	COV_ARGS := --fail-under 100
 endif
 
 .PHONY: all
