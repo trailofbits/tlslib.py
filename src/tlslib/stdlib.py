@@ -399,6 +399,10 @@ class OpenSSLTLSSocket:
             with _error_converter():
                 sock = self._socket.unwrap()
         except (ValueError, BrokenPipeError, OSError):
+            # If these exceptions are raised, we close the socket without re-trying to unwrap it.
+            # - ValueError: The socket was actually not wrapped
+            # - BrokenPipeError: There is some issue with the socket
+            # - OSError: The other side already shut down
             sock = self._socket
         except WantReadError:
             if force:
