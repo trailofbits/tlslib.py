@@ -676,6 +676,13 @@ class OpenSSLTLSBuffer:
 
         assert written_len == len(data_from_network)
 
+    def incoming_bytes_buffered(self) -> int:
+        """
+        Returns how many bytes are in the incoming buffer waiting to be processed.
+        """
+
+        return self._in_bio.pending
+
     def process_outgoing(self, amount_bytes_for_network: int) -> bytes:
         """
         Returns the next ``amt`` bytes of data that should be written to
@@ -766,6 +773,15 @@ class OpenSSLTLSBuffer:
             return None
         else:
             return TLSVersion(ossl_version)
+        
+    def getpeercert(self) -> OpenSSLCertificate | None:
+        """Return the certificate provided by the peer during the handshake, if applicable."""
+        with _error_converter():
+            cert = self._object.getpeercert(False) #TODO: Fix handling of peer cert?
+        if cert is None:
+            return None
+        else:
+            return OpenSSLCertificate.from_buffer(cert)
 
 
 class OpenSSLClientContext:
