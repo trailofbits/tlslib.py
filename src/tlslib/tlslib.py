@@ -424,8 +424,14 @@ class TLSSocket(Protocol):
 
     @abstractmethod
     def close(self, force: bool = False) -> None:
-        """Shut down both halves of the connection and mark the socket closed.
-        If force is True, will only shutdown own half and not wait for the other side."""
+        """Shuts down the connection and mark the socket closed.
+        If force is True, this method should send the close_notify alert and shut down
+        the socket without waiting for the other side.
+        If force is False, this method should send the close_notify alert and raise
+        the WantReadError exception until a corresponding close_notify alert has been
+        received from the other side.
+        In either case, this method should return WantWriteError if sending the 
+        close_notify alert currently fails."""
 
     @abstractmethod
     def listen(self, backlog: int) -> None:
