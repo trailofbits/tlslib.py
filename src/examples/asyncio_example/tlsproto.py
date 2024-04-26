@@ -582,7 +582,7 @@ class TLSProtocol(protocols.BufferedProtocol):
             else:
                 raise handshake_exc
 
-            # peercert = tlsobj.getpeercert() # TODO: Figure out what to do with peercert here
+            peercert = tlsobj.getpeercert()
 
         except Exception as exc:
             handshake_exc = None
@@ -600,7 +600,8 @@ class TLSProtocol(protocols.BufferedProtocol):
             logger.debug("%r: TLS handshake took %.1f ms", self, dt * 1e3)
 
         # Add extra info that becomes available after handshake.
-        self._extra.update(  # peercert=peercert,
+        self._extra.update(
+            peercert=peercert,
             cipher=tlsobj.cipher(),
             # compression=tlsobj.compression(), #TODO: compression?
             tls_object=tlsobj,
