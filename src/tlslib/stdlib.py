@@ -395,9 +395,6 @@ class OpenSSLTLSSocket:
         not wait for the other side. If force is False, this will raise WantReadError
         until the other side sends a close_notify alert."""
 
-        # ValueError: The socket was actually not wrapped
-        # BrokenPipeError: There is some issue with the socket
-        # OSError: The other side already shut down
         try:
             with _error_converter():
                 sock = self._socket.unwrap()
