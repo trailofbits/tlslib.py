@@ -773,11 +773,11 @@ class OpenSSLTLSBuffer:
             return None
         else:
             return TLSVersion(ossl_version)
-        
+
     def getpeercert(self) -> OpenSSLCertificate | None:
         """Return the certificate provided by the peer during the handshake, if applicable."""
         with _error_converter():
-            cert = self._object.getpeercert(False) #TODO: Fix handling of peer cert?
+            cert = self._object.getpeercert(True)
         if cert is None:
             return None
         else:
