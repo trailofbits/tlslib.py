@@ -430,7 +430,7 @@ class TLSSocket(Protocol):
         If force is False, this method should send the close_notify alert and raise
         the WantReadError exception until a corresponding close_notify alert has been
         received from the other side.
-        In either case, this method should return WantWriteError if sending the 
+        In either case, this method should return WantWriteError if sending the
         close_notify alert currently fails."""
 
     @abstractmethod
