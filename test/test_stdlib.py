@@ -516,11 +516,13 @@ class TestBuffer(TestBackend):
         self.assertEqual(client_buffer.negotiated_tls_version, tlslib.TLSVersion.TLSv1_3)
         self.assertEqual(client_buffer.cipher(), tlslib.CipherSuite.TLS_AES_256_GCM_SHA384)
         self.assertEqual(client_buffer.negotiated_protocol(), None)
+        self.assertIsNotNone(client_buffer.getpeercert())
         # self.assertEqual(client_buffer.getpeername(), server.socket.getsockname())
 
         self.assertEqual(server_buffer.negotiated_tls_version, tlslib.TLSVersion.TLSv1_3)
         self.assertEqual(server_buffer.cipher(), tlslib.CipherSuite.TLS_AES_256_GCM_SHA384)
         self.assertEqual(server_buffer.negotiated_protocol(), None)
+        self.assertIsNone(server_buffer.getpeercert())
 
         loop_until_success(client_buffer, server_buffer, "shutdown")
 
@@ -545,11 +547,12 @@ class TestBuffer(TestBackend):
         client_config = stdlib.STDLIB_BACKEND.client_configuration()
         client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
         client_buffer = client_context.create_buffer(None)
-
+        
         self.assertEqual(client_buffer.context, client_context)
         self.assertIsNone(client_buffer.cipher())
         self.assertIsNone(client_buffer.negotiated_protocol())
         self.assertIsNone(client_buffer.negotiated_tls_version)
+        self.assertEqual(client_buffer.incoming_bytes_buffered(),0)
 
     def test_config_weird_cipher_id_buffer(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-dns-san")
@@ -618,3 +621,5 @@ class TestBuffer(TestBackend):
 
         self.assertEqual(client_buffer.negotiated_protocol(), protocol)
         self.assertEqual(server_buffer.negotiated_protocol(), protocol)
+
+    
