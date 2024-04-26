@@ -423,8 +423,9 @@ class TLSSocket(Protocol):
         """Send data to the socket. The socket must be connected to a remote socket."""
 
     @abstractmethod
-    def close(self) -> None:
-        """Shut down both halves of the connection and mark the socket closed."""
+    def close(self, force: bool = False) -> None:
+        """Shut down both halves of the connection and mark the socket closed.
+        If force is True, will only shutdown own half and not wait for the other side."""
 
     @abstractmethod
     def listen(self, backlog: int) -> None:

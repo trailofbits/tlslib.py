@@ -87,7 +87,12 @@ class TestBasic(TestBackend):
             self.assertIsInstance(client_sock.getpeercert(), stdlib.OpenSSLCertificate)
             self.assertIsInstance(client_sock.fileno(), int)
 
-            client_sock.close()
+            while True:
+                try:
+                    client_sock.close(False)
+                    break
+                except tlslib.WantReadError:
+                    continue
 
             self.assertEqual(client_sock.negotiated_tls_version, None)
             self.assertEqual(client_sock.cipher(), None)
@@ -111,7 +116,7 @@ class TestBasic(TestBackend):
             client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
             client_sock = client_context.connect(server.socket.getsockname())
             self.assertEqual(client_sock.negotiated_protocol(), tlslib.NextProtocol.H2)
-            client_sock.close()
+            client_sock.close(True)
             for attempt in retry_loop(max_attempts=3, wait=0.1):
                 with attempt:
                     self.assertEqual(server.server_negotiated_protocol, tlslib.NextProtocol.H2)
@@ -127,7 +132,7 @@ class TestConfig(TestBackend):
         client_context = backend.client_context(client_config)
         client_sock = client_context.connect(("www.python.org", 443))
         self.assertEqual(client_sock.context.configuration.trust_store, system_store)
-        client_sock.close()
+        client_sock.close(True)
 
     def test_config_file_trust_store_client(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
@@ -138,7 +143,7 @@ class TestConfig(TestBackend):
             self.assertEqual(
                 client_sock.context.configuration.trust_store, client_config.trust_store
             )
-            client_sock.close()
+            client_sock.close(True)
 
     def test_config_file_truststore_server(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
@@ -157,7 +162,7 @@ class TestConfig(TestBackend):
                     # Connection should have failed due to client not authenticating
                     with self.assertRaises(tlslib.TLSError):
                         client_sock.send(b"message")
-            client_sock.close()
+            client_sock.close(True)
 
     def test_config_explicit_system_trust_store_server(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
@@ -172,7 +177,7 @@ class TestConfig(TestBackend):
                     # Connection should have failed due to client not authenticating
                     with self.assertRaises(tlslib.TLSError):
                         client_sock.send(b"message")
-            client_sock.close()
+            client_sock.close(True)
 
     def test_config_weird_cipher_id(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
@@ -192,7 +197,7 @@ class TestConfig(TestBackend):
             client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
             client_sock = client_context.connect(server.socket.getsockname())
             self.assertEqual(client_sock.cipher(), 49245)
-            client_sock.close()
+            client_sock.close(True)
 
     def test_config_weird_protocol(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
@@ -205,7 +210,7 @@ class TestConfig(TestBackend):
             client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
             client_sock = client_context.connect(server.socket.getsockname())
             self.assertEqual(client_sock.negotiated_protocol(), b"bla")
-            client_sock.close()
+            client_sock.close(True)
             for attempt in retry_loop(max_attempts=3, wait=0.1):
                 with attempt:
                     self.assertEqual(server.server_negotiated_protocol, b"bla")
@@ -218,7 +223,7 @@ class TestConfig(TestBackend):
             client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
             with self.assertRaises(tlslib.TLSError):
                 client_sock = client_context.connect(server.socket.getsockname())
-                client_sock.close()
+                client_sock.close(True)
 
     def test_config_signingchain_empty(self):
         cert = stdlib.OpenSSLCertificate.from_buffer(b"")
@@ -244,7 +249,7 @@ class TestNegative(TestBackend):
             client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
             with self.assertRaises(tlslib.TLSError):
                 client_sock = client_context.connect(server.socket.getsockname())
-                client_sock.close()
+                client_sock.close(True)
 
     def test_ciphers_mismatch(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
@@ -259,7 +264,7 @@ class TestNegative(TestBackend):
             client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
             with self.assertRaises(tlslib.TLSError):
                 client_sock = client_context.connect(server.socket.getsockname())
-                client_sock.close()
+                client_sock.close(True)
 
     def test_bad_tls_version_option(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
@@ -272,7 +277,7 @@ class TestNegative(TestBackend):
             client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
             with self.assertRaises(tlslib.TLSError):
                 client_sock = client_context.connect(server.socket.getsockname())
-                client_sock.close()
+                client_sock.close(True)
 
     def test_protocol_version_mismatch(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
@@ -290,7 +295,7 @@ class TestNegative(TestBackend):
             client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
             with self.assertRaises(tlslib.TLSError):
                 client_sock = client_context.connect(server.socket.getsockname())
-                client_sock.close()
+                client_sock.close(True)
 
     def test_send_too_much_data(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
@@ -327,7 +332,7 @@ class TestClientAgainstSSL(TestBackend):
             self.assertIsInstance(client_sock.getpeercert(), stdlib.OpenSSLCertificate)
             self.assertIsInstance(client_sock.fileno(), int)
 
-            client_sock.close()
+            client_sock.close(True)
 
             self.assertEqual(client_sock.negotiated_tls_version, None)
             self.assertEqual(client_sock.cipher(), None)
@@ -360,7 +365,12 @@ class TestClientAgainstSSL(TestBackend):
                     self.assertEqual(client_sock.negotiated_tls_version, tlsversion)
                     self.assertEqual(client_sock.negotiated_protocol(), None)
                     self.assertEqual(client_sock.getpeername(), server.socket.getsockname())
-                    client_sock.close()
+                    while True:
+                        try:
+                            client_sock.close(False)
+                            break
+                        except tlslib.WantReadError:
+                            continue
                     self.assertEqual(client_sock.negotiated_tls_version, None)
                     self.assertEqual(client_sock.cipher(), None)
 
@@ -371,6 +381,7 @@ class TestClientAgainstSSL(TestBackend):
                 with self.subTest(cipher=cipher):
                     # We test v1.2 because it is not possible to disable ciphersuites
                     # in the stdlib for TLS v1.3
+                    print(cipher)
 
                     new_client_config = tweak_client_config(
                         client_config,
@@ -387,7 +398,12 @@ class TestClientAgainstSSL(TestBackend):
                     self.assertEqual(client_sock.cipher(), cipher)
                     self.assertEqual(client_sock.negotiated_protocol(), None)
                     self.assertEqual(client_sock.getpeername(), server.socket.getsockname())
-                    client_sock.close()
+                    while True:
+                        try:
+                            client_sock.close(False)
+                            break
+                        except tlslib.WantReadError:
+                            continue
                     self.assertEqual(client_sock.negotiated_tls_version, None)
                     self.assertEqual(client_sock.cipher(), None)
 
@@ -402,7 +418,7 @@ class TestClientAgainstSSL(TestBackend):
                     client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
                     client_sock = client_context.connect(server.socket.getsockname())
                     self.assertEqual(client_sock.negotiated_protocol(), np)
-                    client_sock.close()
+                    client_sock.close(True)
                     for attempt in retry_loop(max_attempts=3, wait=0.1):
                         with attempt:
                             self.assertEqual(
@@ -422,7 +438,7 @@ class TestClientAgainstSSL(TestBackend):
             for attempt in retry_loop(max_attempts=3, wait=0.1):
                 with attempt:
                     self.assertIsNotNone(server.peer_cert)
-            client_sock.close()
+            client_sock.close(True)
 
 
 class TestSNI(TestBackend):
@@ -444,7 +460,7 @@ class TestSNI(TestBackend):
             # Manually set the socket address to localhost instead of 127.0.0.1, so that the
             # certificate is valid
             client_sock = client_context.connect(("localhost", server.socket.getsockname()[1]))
-            client_sock.close()
+            client_sock.close(True)
 
     def test_connection_sni_no_appropriate_certchain(self):
         server_example_com, client_config = limbo_server("webpki::san::exact-dns-san")
@@ -462,7 +478,7 @@ class TestSNI(TestBackend):
             client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
             with self.assertRaises(tlslib.TLSError):
                 client_sock = client_context.connect(server.socket.getsockname())
-                client_sock.close()
+                client_sock.close(True)
 
     def test_connection_sni_cert_no_san(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-dns-san")
@@ -481,4 +497,4 @@ class TestSNI(TestBackend):
             # Manually set the socket address to localhost instead of 127.0.0.1, so that the
             # certificate is valid
             client_sock = client_context.connect(("localhost", server.socket.getsockname()[1]))
-            client_sock.close()
+            client_sock.close(True)

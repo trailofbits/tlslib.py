@@ -18,6 +18,7 @@ from .tlslib import (
     Backend,
     CipherSuite,
     NextProtocol,
+    RaggedEOF,
     SigningChain,
     TLSClientConfiguration,
     TLSError,
@@ -65,6 +66,8 @@ def _error_converter(
         raise WantReadError("Must read data") from None
     except ssl.SSLWantWriteError:
         raise WantWriteError("Must write data") from None
+    except ssl.SSLEOFError:
+        raise RaggedEOF("Ragged EOF") from None
     except ssl.SSLError as e:
         raise TLSError(e) from None
 
@@ -386,14 +389,27 @@ class OpenSSLTLSSocket:
         with _error_converter():
             return self._socket.send(bytes)
 
-    def close(self) -> None:
+    def close(self, force: bool = False) -> None:
         """Unwraps the TLS connection, shuts down both halves of the connection and
-        mark the socket closed."""
+        mark the socket closed. If force is True, will only shutdown own half and
+        not wait for the other side. If force is False, this will raise WantReadError
+        until the other side sends a close_notify alert."""
+
+        try:
+            with _error_converter():
+                sock = self._socket.unwrap()
+        except (ValueError, BrokenPipeError, OSError):
+            sock = self._socket
+        except WantReadError:
+            if force:
+                sock = self._socket
+            else:
+                raise
 
         # NOTE: OSError indicates that the other side has already hung up.
         with _error_converter(ignore_filter=(OSError,)):
-            self._socket.shutdown(socket.SHUT_RDWR)
-        return self._socket.close()
+            sock.shutdown(socket.SHUT_RDWR)
+        return sock.close()
 
     def listen(self, backlog: int) -> None:
         """Enable a server to accept connections. If backlog is specified, it

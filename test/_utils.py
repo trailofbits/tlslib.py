@@ -83,9 +83,16 @@ class ThreadedEchoServer(threading.Thread):
                     msg = self.recv(1024)
 
                     if not msg:
+                        if isinstance(self.sock, ssl.SSLSocket):
+                            sock = self.sock.unwrap()
+                            sock.close()
+                        else:
+                            self.sock.close()
                         self.running = False
                     else:
                         self.queue.append(msg)
+                except RaggedEOF:
+                    self.running = False
                 except (WantReadError, ssl.SSLWantReadError):
                     try:
                         msg = self.queue.pop(0)
@@ -94,9 +101,9 @@ class ThreadedEchoServer(threading.Thread):
                         continue
                 except (WantWriteError, ssl.SSLWantWriteError):
                     continue
-                except RaggedEOF:
-                    self.running = False
-                except Exception:
+                except Exception as exc:
+                    print("Handler got exception:")
+                    print(exc)
                     raise
 
     def __init__(
@@ -151,6 +158,7 @@ class ThreadedEchoServer(threading.Thread):
         self.server_recv = []
 
         self.server_negotiated_protocol = None
+        self.handler_running = False
 
     def __enter__(self):
         self.start(threading.Event())
@@ -190,9 +198,11 @@ class ThreadedEchoServer(threading.Thread):
                     print(self.peer_cert)
 
                 if prot is None:
+                    self.handler_running = True
                     handler = self.ConnectionHandler(self, newconn, connaddr)
                     handler.start()
                     handler.join()
+                    self.handler_running = False
                 else:
                     self.server_negotiated_protocol = prot
 
@@ -200,18 +210,33 @@ class ThreadedEchoServer(threading.Thread):
                 # Would have blocked on accept; busy loop instead.
                 continue
             except (TLSError, ssl.SSLError) as exc:
+                print("Got TLSError: ")
                 print(exc)
                 # Something went wrong during the handshake.
                 # TODO: Currently treating as busy loop, but we can also choose
                 # to gracefully shut down here?
                 continue
-            except Exception:
+            except Exception as exc:
+                print("Got Exception: ")
+                print(exc)
                 # TODO: Figure out if there are other things we should mask or
                 # catch here.
                 raise
 
         if self.socket:
-            self.socket.close()
+            try:
+                if isinstance(self.socket, ssl.SSLSocket):
+                    sock = self.socket.unwrap()
+                    sock.close()
+                else:
+                    self.socket.close()
+            except ValueError:
+                self.socket.close()
+            except (WantReadError, ssl.SSLWantReadError):
+                pass
+            except Exception as exc:
+                print("Problem closing socket:")
+                print(exc)
             self.socket = None
 
     def stop(self):
