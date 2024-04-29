@@ -1,12 +1,15 @@
 """A TLS echo server example using tlslib with asyncio."""
 
 import asyncio
+from pathlib import Path
 
 from examples.asyncio_example.unix_events_tls import DefaultEventLoopPolicy
 from tlslib import stdlib as ossl
 from tlslib import tlslib as tls
 
 backend = ossl.STDLIB_BACKEND
+
+_CERT = Path(__file__).parent / "cert"
 
 
 async def handle_echo(reader, writer):
@@ -28,10 +31,12 @@ async def handle_echo(reader, writer):
 
 async def main():
     """Main server function"""
+
+    # Certs taken from x509-limbo webpki::san::exact-localhost-dns-san test case
     cert_chain = tls.SigningChain(
         leaf=(
-            backend.certificate.from_file("certs/leaf2.pem"),
-            backend.private_key.from_file("certs/key.pem"),
+            backend.certificate.from_file(Path(__file__).parent / "cert/leaf.pem"),
+            backend.private_key.from_file(Path(__file__).parent / "cert/key.pem"),
         ),
         chain=(),
     )
