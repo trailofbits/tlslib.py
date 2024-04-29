@@ -14,6 +14,10 @@ from pathlib import Path
 
 import truststore
 
+from .insecure import (
+    InsecureBackend,
+    InsecureConfiguration,
+)
 from .tlslib import (
     Backend,
     CipherSuite,
@@ -708,4 +712,92 @@ STDLIB_BACKEND = Backend(
     private_key=OpenSSLPrivateKey,
     server_context=OpenSSLServerContext,
     trust_store=OpenSSLTrustStore,
+)
+
+
+class OpenSSLInsecureClientContext(OpenSSLClientContext):
+    """
+    Class allowing users to make insecure choices using the stdlib OpenSSL-based backend.
+    """
+
+    def __init__(
+        self,
+        tls_configuration: TLSClientConfiguration,
+        insecure_configuration: InsecureConfiguration,
+    ) -> None:
+        """
+        Create a new insecure context object from a given TLS configuration and
+        insecure configuration."""
+
+        self._insecure_config = insecure_configuration
+        super().__init__(tls_configuration)
+
+    def connect(self, address: tuple[str | None, int]) -> OpenSSLTLSSocket:
+        """Create a socket-like object that can be used to do TLS."""
+        ossl_context = _init_context_client(self._configuration)
+
+        if self._insecure_config.disable_verification:
+            ossl_context.check_hostname = False
+            ossl_context.verify_mode = ssl.CERT_NONE
+
+        return OpenSSLTLSSocket._create(
+            parent_context=self,
+            server_side=False,
+            ssl_context=ossl_context,
+            address=address,
+        )
+
+    @property
+    def insecure_configuration(self) -> InsecureConfiguration:
+        """The insecure configuration options that will make this context insecure."""
+        return self._insecure_config
+
+
+class OpenSSLInsecureServerContext(OpenSSLServerContext):
+    """
+    Class allowing users to make insecure choices using the stdlib OpenSSL-based backend.
+    """
+
+    def __init__(
+        self,
+        tls_configuration: TLSServerConfiguration,
+        insecure_configuration: InsecureConfiguration,
+    ) -> None:
+        """
+        Create a new insecure context object from a given TLS configuration and
+        insecure configuration."""
+
+        self._insecure_config = insecure_configuration
+        super().__init__(tls_configuration)
+
+    def connect(self, address: tuple[str | None, int]) -> OpenSSLTLSSocket:
+        """Create a socket-like object that can be used to do TLS."""
+        ossl_context = _init_context_server(self._configuration)
+
+        if self._insecure_config.disable_verification:
+            ossl_context.check_hostname = False
+            ossl_context.verify_mode = ssl.CERT_NONE
+
+        return OpenSSLTLSSocket._create(
+            parent_context=self,
+            server_side=True,
+            ssl_context=ossl_context,
+            address=address,
+        )
+
+    @property
+    def insecure_configuration(self) -> InsecureConfiguration:
+        """The insecure configuration options that will make this context insecure."""
+        return self._insecure_config
+
+
+#: The stdlib ``InsecureBackend`` object.
+STDLIB_INSECURE_BACKEND = InsecureBackend(
+    certificate=OpenSSLCertificate,
+    client_context=OpenSSLClientContext,
+    private_key=OpenSSLPrivateKey,
+    server_context=OpenSSLServerContext,
+    trust_store=OpenSSLTrustStore,
+    insecure_client_context=OpenSSLInsecureClientContext,
+    insecure_server_context=OpenSSLInsecureServerContext,
 )
