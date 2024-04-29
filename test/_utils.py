@@ -14,9 +14,9 @@ from pathlib import Path
 from typing import Any
 
 from tlslib.insecure import InsecureConfiguration
+from tlslib.insecure.stdlib_insecure import STDLIB_INSECURE_BACKEND
 from tlslib.stdlib import (
     STDLIB_BACKEND,
-    STDLIB_INSECURE_BACKEND,
     OpenSSLCertificate,
     OpenSSLPrivateKey,
     OpenSSLTrustStore,

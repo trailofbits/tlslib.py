@@ -1,9 +1,10 @@
 """Insecure options for the abstract interface to TLS for Python."""
 
+import warnings
 from abc import abstractmethod
 from typing import Generic, Protocol, TypeVar
 
-from .tlslib import (
+from ..tlslib import (
     Backend,
     Certificate,
     ClientContext,
@@ -13,6 +14,10 @@ from .tlslib import (
     TLSServerConfiguration,
     TrustStore,
 )
+
+
+class SecurityWarning(Warning):
+    """Warning regarding the insecurity caused by the use of this module"""
 
 
 class InsecureConfiguration:
@@ -35,6 +40,10 @@ class InsecureConfiguration:
         disable_verification: bool = False,
     ) -> None:
         """Initializes the InsecureConfiguration."""
+        warnings.warn(
+            "Using InsecureConfiguration is insecure and should not be used in production.",
+            SecurityWarning,
+        )
 
         self._disable_verification = disable_verification
 
@@ -129,6 +138,11 @@ class InsecureBackend(Backend, Generic[_InsecureClientContext, _InsecureServerCo
         insecure_server_context: type[_InsecureServerContext],
     ) -> None:
         """Initializes all attributes of the backend."""
+
+        warnings.warn(
+            "Using an InsecureBackend is insecure. This should not be used in production.",
+            SecurityWarning,
+        )
 
         self._insecure_client_context = insecure_client_context
         self._insecure_server_context = insecure_server_context
