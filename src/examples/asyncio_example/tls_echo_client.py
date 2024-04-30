@@ -20,7 +20,7 @@ async def tls_echo_client(message: str):
     client_ctx = backend.client_context(client_config)
 
     reader, writer = await asyncio.open_connection(
-        "localhost", 8888, ssl=client_ctx, server_hostname="localhost"
+        "localhost", 8888, tls=client_ctx, server_hostname="localhost"
     )
 
     print(f"Send: {message!r}")

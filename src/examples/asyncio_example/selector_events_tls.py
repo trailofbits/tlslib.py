@@ -18,14 +18,13 @@ import weakref
 
 try:
     import tlslib.tlslib as tls
-    from tlslib.stdlib import OpenSSLTLSSocket
 except ImportError:  # pragma: no cover
     tls = None
 
-from asyncio import base_events, constants, events, futures, protocols, transports, trsock
+from asyncio import constants, events, futures, protocols, transports, trsock
 from asyncio.log import logger
 
-from . import tlsproto as tlsproto
+from . import base_events_tls, tlsproto
 
 _HAS_SENDMSG = hasattr(socket.socket, "sendmsg")
 
@@ -48,12 +47,7 @@ def _test_selector_event(selector, fd, event):
         return bool(key.events & event)
 
 
-def _check_tls_socket(sock):
-    if tls is not None and isinstance(sock, OpenSSLTLSSocket):
-        raise TypeError("Socket cannot be of type TLSSocket")
-
-
-class BaseSelectorEventLoopTLS(base_events.BaseEventLoop):
+class BaseSelectorEventLoopTLS(base_events_tls.BaseEventLoopTLS):
     """Selector event loop.
 
     See events.EventLoop for API specification.
@@ -73,8 +67,7 @@ class BaseSelectorEventLoopTLS(base_events.BaseEventLoop):
         self._ensure_fd_no_transport(sock)
         return _SelectorSocketTransport(self, sock, protocol, waiter, extra, server)
 
-    # Cannot rename this function to TLS
-    def _make_ssl_transport(
+    def _make_tls_transport(
         self,
         rawsock,
         protocol,
@@ -85,8 +78,8 @@ class BaseSelectorEventLoopTLS(base_events.BaseEventLoop):
         server_hostname=None,
         extra=None,
         server=None,
-        ssl_handshake_timeout=constants.SSL_HANDSHAKE_TIMEOUT,
-        ssl_shutdown_timeout=constants.SSL_SHUTDOWN_TIMEOUT,
+        tls_handshake_timeout=constants.SSL_HANDSHAKE_TIMEOUT,
+        tls_shutdown_timeout=constants.SSL_SHUTDOWN_TIMEOUT,
     ):
         self._ensure_fd_no_transport(rawsock)
         tls_protocol = tlsproto.TLSProtocol(
@@ -96,8 +89,8 @@ class BaseSelectorEventLoopTLS(base_events.BaseEventLoop):
             waiter,
             server_side,
             server_hostname,
-            tls_handshake_timeout=ssl_handshake_timeout,
-            tls_shutdown_timeout=ssl_shutdown_timeout,
+            tls_handshake_timeout=tls_handshake_timeout,
+            tls_shutdown_timeout=tls_shutdown_timeout,
         )
         _SelectorSocketTransport(self, rawsock, tls_protocol, extra=extra, server=server)
         return tls_protocol._app_transport
@@ -267,7 +260,7 @@ class BaseSelectorEventLoopTLS(base_events.BaseEventLoop):
             protocol = protocol_factory()
             waiter = self.create_future()
             if tlscontext:
-                transport = self._make_ssl_transport(
+                transport = self._make_tls_transport(
                     conn,
                     protocol,
                     tlscontext,
@@ -275,8 +268,8 @@ class BaseSelectorEventLoopTLS(base_events.BaseEventLoop):
                     server_side=True,
                     extra=extra,
                     server=server,
-                    ssl_handshake_timeout=tls_handshake_timeout,
-                    ssl_shutdown_timeout=tls_shutdown_timeout,
+                    tls_handshake_timeout=tls_handshake_timeout,
+                    tls_shutdown_timeout=tls_shutdown_timeout,
                 )
             else:
                 transport = self._make_socket_transport(
@@ -423,7 +416,7 @@ class BaseSelectorEventLoopTLS(base_events.BaseEventLoop):
         The maximum amount of data to be received at once is specified by
         nbytes.
         """
-        _check_tls_socket(sock)
+        base_events_tls._check_tls_socket(sock)
         if self._debug and sock.gettimeout() != 0:
             raise ValueError("the socket must be non-blocking")
         try:
@@ -463,7 +456,7 @@ class BaseSelectorEventLoopTLS(base_events.BaseEventLoop):
         The received data is written into *buf* (a writable buffer).
         The return value is the number of bytes written.
         """
-        _check_tls_socket(sock)
+        base_events_tls._check_tls_socket(sock)
         if self._debug and sock.gettimeout() != 0:
             raise ValueError("the socket must be non-blocking")
         try:
@@ -502,7 +495,7 @@ class BaseSelectorEventLoopTLS(base_events.BaseEventLoop):
         The maximum amount of data to be received at once is specified by
         nbytes.
         """
-        _check_tls_socket(sock)
+        base_events_tls._check_tls_socket(sock)
         if self._debug and sock.gettimeout() != 0:
             raise ValueError("the socket must be non-blocking")
         try:
@@ -539,7 +532,7 @@ class BaseSelectorEventLoopTLS(base_events.BaseEventLoop):
         The received data is written into *buf* (a writable buffer).
         The return value is a tuple of (number of bytes written, address).
         """
-        _check_tls_socket(sock)
+        base_events_tls._check_tls_socket(sock)
         if self._debug and sock.gettimeout() != 0:
             raise ValueError("the socket must be non-blocking")
         if not nbytes:
@@ -582,7 +575,7 @@ class BaseSelectorEventLoopTLS(base_events.BaseEventLoop):
         raised, and there is no way to determine how much data, if any, was
         successfully processed by the receiving end of the connection.
         """
-        _check_tls_socket(sock)
+        base_events_tls._check_tls_socket(sock)
         if self._debug and sock.gettimeout() != 0:
             raise ValueError("the socket must be non-blocking")
         try:
@@ -633,7 +626,7 @@ class BaseSelectorEventLoopTLS(base_events.BaseEventLoop):
         raised, and there is no way to determine how much data, if any, was
         successfully processed by the receiving end of the connection.
         """
-        _check_tls_socket(sock)
+        base_events_tls._check_tls_socket(sock)
         if self._debug and sock.gettimeout() != 0:
             raise ValueError("the socket must be non-blocking")
         try:
@@ -669,12 +662,12 @@ class BaseSelectorEventLoopTLS(base_events.BaseEventLoop):
 
         This method is a coroutine.
         """
-        _check_tls_socket(sock)
+        base_events_tls._check_tls_socket(sock)
         if self._debug and sock.gettimeout() != 0:
             raise ValueError("the socket must be non-blocking")
 
         if sock.family == socket.AF_INET or (
-            base_events._HAS_IPv6 and sock.family == socket.AF_INET6
+            base_events_tls._HAS_IPv6 and sock.family == socket.AF_INET6
         ):
             resolved = await self._ensure_resolved(
                 address,
@@ -747,7 +740,7 @@ class BaseSelectorEventLoopTLS(base_events.BaseEventLoop):
         object usable to send and receive data on the connection, and address
         is the address bound to the socket on the other end of the connection.
         """
-        _check_tls_socket(sock)
+        base_events_tls._check_tls_socket(sock)
         if self._debug and sock.gettimeout() != 0:
             raise ValueError("the socket must be non-blocking")
         fut = self.create_future()
@@ -981,7 +974,7 @@ class _SelectorSocketTransport(_SelectorTransport):
         # Disable the Nagle algorithm -- small writes will be
         # sent without waiting for the TCP ACK.  This generally
         # decreases the latency (in some cases significantly.)
-        base_events._set_nodelay(self._sock)
+        base_events_tls._set_nodelay(self._sock)
 
         self._loop.call_soon(self._protocol.connection_made, self)
         # only start reading when connection_made() has been called

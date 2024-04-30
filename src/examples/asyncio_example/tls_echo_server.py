@@ -44,7 +44,7 @@ async def main():
     server_config = tls.TLSServerConfiguration(certificate_chain=(cert_chain,), trust_store=None)
     server_ctx = backend.server_context(server_config)
 
-    server = await asyncio.start_server(handle_echo, "localhost", 8888, ssl=server_ctx)
+    server = await asyncio.start_server(handle_echo, "localhost", 8888, tls=server_ctx)
 
     addrs = ", ".join(str(sock.getsockname()) for sock in server.sockets)
     print(f"Serving on {addrs}")
