@@ -127,6 +127,19 @@ class InsecureBackend(Backend, Generic[_InsecureClientContext, _InsecureServerCo
         "_insecure_server_context",
     )
 
+    @property
+    def insecure_configuration(
+        self,
+    ) -> type[InsecureConfiguration]:
+        """
+        Returns a type object for `InsecureConfiguration`.
+
+        This is identical to using `InsecureConfiguration` directly, and
+        is just here for consistency with the Generic-based TLSClientConfiguration
+        and TLSServerConfiguration in the regular Backend.
+        """
+        return InsecureConfiguration
+
     def __init__(
         self,
         certificate: type[_Certificate],

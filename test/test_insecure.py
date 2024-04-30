@@ -39,6 +39,7 @@ class TestInsecureBackend(TestCase):
         # invariant properties
         self.assertIs(insecure_backend.client_configuration, tlslib.TLSClientConfiguration)
         self.assertIs(insecure_backend.server_configuration, tlslib.TLSServerConfiguration)
+        self.assertIs(insecure_backend.insecure_configuration, insecure.InsecureConfiguration)
 
 
 class TestBasic(TestInsecureBackend):
@@ -48,7 +49,7 @@ class TestBasic(TestInsecureBackend):
         # Overwrite client TrustStore to remove needed root certificate
         new_client_config = tweak_client_config(client_config, trust_store=None)
         with self.assertWarns(SecurityWarning):
-            insecure_config = insecure.InsecureConfiguration(True)
+            insecure_config = stdlib_insecure.STDLIB_INSECURE_BACKEND.insecure_configuration(True)
 
         with server:
             with self.assertWarns(SecurityWarning):
@@ -101,7 +102,7 @@ class TestBasic(TestInsecureBackend):
         truststore = stdlib_insecure.STDLIB_INSECURE_BACKEND.trust_store.system()
 
         with self.assertWarns(SecurityWarning):
-            insecure_config = insecure.InsecureConfiguration(True)
+            insecure_config = stdlib_insecure.STDLIB_INSECURE_BACKEND.insecure_configuration(True)
 
         with self.assertWarns(SecurityWarning):
             server = tweak_server_config(
