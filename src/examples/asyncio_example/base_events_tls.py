@@ -1636,9 +1636,9 @@ class BaseEventLoopTLS(events.AbstractEventLoop):
                     try:
                         sock.bind(sa)
                     except OSError as err:
-                        msg = "error while attempting " "to bind on address {!r}: {}".format(
-                            sa,
-                            err.strerror.lower(),
+                        msg = (
+                            "error while attempting "
+                            f"to bind on address {sa!r}: {err.strerror.lower()}"
                         )
                         if err.errno == errno.EADDRNOTAVAIL:
                             # Assume the family is not enabled (bpo-30945)
@@ -1804,7 +1804,7 @@ class BaseEventLoopTLS(events.AbstractEventLoop):
         if self._debug:
             # don't log parameters: they may contain sensitive information
             # (password) and may be too long
-            debug_log = "run shell command %r" % cmd
+            debug_log = f"run shell command {cmd!r}"
             self._log_subprocess(debug_log, stdin, stdout, stderr)
         transport = await self._make_subprocess_transport(
             protocol, cmd, True, stdin, stdout, stderr, bufsize, **kwargs
