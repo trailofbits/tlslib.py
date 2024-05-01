@@ -80,6 +80,7 @@ def _create_client_context_with_trust_store(trust_store: OpenSSLTrustStore | Non
     else:
         some_context = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 
+    # TLS Compression is a security risk and is removed in TLS v1.3
     some_context.options |= ssl.OP_NO_COMPRESSION
 
     some_context.verify_flags = (
@@ -106,6 +107,7 @@ def _create_server_context_with_trust_store(
         else:
             some_context.load_verify_locations(trust_store._trust_path)
 
+    # TLS Compression is a security risk and is removed in TLS v1.3
     some_context.options |= ssl.OP_NO_COMPRESSION
 
     return some_context

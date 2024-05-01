@@ -603,7 +603,8 @@ class TLSProtocol(protocols.BufferedProtocol):
         self._extra.update(
             peercert=peercert,
             cipher=tlsobj.cipher(),
-            # compression=tlsobj.compression(), #TODO: compression?
+            # TLS Compression is a security risk and is removed in TLS v1.3
+            # compression=tlsobj.compression(),
             tls_object=tlsobj,
         )
         if self._app_state == AppProtocolState.STATE_INIT:
