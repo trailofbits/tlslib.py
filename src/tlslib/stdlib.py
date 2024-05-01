@@ -427,6 +427,10 @@ class OpenSSLTLSSocket:
 
     def getpeercert(self) -> OpenSSLCertificate | None:
         """Return the certificate provided by the peer during the handshake, if applicable."""
+        # In order to return an OpenSSLCertificate, we must obtain the certificate in binary format
+        # Obtaining the certificate as a dict is very specific to the ssl module and may be
+        # difficult to implement for other backends, so this is not supported
+
         with _error_converter():
             cert = self._socket.getpeercert(True)
         if cert is None:
@@ -778,6 +782,9 @@ class OpenSSLTLSBuffer:
 
     def getpeercert(self) -> OpenSSLCertificate | None:
         """Return the certificate provided by the peer during the handshake, if applicable."""
+        # In order to return an OpenSSLCertificate, we must obtain the certificate in binary format
+        # Obtaining the certificate as a dict is very specific to the ssl module and may be
+        # difficult to implement for other backends, so this is not supported
         with _error_converter():
             cert = self._object.getpeercert(True)
         if cert is None:
