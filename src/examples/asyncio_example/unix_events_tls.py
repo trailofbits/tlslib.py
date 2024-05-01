@@ -291,8 +291,8 @@ class _UnixSelectorEventLoop(selector_events_tls.BaseSelectorEventLoopTLS):
             protocol_factory,
             tls,
             server_hostname,
-            ssl_handshake_timeout=tls_handshake_timeout,
-            ssl_shutdown_timeout=tls_shutdown_timeout,
+            tls_handshake_timeout=tls_handshake_timeout,
+            tls_shutdown_timeout=tls_shutdown_timeout,
         )
         return transport, protocol
 
