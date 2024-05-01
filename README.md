@@ -7,3 +7,5 @@
 <!--- BADGES: END --->
 
 An example MVP for the updated PEP 543 proposal
+
+The asyncio example is adapted from the CPython asyncio and falls under the PSF license (see LICENSE.cpython).
