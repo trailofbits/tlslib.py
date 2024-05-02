@@ -9,7 +9,7 @@ import tempfile
 import typing
 import weakref
 from collections.abc import Sequence
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager
 from pathlib import Path
 
 import truststore
