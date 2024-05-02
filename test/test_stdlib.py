@@ -659,3 +659,42 @@ class TestBuffer(TestBackend):
 
         self.assertEqual(client_buffer.negotiated_protocol(), protocol)
         self.assertEqual(server_buffer.negotiated_protocol(), protocol)
+
+    def test_zero_return(self):
+        server, client_config = limbo_server("webpki::san::exact-localhost-dns-san")
+        server_config = server.server_context.configuration
+        backend = server.backend
+
+        hostname = "localhost"
+
+        client_context = backend.client_context(client_config)
+        server_context = backend.server_context(server_config)
+
+        client_buffer, server_buffer = handshake_buffers(client_context, server_context, hostname)
+
+        client_buffer.write(b"message 1")
+        client_buffer.write(b"message 2")
+
+        self.assertRaises(tlslib.WantReadError, client_buffer.shutdown)
+
+        client_bytes = client_buffer.process_outgoing(client_buffer.outgoing_bytes_buffered())
+        server_buffer.process_incoming(client_bytes)
+
+        buf = server_buffer.read(1024)
+        self.assertEqual(buf, b"message 1")
+        buf = server_buffer.read(1024)
+        self.assertEqual(buf, b"message 2")
+
+        server_buffer.write(b"echo: message 1")
+        server_buffer.write(b"echo: message 2")
+        server_buffer.shutdown()
+
+        server_bytes = server_buffer.process_outgoing(server_buffer.outgoing_bytes_buffered())
+        client_buffer.process_incoming(server_bytes)
+
+        buf = client_buffer.read(1024)
+        self.assertEqual(buf, b"echo: message 1")
+        buf = client_buffer.read(1024)
+        self.assertEqual(buf, b"echo: message 2")
+        buf = client_buffer.read(1024)
+        self.assertEqual(buf, b"")
