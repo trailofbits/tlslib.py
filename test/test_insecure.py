@@ -112,7 +112,9 @@ class TestBasic(TestInsecureBackend):
         truststore = stdlib_insecure.STDLIB_INSECURE_BACKEND.trust_store.system()
 
         with self.assertWarns(SecurityWarning):
-            insecure_config = stdlib_insecure.STDLIB_INSECURE_BACKEND.insecure_configuration(True)
+            insecure_config = stdlib_insecure.STDLIB_INSECURE_BACKEND.insecure_configuration(
+                True, True
+            )
 
         with self.assertWarns(SecurityWarning):
             server = tweak_server_config(
