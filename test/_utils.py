@@ -13,6 +13,8 @@ from collections.abc import Iterator, Sequence
 from pathlib import Path
 from typing import Any
 
+from tlslib.insecure import InsecureConfiguration
+from tlslib.insecure.stdlib_insecure import STDLIB_INSECURE_BACKEND
 from tlslib.stdlib import (
     STDLIB_BACKEND,
     OpenSSLCertificate,
@@ -331,6 +333,7 @@ def tweak_server_config(
     lowest_supported_version: TLSVersion | None = None,
     highest_supported_version: TLSVersion | None = None,
     trust_store: OpenSSLTrustStore | None = None,
+    insecure_config: InsecureConfiguration | None = None,
 ) -> ThreadedEchoServer:
     old_config = server.server_context.configuration
 
@@ -361,7 +364,11 @@ def tweak_server_config(
         trust_store=trust_store,
     )
 
-    server.server_context = server.backend.server_context(new_config)
+    if insecure_config is not None:
+        server.backend = STDLIB_INSECURE_BACKEND
+        server.server_context = server.backend.insecure_server_context(new_config, insecure_config)
+    else:
+        server.server_context = server.backend.server_context(new_config)
 
     return server
 
