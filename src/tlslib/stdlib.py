@@ -8,7 +8,7 @@ import ssl
 import tempfile
 import typing
 import weakref
-from collections.abc import Sequence
+from collections.abc import Buffer, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -83,6 +83,7 @@ def _create_client_context_with_trust_store(trust_store: OpenSSLTrustStore | Non
     else:
         some_context = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 
+    # TLS Compression is a security risk and is removed in TLS v1.3
     some_context.options |= ssl.OP_NO_COMPRESSION
 
     some_context.verify_flags = (
@@ -109,6 +110,7 @@ def _create_server_context_with_trust_store(
         else:
             some_context.load_verify_locations(trust_store._trust_path)
 
+    # TLS Compression is a security risk and is removed in TLS v1.3
     some_context.options |= ssl.OP_NO_COMPRESSION
 
     return some_context
@@ -448,6 +450,10 @@ class OpenSSLTLSSocket:
 
     def getpeercert(self) -> OpenSSLCertificate | None:
         """Return the certificate provided by the peer during the handshake, if applicable."""
+        # In order to return an OpenSSLCertificate, we must obtain the certificate in binary format
+        # Obtaining the certificate as a dict is very specific to the ssl module and may be
+        # difficult to implement for other backends, so this is not supported
+
         with _error_converter():
             cert = self._socket.getpeercert(True)
         if cert is None:
@@ -545,6 +551,271 @@ class OpenSSLTLSSocket:
             return TLSVersion(ossl_version)
 
 
+class OpenSSLTLSBuffer:
+    """A TLSBuffer implementation based on OpenSSL"""
+
+    __slots__ = (
+        "_ciphertext_buffer",
+        "_in_bio",
+        "_object",
+        "_out_bio",
+        "_parent_context",
+        "_ssl_context",
+    )
+
+    _ciphertext_buffer: bytearray
+    _in_bio: ssl.MemoryBIO
+    _object: ssl.SSLObject
+    _out_bio: ssl.MemoryBIO
+    _parent_context: OpenSSLClientContext | OpenSSLServerContext
+    _ssl_context: _SSLContext
+
+    def __init__(self, *args: tuple, **kwargs: tuple) -> None:
+        """OpenTLSBuffers should not be constructed by the user.
+        Instead, the ClientContext.create_buffer() and
+        ServerContext.create_buffer() use the _create() method."""
+        msg = (
+            f"{self.__class__.__name__} does not have a public constructor. "
+            "Instances are returned by ClientContext.create_buffer() \
+                or ServerContext.create_buffer()."
+        )
+        raise TypeError(
+            msg,
+        )
+
+    @classmethod
+    def _create(
+        cls,
+        server_hostname: str | None,
+        parent_context: OpenSSLClientContext | OpenSSLServerContext,
+        server_side: bool,
+        ssl_context: _SSLContext,
+    ) -> OpenSSLTLSBuffer:
+        self = cls.__new__(cls)
+        self._parent_context = parent_context
+        self._ssl_context = ssl_context
+
+        # We need this extra buffer to implement the peek/consume API, which
+        # the MemoryBIO object does not allow.
+        self._ciphertext_buffer = bytearray()
+
+        # Set up the SSLObject we're going to back this with.
+        self._in_bio = ssl.MemoryBIO()
+        self._out_bio = ssl.MemoryBIO()
+
+        if server_side is True:
+            with _error_converter():
+                self._object = ssl_context.wrap_bio(
+                    self._in_bio, self._out_bio, server_side=True, server_hostname=None
+                )
+        else:
+            with _error_converter():
+                self._object = ssl_context.wrap_bio(
+                    self._in_bio, self._out_bio, server_side=False, server_hostname=server_hostname
+                )
+
+        return self
+
+    def read(self, amt: int, buffer: Buffer | None = None) -> bytes | int:
+        """
+        Read up to ``amt`` bytes of data from the input buffer and return
+        the result as a ``bytes`` instance. If an optional buffer is
+        provided, the result is written into the buffer and the number of
+        bytes is returned instead.
+
+        Once EOF is reached, all further calls to this method return the
+        empty byte string ``b''``.
+
+        May read "short": that is, fewer bytes may be returned than were
+        requested.
+
+        Raise ``WantReadError`` or ``WantWriteError`` if there is
+        insufficient data in either the input or output buffer and the
+        operation would have caused data to be written or read.
+
+        May raise ``RaggedEOF`` if the connection has been closed without a
+        graceful TLS shutdown. Whether this is an exception that should be
+        ignored or not is up to the specific application.
+
+        As at any time a re-negotiation is possible, a call to ``read()``
+        can also cause write operations.
+        """
+
+        with _error_converter():
+            # MyPy insists that buffer must be a bytearray
+            return self._object.read(amt, buffer)  # type: ignore[arg-type]
+
+    def write(self, buf: Buffer) -> int:
+        """
+        Write ``buf`` in encrypted form to the output buffer and return the
+        number of bytes written. The ``buf`` argument must be an object
+        supporting the buffer interface.
+
+        Raise ``WantReadError`` or ``WantWriteError`` if there is
+        insufficient data in either the input or output buffer and the
+        operation would have caused data to be written or read. In either
+        case, users should endeavour to resolve that situation and then
+        re-call this method. When re-calling this method users *should*
+        re-use the exact same ``buf`` object, as some backends require that
+        the exact same buffer be used.
+
+        This operation may write "short": that is, fewer bytes may be
+        written than were in the buffer.
+
+        As at any time a re-negotiation is possible, a call to ``write()``
+        can also cause read operations.
+        """
+
+        with _error_converter():
+            return self._object.write(buf)
+
+    # Get rid and do handshake ourselves?
+    def do_handshake(self) -> None:
+        """
+        Performs the TLS handshake. Also performs certificate validation
+        and hostname verification.
+        """
+
+        with _error_converter():
+            self._object.do_handshake()
+
+    def shutdown(self) -> None:
+        """
+        Performs a clean TLS shut down. This should generally be used
+        whenever possible to signal to the remote peer that the content is
+        finished.
+        """
+
+        with _error_converter():
+            self._object.unwrap()
+
+    def process_incoming(self, data_from_network: bytes) -> None:
+        """
+        Receives some TLS data from the network and stores it in an
+        internal buffer.
+
+        If the internal buffer is overfull, this method will raise
+        ``WantReadError`` and store no data. At this point, the user must
+        call ``read`` to remove some data from the internal buffer
+        before repeating this call.
+        """
+
+        with _error_converter():
+            written_len = self._in_bio.write(data_from_network)
+
+        assert written_len == len(data_from_network)
+
+    def incoming_bytes_buffered(self) -> int:
+        """
+        Returns how many bytes are in the incoming buffer waiting to be processed.
+        """
+
+        return self._in_bio.pending
+
+    def process_outgoing(self, amount_bytes_for_network: int) -> bytes:
+        """
+        Returns the next ``amt`` bytes of data that should be written to
+        the network from the outgoing data buffer, removing it from the
+        internal buffer.
+        """
+
+        return self._out_bio.read(amount_bytes_for_network)
+
+    def outgoing_bytes_buffered(self) -> int:
+        """
+        Returns how many bytes are in the outgoing buffer waiting to be sent.
+        """
+
+        return self._out_bio.pending
+
+    @property
+    def context(self) -> OpenSSLClientContext | OpenSSLServerContext:
+        """The ``Context`` object this socket is tied to."""
+
+        return self._parent_context
+
+    def cipher(self) -> CipherSuite | int | None:
+        """
+        Returns the CipherSuite entry for the cipher that has been negotiated on the connection.
+
+        If no connection has been negotiated, returns ``None``. If the cipher negotiated is not
+        defined in CipherSuite, returns the 16-bit integer representing that cipher directly.
+        """
+
+        ret = self._object.cipher()
+
+        if ret is None:
+            return None
+        else:
+            ossl_cipher, _, _ = ret
+
+        for cipher in self._ssl_context.get_ciphers():
+            if cipher["name"] == ossl_cipher:
+                break
+        # Since the cipher was negotiated using the OpenSSL context,
+        # it must exist in the list of the OpenSSL supported ciphers.
+        assert cipher["name"] == ossl_cipher
+
+        cipher_id = cipher["id"] & 0xFFFF
+        try:
+            return CipherSuite(cipher_id)
+        except ValueError:
+            return cipher_id
+
+    def negotiated_protocol(self) -> NextProtocol | bytes | None:
+        """
+        Returns the protocol that was selected during the TLS handshake.
+
+        This selection may have been made using ALPN or some future
+        negotiation mechanism.
+
+        If the negotiated protocol is one of the protocols defined in the
+        ``NextProtocol`` enum, the value from that enum will be returned.
+        Otherwise, the raw bytestring of the negotiated protocol will be
+        returned.
+
+        If ``Context.set_inner_protocols()`` was not called, if the other
+        party does not support protocol negotiation, if this socket does
+        not support any of the peer's proposed protocols, or if the
+        handshake has not happened yet, ``None`` is returned.
+        """
+
+        proto = self._object.selected_alpn_protocol()
+
+        # The standard library returns this as a str, we want bytes.
+        if proto is None:
+            return None
+
+        protoBytes = proto.encode("ascii")
+
+        try:
+            return NextProtocol(protoBytes)
+        except ValueError:
+            return protoBytes
+
+    @property
+    def negotiated_tls_version(self) -> TLSVersion | None:
+        """The version of TLS that has been negotiated on this connection."""
+
+        ossl_version = self._object.version()
+        if ossl_version is None:
+            return None
+        else:
+            return TLSVersion(ossl_version)
+
+    def getpeercert(self) -> OpenSSLCertificate | None:
+        """Return the certificate provided by the peer during the handshake, if applicable."""
+        # In order to return an OpenSSLCertificate, we must obtain the certificate in binary format
+        # Obtaining the certificate as a dict is very specific to the ssl module and may be
+        # difficult to implement for other backends, so this is not supported
+        with _error_converter():
+            cert = self._object.getpeercert(True)
+        if cert is None:
+            return None
+        else:
+            return OpenSSLCertificate.from_buffer(cert)
+
+
 class OpenSSLClientContext:
     """This class controls and creates a socket that is wrapped using the
     standard library bindings to OpenSSL to perform TLS connections on the
@@ -571,6 +842,20 @@ class OpenSSLClientContext:
             server_side=False,
             ssl_context=ossl_context,
             address=address,
+        )
+
+    def create_buffer(self, server_hostname: str) -> OpenSSLTLSBuffer:
+        """Creates a TLSBuffer that acts as an in-memory channel,
+        and contains information about the TLS exchange
+        (cipher, negotiated_protocol, negotiated_tls_version, etc.)."""
+
+        ossl_context = _init_context_client(self._configuration)
+
+        return OpenSSLTLSBuffer._create(
+            server_hostname=server_hostname,
+            parent_context=self,
+            server_side=False,
+            ssl_context=ossl_context,
         )
 
 
@@ -600,6 +885,20 @@ class OpenSSLServerContext:
             server_side=True,
             ssl_context=ossl_context,
             address=address,
+        )
+
+    def create_buffer(self) -> OpenSSLTLSBuffer:
+        """Creates a TLSBuffer that acts as an in-memory channel,
+        and contains information about the TLS exchange
+        (cipher, negotiated_protocol, negotiated_tls_version, etc.)."""
+
+        ossl_context = _init_context_server(self._configuration)
+
+        return OpenSSLTLSBuffer._create(
+            server_hostname=None,
+            parent_context=self,
+            server_side=True,
+            ssl_context=ossl_context,
         )
 
 

@@ -71,6 +71,6 @@ select = ["E", "F", "I", "W", "UP"]
 [tool.interrogate]
 # don't enforce documentation coverage for packaging, testing, the virtual
 # environment, or the CLI (which is documented separately).
-exclude = ["env", "test", "src/tlslib/_cli.py"]
+exclude = ["env", "test", "src/tlslib/_cli.py", "src/examples"]
 ignore-semiprivate = true
 fail-under = 100

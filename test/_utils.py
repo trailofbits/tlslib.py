@@ -9,7 +9,7 @@ import tempfile
 import threading
 import time
 import weakref
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -26,10 +26,12 @@ from tlslib.tlslib import (
     DEFAULT_CIPHER_LIST,
     Backend,
     CipherSuite,
+    ClientContext,
     NextProtocol,
     RaggedEOF,
     ServerContext,
     SigningChain,
+    TLSBuffer,
     TLSClientConfiguration,
     TLSError,
     TLSServerConfiguration,
@@ -493,3 +495,79 @@ def retry_loop(max_attempts: int, wait: float) -> Iterator[RetryContextManager]:
             break
         else:
             time.sleep(wait)
+
+
+# Buffer functions:
+def loop_until_success(client: TLSBuffer, server: TLSBuffer, func: Callable) -> None:
+    """
+    Given a function to call on a client and server, repeatedly loops over the
+    client and server and calls that function until they both stop erroring.
+    """
+    client_complete = server_complete = False
+    client_func = getattr(client, func)
+    server_func = getattr(server, func)
+
+    while not (client_complete and server_complete):
+        while not client_complete:
+            try:
+                client_func()
+            except (WantWriteError, WantReadError):
+                break
+            else:
+                client_complete = True
+
+        client_bytes = client.process_outgoing(client.outgoing_bytes_buffered())
+        if client_bytes:
+            server.process_incoming(client_bytes)
+
+        while not server_complete:
+            try:
+                server_func()
+            except (WantWriteError, WantReadError):
+                break
+            else:
+                server_complete = True
+
+        server_bytes = server.process_outgoing(server.outgoing_bytes_buffered())
+        if server_bytes:
+            client.process_incoming(server_bytes)
+
+
+def write_until_complete(writer: TLSBuffer, reader: TLSBuffer, message: bytes) -> None:
+    """
+    Writes a given message via the writer and sends the bytes to the reader
+    until complete.
+    """
+    message_written = False
+    while not message_written:
+        try:
+            writer.write(message)
+        except WantWriteError:
+            pass
+        else:
+            message_written = True
+
+        written_data = writer.process_outgoing(writer.outgoing_bytes_buffered())
+        if written_data:
+            reader.process_incoming(written_data)
+
+
+def write_until_read(writer: TLSBuffer, reader: TLSBuffer, message: bytes) -> None:
+    """
+    Writes a given message into the writer until the reader reads it.
+    """
+    write_until_complete(writer, reader, message)
+    # For the sake of detecting errors we'll ask to read *too much*.
+    assert reader.read(len(message) * 2) == message
+
+
+def handshake_buffers(
+    client: ClientContext, server: ServerContext, hostname: str | None = None
+) -> tuple[TLSBuffer, TLSBuffer]:
+    """
+    Do a handshake in memory, getting back two buffer objects.
+    """
+    client_buffer = client.create_buffer(hostname)
+    server_buffer = server.create_buffer()
+    loop_until_success(client_buffer, server_buffer, "do_handshake")
+    return client_buffer, server_buffer

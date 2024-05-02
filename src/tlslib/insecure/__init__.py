@@ -26,6 +26,12 @@ class InsecureConfiguration:
     It should be noted that making use of any of the options in this class will lead to an
     insecure deployment of TLS.
 
+    :param _disable_hostname_check bool:
+        Disables hostname_check of the server certificate. This allows anyone positioned
+        in the network to intercept connections between legitimate clients and servers without
+        detection and is insecure. A better option would be to obtain the server's (self-signed)
+        certificate and place it in a newly-created TrustStore object.
+
     :param disable_verification bool:
         Disables client verification of the server certificate. This allows anyone positioned
         in the network to intercept connections between legitimate clients and servers without
@@ -33,10 +39,14 @@ class InsecureConfiguration:
         certificate and place it in a newly-created TrustStore object.
     """
 
-    __slots__ = ("_disable_verification",)
+    __slots__ = (
+        "_disable_verification",
+        "_disable_hostname_check",
+    )
 
     def __init__(
         self,
+        disable_hostname_check: bool = False,
         disable_verification: bool = False,
     ) -> None:
         """Initializes the InsecureConfiguration."""
@@ -45,7 +55,16 @@ class InsecureConfiguration:
             SecurityWarning,
         )
 
+        if not disable_hostname_check and disable_verification:
+            raise ValueError("Cannot disable verification without disabling hostname check")
+
+        self._disable_hostname_check = disable_hostname_check
         self._disable_verification = disable_verification
+
+    @property
+    def disable_hostname_check(self) -> bool:
+        """Whether client verification of the server hostname should be disabled."""
+        return self._disable_hostname_check
 
     @property
     def disable_verification(self) -> bool:

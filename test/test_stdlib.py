@@ -9,11 +9,15 @@ from unittest import TestCase
 from tlslib import stdlib, tlslib
 
 from ._utils import (
+    handshake_buffers,
     limbo_server,
     limbo_server_ssl,
+    loop_until_success,
     retry_loop,
     tweak_client_config,
     tweak_server_config,
+    write_until_complete,
+    write_until_read,
 )
 
 
@@ -520,3 +524,138 @@ class TestSNI(TestBackend):
             # certificate is valid
             client_sock = client_context.connect(("localhost", server.socket.getsockname()[1]))
             client_sock.close(True)
+
+
+### Buffer tests
+class TestOpenSSLTLSBuffer(TestCase):
+    def test_buffer_init(self):
+        with self.assertRaises(TypeError):
+            stdlib.OpenSSLTLSBuffer()
+
+
+class TestBuffer(TestBackend):
+    def test_trivial_connection_buffer(self):
+        server, client_config = limbo_server("webpki::san::exact-localhost-dns-san")
+        server_config = server.server_context.configuration
+        backend = server.backend
+
+        hostname = "localhost"
+
+        client_context = backend.client_context(client_config)
+        server_context = backend.server_context(server_config)
+
+        client_buffer, server_buffer = handshake_buffers(client_context, server_context, hostname)
+
+        write_until_read(client_buffer, server_buffer, b"message 1")
+        write_until_read(server_buffer, client_buffer, b"echo: message 1")
+        write_until_read(client_buffer, server_buffer, b"message 2")
+        write_until_read(server_buffer, client_buffer, b"echo: message 2")
+
+        self.assertEqual(client_buffer.negotiated_tls_version, tlslib.TLSVersion.TLSv1_3)
+        self.assertEqual(client_buffer.cipher(), tlslib.CipherSuite.TLS_AES_256_GCM_SHA384)
+        self.assertEqual(client_buffer.negotiated_protocol(), None)
+        self.assertIsNotNone(client_buffer.getpeercert())
+        # self.assertEqual(client_buffer.getpeername(), server.socket.getsockname())
+
+        self.assertEqual(server_buffer.negotiated_tls_version, tlslib.TLSVersion.TLSv1_3)
+        self.assertEqual(server_buffer.cipher(), tlslib.CipherSuite.TLS_AES_256_GCM_SHA384)
+        self.assertEqual(server_buffer.negotiated_protocol(), None)
+        self.assertIsNone(server_buffer.getpeercert())
+
+        loop_until_success(client_buffer, server_buffer, "shutdown")
+
+    def test_read_into_buffer(self):
+        server, client_config = limbo_server("webpki::san::exact-localhost-dns-san")
+        server_config = server.server_context.configuration
+        backend = server.backend
+
+        hostname = "localhost"
+
+        client_context = backend.client_context(client_config)
+        server_context = backend.server_context(server_config)
+        client_buffer, server_buffer = handshake_buffers(client_context, server_context, hostname)
+
+        message = b"message 1"
+        write_until_complete(client_buffer, server_buffer, message)
+        read_buf = bytearray(1024)
+        read_len = server_buffer.read(2 * len(message), read_buf)
+        assert read_buf[:read_len] == message
+
+    def test_create_client_buffer(self):
+        client_config = stdlib.STDLIB_BACKEND.client_configuration()
+        client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
+        client_buffer = client_context.create_buffer(None)
+
+        self.assertEqual(client_buffer.context, client_context)
+        self.assertIsNone(client_buffer.cipher())
+        self.assertIsNone(client_buffer.negotiated_protocol())
+        self.assertIsNone(client_buffer.negotiated_tls_version)
+        self.assertEqual(client_buffer.incoming_bytes_buffered(), 0)
+
+    def test_config_weird_cipher_id_buffer(self):
+        server, client_config = limbo_server("webpki::san::exact-localhost-dns-san")
+
+        new_client_config = tweak_client_config(
+            client_config,
+            ciphers=(49245,),
+            highest_supported_version=tlslib.TLSVersion.TLSv1_2,
+        )
+
+        server = tweak_server_config(
+            server,
+            ciphers=(49245,),
+        )
+
+        server_config = server.server_context.configuration
+        backend = server.backend
+
+        hostname = "localhost"
+
+        client_context = backend.client_context(new_client_config)
+        server_context = backend.server_context(server_config)
+        client_buffer, server_buffer = handshake_buffers(client_context, server_context, hostname)
+
+        self.assertEqual(client_buffer.cipher(), 49245)
+        self.assertEqual(server_buffer.cipher(), 49245)
+
+    def test_protocol_negotiation_buffer(self):
+        server, client_config = limbo_server("webpki::san::exact-localhost-dns-san")
+
+        new_client_config = tweak_client_config(
+            client_config, inner_protocols=(tlslib.NextProtocol.H2,)
+        )
+
+        server = tweak_server_config(server, inner_protocols=(tlslib.NextProtocol.H2,))
+
+        server_config = server.server_context.configuration
+        backend = server.backend
+
+        hostname = "localhost"
+
+        client_context = backend.client_context(new_client_config)
+        server_context = backend.server_context(server_config)
+        client_buffer, server_buffer = handshake_buffers(client_context, server_context, hostname)
+
+        self.assertEqual(client_buffer.negotiated_protocol(), tlslib.NextProtocol.H2)
+        self.assertEqual(server_buffer.negotiated_protocol(), tlslib.NextProtocol.H2)
+
+    def test_bytes_protocol_negotiation_buffer(self):
+        server, client_config = limbo_server("webpki::san::exact-localhost-dns-san")
+
+        protocol = b"bla"
+
+        new_client_config = tweak_client_config(client_config, inner_protocols=(protocol,))
+
+        server = tweak_server_config(server, inner_protocols=(protocol,))
+
+        server_config = server.server_context.configuration
+        backend = server.backend
+
+        hostname = "localhost"
+
+        client_context = backend.client_context(new_client_config)
+        server_context = backend.server_context(server_config)
+        client_buffer, server_buffer = handshake_buffers(client_context, server_context, hostname)
+
+        self.assertEqual(client_buffer.negotiated_protocol(), protocol)
+        self.assertEqual(server_buffer.negotiated_protocol(), protocol)
