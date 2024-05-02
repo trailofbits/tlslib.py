@@ -382,11 +382,10 @@ class OpenSSLTLSSocket:
         representing the data received. Should not work before the handshake
         is completed."""
         with _error_converter():
-            # Using the ignore filter here will cause static analyzers to
-            # consider the second return statement unreachable
-            with suppress(ssl.SSLZeroReturnError):
+            try:
                 return self._socket.recv(bufsize)
-            return b""
+            except ssl.SSLZeroReturnError:
+                return b""
 
     def send(self, bytes: bytes) -> int:
         """Send data to the socket. The socket must be connected to a remote socket."""
