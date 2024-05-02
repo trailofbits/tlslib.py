@@ -89,7 +89,12 @@ class TestBasic(TestInsecureBackend):
             )
             self.assertEqual(insecure_client_context.insecure_configuration, insecure_config)
 
-            client_sock.close()
+            while True:
+                try:
+                    client_sock.close(False)
+                    break
+                except tlslib.WantReadError:
+                    continue
 
             self.assertEqual(client_sock.negotiated_tls_version, None)
             self.assertEqual(client_sock.cipher(), None)
@@ -122,7 +127,12 @@ class TestBasic(TestInsecureBackend):
                 client_sock = client_context.connect(server.socket.getsockname())
 
                 client_sock.send(b"message")
-                client_sock.close()
+                while True:
+                    try:
+                        client_sock.close(False)
+                        break
+                    except tlslib.WantReadError:
+                        continue
 
                 self.assertEqual(server.server_context.insecure_configuration, insecure_config)
 
