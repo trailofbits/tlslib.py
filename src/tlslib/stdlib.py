@@ -9,7 +9,7 @@ import tempfile
 import typing
 import weakref
 from collections.abc import Sequence
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from pathlib import Path
 
 import truststore
@@ -382,7 +382,11 @@ class OpenSSLTLSSocket:
         representing the data received. Should not work before the handshake
         is completed."""
         with _error_converter():
-            return self._socket.recv(bufsize)
+            # Using the ignore filter here will cause static analyzers to
+            # consider the second return statement unreachable
+            with suppress(ssl.SSLZeroReturnError):
+                return self._socket.recv(bufsize)
+            return b""
 
     def send(self, bytes: bytes) -> int:
         """Send data to the socket. The socket must be connected to a remote socket."""

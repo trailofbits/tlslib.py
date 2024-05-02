@@ -121,6 +121,28 @@ class TestBasic(TestBackend):
                 with attempt:
                     self.assertEqual(server.server_negotiated_protocol, tlslib.NextProtocol.H2)
 
+    def test_ssl_zero_return(self):
+        server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
+
+        with server:
+            client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
+            client_sock = client_context.connect(server.socket.getsockname())
+            client_sock.send(b"message 1")
+            client_sock.send(b"message 2")
+
+            try:
+                client_sock.close(False)
+            except tlslib.WantReadError:
+                pass
+
+            received = 0
+            while received < 3:
+                try:
+                    client_sock.recv(1024)
+                    received += 1
+                except tlslib.WantReadError:
+                    continue
+
 
 class TestConfig(TestBackend):
     def test_config_system_trust_store_client(self):
