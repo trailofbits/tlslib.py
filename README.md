@@ -1,7 +1,7 @@
 # tlslib.py
 
 <!--- BADGES: START --->
-[![CI](https://github.com/trailofbits/tlslib/actions/workflows/tests.yml/badge.svg)](https://github.com/trailofbits/tlslib/actions/workflows/tests.yml)
+[![CI](https://github.com/trailofbits/tlslib.py/actions/workflows/tests.yml/badge.svg)](https://github.com/trailofbits/tlslib.py/actions/workflows/tests.yml)
 [![PyPI version](https://badge.fury.io/py/tlslib.svg)](https://pypi.org/project/tlslib)
 [![Packaging status](https://repology.org/badge/tiny-repos/python:tlslib.svg)](https://repology.org/project/python:tlslib/versions)
 <!--- BADGES: END --->
