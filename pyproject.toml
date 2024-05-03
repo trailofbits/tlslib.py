@@ -31,9 +31,9 @@ dev = ["tlslib[doc,test,lint]", "twine", "wheel", "build"]
 
 [project.urls]
 Homepage = "https://pypi.org/project/tlslib"
-Documentation = "https://trailofbits.github.io/tlslib/"
-Issues = "https://github.com/trailofbits/tlslib/issues"
-Source = "https://github.com/trailofbits/tlslib"
+Documentation = "https://trailofbits.github.io/tlslib.py/"
+Issues = "https://github.com/trailofbits/tlslib.py/issues"
+Source = "https://github.com/trailofbits/tlslib.py"
 
 [tool.flit.module]
 name = "tlslib"
