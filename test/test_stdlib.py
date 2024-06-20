@@ -332,6 +332,17 @@ class TestNegative(TestBackend):
             with self.assertRaises(tlslib.WantWriteError):
                 client_sock.send(b"a" * 10000000)
 
+    def test_arbitrary_id_not_supported(self):
+        backend = stdlib.STDLIB_BACKEND
+
+        with self.assertRaises(NotImplementedError):
+            backend.trust_store.from_id(b"")
+        with self.assertRaises(NotImplementedError):
+            backend.certificate.from_id(b"")
+
+        with self.assertRaises(NotImplementedError):
+            backend.private_key.from_id(b"")
+
 
 class TestClientAgainstSSL(TestBackend):
     def test_trivial_connection_ssl(self):

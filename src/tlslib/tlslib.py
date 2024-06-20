@@ -53,6 +53,13 @@ class TrustStore(Protocol):
         """
         ...
 
+    @classmethod
+    def from_id(cls, id: bytes) -> TrustStore:
+        """
+        Initializes a trust store from an arbitrary identifier.
+        """
+        ...
+
 
 _TrustStore = TypeVar("_TrustStore", bound=TrustStore)
 
@@ -83,6 +90,14 @@ class Certificate(Protocol):
         code.
         """
         raise NotImplementedError("Certificates from files not supported")
+
+    @classmethod
+    def from_id(cls, id: bytes) -> Certificate:
+        """
+        Creates a Certificate object from an arbitrary identifier. This may
+        be useful for backends that rely on system certificate stores.
+        """
+        raise NotImplementedError("Certificates from arbitrary identifiers not supported")
 
 
 _Certificate = TypeVar("_Certificate", bound=Certificate)
@@ -115,6 +130,14 @@ class PrivateKey(Protocol):
         code.
         """
         raise NotImplementedError("Private Keys from buffers not supported")
+
+    @classmethod
+    def from_id(cls, id: bytes) -> PrivateKey:
+        """
+        Creates a PrivateKey object from an arbitrary identifier. This may
+        be useful for backends that rely on system private key stores.
+        """
+        raise NotImplementedError("Private Keys from arbitrary identifiers not supported")
 
 
 _PrivateKey = TypeVar("_PrivateKey", bound=PrivateKey)
