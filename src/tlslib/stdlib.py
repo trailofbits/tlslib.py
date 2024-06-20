@@ -15,6 +15,7 @@ from pathlib import Path
 import truststore
 
 from .tlslib import (
+    DEFAULT_CIPHER_LIST,
     Backend,
     CipherSuite,
     NextProtocol,
@@ -250,8 +251,12 @@ def _configure_context_for_ciphers(
 
     Returns the context.
     """
-    if ciphers is not None:
-        ossl_names = [_cipher_map[cipher] for cipher in ciphers if cipher in _cipher_map]
+    if ciphers is None:
+        # OpenSSL does not necessarily have system recommended settings
+        # The default cipher list is used here instead
+        ciphers = DEFAULT_CIPHER_LIST
+
+    ossl_names = [_cipher_map[cipher] for cipher in ciphers if cipher in _cipher_map]
     if not ossl_names:
         msg = "None of the provided ciphers are supported by the OpenSSL backend!"
         raise TLSError(msg)

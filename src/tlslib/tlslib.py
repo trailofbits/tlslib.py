@@ -9,6 +9,7 @@ from enum import Enum, IntEnum
 from typing import Generic, Protocol, TypeVar
 
 __all__ = [
+    "TLSBuffer",
     "TLSServerConfiguration",
     "TLSClientConfiguration",
     "ClientContext",
@@ -131,9 +132,10 @@ class TLSClientConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
         and optionally a list of intermediate certificates. These certificates
         will be offered to the server during the handshake if required.
 
-    :param ciphers Sequence[CipherSuite | int]:
+    :param ciphers Sequence[CipherSuite | int] | None:
         The available ciphers for TLS connections created with this
-        configuration, in priority order.
+        configuration, in priority order. If None is provided, the backend
+        will choose a suitable default value (such as system recommended settings).
 
     :param inner_protocols Sequence[NextProtocol | bytes]:
         Protocols that connections created with this configuration should
@@ -166,15 +168,13 @@ class TLSClientConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
     def __init__(
         self,
         certificate_chain: SigningChain[_Certificate, _PrivateKey] | None = None,
-        ciphers: Sequence[CipherSuite] | None = None,
+        ciphers: Sequence[CipherSuite | int] | None = None,
         inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
         highest_supported_version: TLSVersion | None = None,
         trust_store: _TrustStore | None = None,
     ) -> None:
         """Initialize TLS client configuration."""
-        if ciphers is None:
-            ciphers = DEFAULT_CIPHER_LIST
 
         if inner_protocols is None:
             inner_protocols = []
@@ -203,8 +203,11 @@ class TLSClientConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
         return self._certificate_chain
 
     @property
-    def ciphers(self) -> Sequence[CipherSuite | int]:
-        """The list of available ciphers for TLS connections, in priority order."""
+    def ciphers(self) -> Sequence[CipherSuite | int] | None:
+        """
+        The list of available ciphers for TLS connections, in priority order.
+        None indicates that system recommended settings will be used.
+        """
         return self._ciphers
 
     @property
@@ -246,9 +249,10 @@ class TLSServerConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
         certificates. These certificates will be offered to the client during
         the handshake if required.
 
-    :param ciphers Sequence[CipherSuite | int]:
+    :param ciphers Sequence[CipherSuite | int] | None:
         The available ciphers for TLS connections created with this
-        configuration, in priority order.
+        configuration, in priority order. If None is provided, the backend
+        will choose a suitable default value (such as system recommended settings).
 
     :param inner_protocols Sequence[NextProtocol | bytes]:
         Protocols that connections created with this configuration should
@@ -289,8 +293,6 @@ class TLSServerConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
         trust_store: _TrustStore | None = None,
     ) -> None:
         """Initialize TLS server configuration."""
-        if ciphers is None:
-            ciphers = DEFAULT_CIPHER_LIST
 
         if inner_protocols is None:
             inner_protocols = []
@@ -321,8 +323,11 @@ class TLSServerConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
         return self._certificate_chain
 
     @property
-    def ciphers(self) -> Sequence[CipherSuite | int]:
-        """The list of available ciphers for TLS connections, in priority order."""
+    def ciphers(self) -> Sequence[CipherSuite | int] | None:
+        """
+        The list of available ciphers for TLS connections, in priority order.
+        None indicates that system recommended settings will be used.
+        """
         return self._ciphers
 
     @property
