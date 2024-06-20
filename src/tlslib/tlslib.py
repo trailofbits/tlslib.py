@@ -143,11 +143,11 @@ class TLSClientConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
         advertised using ALPN. This list of protocols should be ordered
         by preference.
 
-    :param lowest_supported_version TLSVersion:
+    :param lowest_supported_version TLSVersion | None:
         The minimum version of TLS that should be allowed on TLS
         connections using this configuration.
 
-    :param highest_supported_version TLSVersion:
+    :param highest_supported_version TLSVersion | None:
         The maximum version of TLS that should be allowed on TLS
         connections using this configuration.
 
@@ -178,12 +178,6 @@ class TLSClientConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
 
         if inner_protocols is None:
             inner_protocols = []
-
-        if lowest_supported_version is None:
-            lowest_supported_version = TLSVersion.TLSv1_2
-
-        if highest_supported_version is None:
-            highest_supported_version = TLSVersion.MAXIMUM_SUPPORTED
 
         self._certificate_chain = certificate_chain
         self._ciphers = ciphers
@@ -219,13 +213,19 @@ class TLSClientConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
         return self._inner_protocols
 
     @property
-    def lowest_supported_version(self) -> TLSVersion:
-        """The minimum version of TLS that is allowed on TLS connections."""
+    def lowest_supported_version(self) -> TLSVersion | None:
+        """
+        The minimum version of TLS that is allowed on TLS connections.
+        None indicates that system recommended settings will be used.
+        """
         return self._lowest_supported_version
 
     @property
-    def highest_supported_version(self) -> TLSVersion:
-        """The maximum version of TLS that will be allowed on TLS connections."""
+    def highest_supported_version(self) -> TLSVersion | None:
+        """
+        The maximum version of TLS that will be allowed on TLS connections.
+        None indicates that system recommended settings will be used.
+        """
         return self._highest_supported_version
 
     @property
@@ -260,11 +260,11 @@ class TLSServerConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
         advertised using ALPN. This list of protocols should be ordered
         by preference.
 
-    :param lowest_supported_version TLSVersion:
+    :param lowest_supported_version TLSVersion | None:
         The minimum version of TLS that should be allowed on TLS
         connections using this configuration.
 
-    :param highest_supported_version TLSVersion:
+    :param highest_supported_version TLSVersion | None:
         The maximum version of TLS that should be allowed on TLS
         connections using this configuration.
 
@@ -296,12 +296,6 @@ class TLSServerConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
 
         if inner_protocols is None:
             inner_protocols = []
-
-        if lowest_supported_version is None:
-            lowest_supported_version = TLSVersion.TLSv1_2
-
-        if highest_supported_version is None:
-            highest_supported_version = TLSVersion.MAXIMUM_SUPPORTED
 
         self._certificate_chain = certificate_chain
         self._ciphers = ciphers
@@ -339,13 +333,19 @@ class TLSServerConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
         return self._inner_protocols
 
     @property
-    def lowest_supported_version(self) -> TLSVersion:
-        """The minimum version of TLS that is allowed on TLS connections."""
+    def lowest_supported_version(self) -> TLSVersion | None:
+        """
+        The minimum version of TLS that is allowed on TLS connections.
+        None indicates that system recommended settings will be used.
+        """
         return self._lowest_supported_version
 
     @property
-    def highest_supported_version(self) -> TLSVersion:
-        """The maximum version of TLS that will be allowed on TLS connections."""
+    def highest_supported_version(self) -> TLSVersion | None:
+        """
+        The maximum version of TLS that will be allowed on TLS connections.
+        None indicates that system recommended settings will be used.
+        """
         return self._highest_supported_version
 
     @property

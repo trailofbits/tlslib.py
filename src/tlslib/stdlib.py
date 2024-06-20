@@ -298,9 +298,18 @@ def _init_context_common(
         config.inner_protocols,
     )
 
+    # In lieu of system recommended settings, we default to TLS v1.3
+    lowest_supported_version = config.lowest_supported_version
+    if lowest_supported_version is None:
+        lowest_supported_version = TLSVersion.TLSv1_3
+
+    highest_supported_version = config.highest_supported_version
+    if highest_supported_version is None:
+        highest_supported_version = TLSVersion.MAXIMUM_SUPPORTED
+
     try:
-        some_context.minimum_version = _TLSMinVersionOpts[config.lowest_supported_version]
-        some_context.maximum_version = _TLSMaxVersionOpts[config.highest_supported_version]
+        some_context.minimum_version = _TLSMinVersionOpts[lowest_supported_version]
+        some_context.maximum_version = _TLSMaxVersionOpts[highest_supported_version]
     except KeyError:
         raise TLSError("Bad maximum/minimum options")
 
