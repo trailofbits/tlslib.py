@@ -463,8 +463,11 @@ class TLSSocket(Protocol):
         """Return the local address to which the socket is connected."""
 
     @abstractmethod
-    def getpeercert(self) -> Certificate | None:
-        """Return the certificate provided by the peer during the handshake, if applicable."""
+    def getpeercert(self) -> bytes | None:
+        """
+        Return the raw DER bytes of the certificate provided by the peer
+        during the handshake, if applicable.
+        """
 
     @abstractmethod
     def getpeername(self) -> tuple[str | None, int]:
@@ -648,6 +651,13 @@ class TLSBuffer(Protocol):
     def outgoing_bytes_buffered(self) -> int:
         """
         Returns how many bytes are in the outgoing buffer waiting to be sent.
+        """
+
+    @abstractmethod
+    def getpeercert(self) -> bytes | None:
+        """
+        Return the raw DER bytes of the certificate provided by the peer
+        during the handshake, if applicable.
         """
 
 

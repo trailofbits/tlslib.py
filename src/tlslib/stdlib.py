@@ -448,18 +448,19 @@ class OpenSSLTLSSocket:
         with _error_converter():
             return self._socket.getsockname()
 
-    def getpeercert(self) -> OpenSSLCertificate | None:
-        """Return the certificate provided by the peer during the handshake, if applicable."""
+    def getpeercert(self) -> bytes | None:
+        """
+        Return the raw DER bytes of the certificate provided by the peer
+        during the handshake, if applicable.
+        """
         # In order to return an OpenSSLCertificate, we must obtain the certificate in binary format
         # Obtaining the certificate as a dict is very specific to the ssl module and may be
         # difficult to implement for other backends, so this is not supported
 
         with _error_converter():
             cert = self._socket.getpeercert(True)
-        if cert is None:
-            return None
-        else:
-            return OpenSSLCertificate.from_buffer(cert)
+
+        return cert
 
     def getpeername(self) -> socket._RetAddress:
         """Return the remote address to which the socket is connected."""
@@ -806,17 +807,18 @@ class OpenSSLTLSBuffer:
         else:
             return TLSVersion(ossl_version)
 
-    def getpeercert(self) -> OpenSSLCertificate | None:
-        """Return the certificate provided by the peer during the handshake, if applicable."""
+    def getpeercert(self) -> bytes | None:
+        """
+        Return the raw DER bytes of the certificate provided by the peer
+        during the handshake, if applicable.
+        """
         # In order to return an OpenSSLCertificate, we must obtain the certificate in binary format
         # Obtaining the certificate as a dict is very specific to the ssl module and may be
         # difficult to implement for other backends, so this is not supported
         with _error_converter():
             cert = self._object.getpeercert(True)
-        if cert is None:
-            return None
-        else:
-            return OpenSSLCertificate.from_buffer(cert)
+
+        return cert
 
 
 class OpenSSLClientContext:
