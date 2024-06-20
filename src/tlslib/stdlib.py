@@ -951,6 +951,13 @@ class OpenSSLTrustStore:
 
         return cls(path=Path(path))
 
+    @classmethod
+    def from_id(cls, id: bytes) -> OpenSSLTrustStore:
+        """
+        Initializes a trust store from an arbitrary identifier.
+        """
+        raise NotImplementedError("Trust store from arbitrary identifier not supported")
+
 
 class OpenSSLCertificate:
     """A handle to a certificate object, either on disk or in a buffer, that can
@@ -989,6 +996,14 @@ class OpenSSLCertificate:
 
         return cls(path=path)
 
+    @classmethod
+    def from_id(cls, id: bytes) -> OpenSSLCertificate:
+        """
+        Creates a Certificate object from an arbitrary identifier. This may
+        be useful for backends that rely on system certificate stores.
+        """
+        raise NotImplementedError("Certificates from arbitrary identifiers not supported")
+
 
 class OpenSSLPrivateKey:
     """A handle to a private key object, either on disk or in a buffer, that can
@@ -1026,6 +1041,14 @@ class OpenSSLPrivateKey:
         """
 
         return cls(path=path)
+
+    @classmethod
+    def from_id(cls, id: bytes) -> OpenSSLPrivateKey:
+        """
+        Creates a PrivateKey object from an arbitrary identifier. This may
+        be useful for backends that rely on system private key stores.
+        """
+        raise NotImplementedError("Private Keys from arbitrary identifiers not supported")
 
 
 #: The stdlib ``Backend`` object.
