@@ -517,18 +517,19 @@ class OpenSSLTLSSocket:
         with _error_converter():
             return self._socket.getsockname()
 
-    def getpeercert(self) -> Certificate | None:
-        """Return the certificate provided by the peer during the handshake, if applicable."""
+    def getpeercert(self) -> bytes | None:
+        """
+        Return the raw DER bytes of the certificate provided by the peer
+        during the handshake, if applicable.
+        """
         # In order to return an OpenSSLCertificate, we must obtain the certificate in binary format
         # Obtaining the certificate as a dict is very specific to the ssl module and may be
         # difficult to implement for other backends, so this is not supported
 
         with _error_converter():
             cert = self._socket.getpeercert(True)
-        if cert is None:
-            return None
-        else:
-            return Certificate.from_buffer(cert)
+
+        return cert
 
     def getpeername(self) -> socket._RetAddress:
         """Return the remote address to which the socket is connected."""
@@ -875,17 +876,18 @@ class OpenSSLTLSBuffer:
         else:
             return TLSVersion(ossl_version)
 
-    def getpeercert(self) -> Certificate | None:
-        """Return the certificate provided by the peer during the handshake, if applicable."""
+    def getpeercert(self) -> bytes | None:
+        """
+        Return the raw DER bytes of the certificate provided by the peer
+        during the handshake, if applicable.
+        """
         # In order to return an OpenSSLCertificate, we must obtain the certificate in binary format
         # Obtaining the certificate as a dict is very specific to the ssl module and may be
         # difficult to implement for other backends, so this is not supported
         with _error_converter():
             cert = self._object.getpeercert(True)
-        if cert is None:
-            return None
-        else:
-            return Certificate.from_buffer(cert)
+
+        return cert
 
 
 class OpenSSLClientContext:
@@ -1097,15 +1099,32 @@ class OpenSSLServerContext:
 #         with tempfile.NamedTemporaryFile(mode="wb", delete=False) as io:
 #             io.write(buffer)
 
-#         key = cls(path=Path(io.name))
-#         weakref.finalize(key, os.remove, io.name)
-#         return key
+        # key = cls(path=Path(io.name))
+        # weakref.finalize(key, os.remove, io.name)
+        # return key
 
 #     @classmethod
 #     def from_file(cls, path: os.PathLike) -> OpenSSLPrivateKey:
 #         """
 #         Creates a PrivateKey object from a file on disk.
 #         """
+
+#         return cls(path=path)
+
+#     @classmethod
+#     def from_id(cls, id: bytes) -> OpenSSLPrivateKey:
+#         """
+#         Creates a PrivateKey object from an arbitrary identifier. This may
+#         be useful for backends that rely on system private key stores.
+#         """
+#         raise NotImplementedError("Private Keys from arbitrary identifiers not supported")
+
+    # @classmethod
+    # def from_id(cls, id: bytes) -> OpenSSLPrivateKey:
+    #     """
+    #     Creates a PrivateKey object from an arbitrary identifier. This may
+    #     be useful for backends that rely on system private key stores.
+    #     """
 
 #         return cls(path=path)
 

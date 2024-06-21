@@ -82,7 +82,7 @@ class TestBasic(TestInsecureBackend):
             self.assertEqual(client_sock.cipher(), tlslib.CipherSuite.TLS_AES_256_GCM_SHA384)
             self.assertEqual(client_sock.negotiated_protocol(), None)
             self.assertEqual(client_sock.getpeername(), server.socket.getsockname())
-            self.assertIsInstance(client_sock.getpeercert(), stdlib_insecure.Certificate)
+            self.assertIsInstance(client_sock.getpeercert(), bytes)
             self.assertIsInstance(client_sock.fileno(), int)
             self.assertIsInstance(
                 insecure_client_context.insecure_configuration, insecure.InsecureConfiguration

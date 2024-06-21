@@ -64,6 +64,7 @@ class AbstractFunctions(TestBackend):
         tlslib.TrustStore.from_buffer(b"")
         tlslib.TrustStore.from_file("")
         tlslib.TrustStore.from_id(b"")
+        tlslib.TrustStore.from_id(b"")
         tlslib.TrustStore.system()
         tlslib.ClientContext.__init__(tlslib.ClientContext, tlslib.TLSClientConfiguration())
         tlslib.ServerContext.__init__(tlslib.ClientContext, tlslib.TLSServerConfiguration())
