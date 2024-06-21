@@ -28,9 +28,9 @@ class TestInsecureBackend(TestCase):
     def test_insecure_backend_types(self):
         insecure_backend = stdlib_insecure.STDLIB_INSECURE_BACKEND
 
-        self.assertIs(insecure_backend.certificate, stdlib_insecure.OpenSSLCertificate)
+        self.assertIs(insecure_backend.certificate, stdlib_insecure.Certificate)
         self.assertIs(insecure_backend.client_context, stdlib_insecure.OpenSSLClientContext)
-        self.assertIs(insecure_backend.private_key, stdlib_insecure.OpenSSLPrivateKey)
+        self.assertIs(insecure_backend.private_key, stdlib_insecure.PrivateKey)
         self.assertIs(insecure_backend.server_context, stdlib_insecure.OpenSSLServerContext)
         self.assertIs(
             insecure_backend.insecure_client_context, stdlib_insecure.OpenSSLInsecureClientContext
@@ -82,7 +82,7 @@ class TestBasic(TestInsecureBackend):
             self.assertEqual(client_sock.cipher(), tlslib.CipherSuite.TLS_AES_256_GCM_SHA384)
             self.assertEqual(client_sock.negotiated_protocol(), None)
             self.assertEqual(client_sock.getpeername(), server.socket.getsockname())
-            self.assertIsInstance(client_sock.getpeercert(), stdlib_insecure.OpenSSLCertificate)
+            self.assertIsInstance(client_sock.getpeercert(), stdlib_insecure.Certificate)
             self.assertIsInstance(client_sock.fileno(), int)
             self.assertIsInstance(
                 insecure_client_context.insecure_configuration, insecure.InsecureConfiguration

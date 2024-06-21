@@ -21,16 +21,16 @@ from ._utils import (
 )
 
 
-class TestOpenSSLTrustStore(TestCase):
+class TestTrustStore(TestCase):
     def test_init(self):
         path = Path("/tmp/not-real")
-        store = stdlib.OpenSSLTrustStore(path)
-        self.assertEqual(store._trust_path, path)
+        store = tlslib.TrustStore(path=path)
+        self.assertEqual(store._path, path)
 
-        system_store = stdlib.OpenSSLTrustStore()
+        system_store = tlslib.TrustStore()
         self.assertNotEqual(store, system_store)
 
-        system_store_explicit = stdlib.OpenSSLTrustStore(None)
+        system_store_explicit = tlslib.TrustStore(None)
         self.assertNotEqual(store, system_store_explicit)
 
         # Separate instantiations of the same store (even the system store)
@@ -38,8 +38,8 @@ class TestOpenSSLTrustStore(TestCase):
         self.assertNotEqual(system_store, system_store_explicit)
 
     def test_system_store_method(self):
-        system_store = stdlib.OpenSSLTrustStore.system()
-        system_store_init = stdlib.OpenSSLTrustStore()
+        system_store = tlslib.TrustStore.system()
+        system_store_init = tlslib.TrustStore()
 
         # Separate instantiations of the  system store not equal.
         self.assertNotEqual(system_store, system_store_init)
@@ -55,11 +55,11 @@ class TestBackend(TestCase):
     def test_backend_types(self):
         backend = stdlib.STDLIB_BACKEND
 
-        self.assertIs(backend.certificate, stdlib.OpenSSLCertificate)
+        self.assertIs(backend.certificate, tlslib.Certificate)
         self.assertIs(backend.client_context, stdlib.OpenSSLClientContext)
-        self.assertIs(backend.private_key, stdlib.OpenSSLPrivateKey)
+        self.assertIs(backend.private_key, tlslib.PrivateKey)
         self.assertIs(backend.server_context, stdlib.OpenSSLServerContext)
-        self.assertIs(backend.trust_store, stdlib.OpenSSLTrustStore)
+        self.assertIs(backend.trust_store, tlslib.TrustStore)
 
         # invariant properties
         self.assertIs(backend.client_configuration, tlslib.TLSClientConfiguration)
@@ -88,7 +88,7 @@ class TestBasic(TestBackend):
             self.assertEqual(client_sock.cipher(), tlslib.CipherSuite.TLS_AES_256_GCM_SHA384)
             self.assertEqual(client_sock.negotiated_protocol(), None)
             self.assertEqual(client_sock.getpeername(), server.socket.getsockname())
-            self.assertIsInstance(client_sock.getpeercert(), stdlib.OpenSSLCertificate)
+            self.assertIsInstance(client_sock.getpeercert(), tlslib.Certificate)
             self.assertIsInstance(client_sock.fileno(), int)
 
             while True:
@@ -175,8 +175,9 @@ class TestConfig(TestBackend):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
         # Add the server's signing certificate to the server's trust store, just so that it's not
         # empty
-        truststore = stdlib.OpenSSLTrustStore.from_file(
-            server.server_context.configuration.certificate_chain[0].leaf[0]._cert_path
+
+        truststore = tlslib.TrustStore.from_buffer(
+            server.server_context.configuration.certificate_chain[0].leaf[0]._buffer
         )
         server = tweak_server_config(server, trust_store=truststore)
 
@@ -192,7 +193,7 @@ class TestConfig(TestBackend):
 
     def test_config_explicit_system_trust_store_server(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
-        truststore = stdlib.OpenSSLTrustStore(None)
+        truststore = tlslib.TrustStore()
         server = tweak_server_config(server, trust_store=truststore)
 
         with server:
@@ -252,14 +253,25 @@ class TestConfig(TestBackend):
                 client_sock.close(True)
 
     def test_config_signingchain_empty(self):
-        cert = stdlib.OpenSSLCertificate.from_buffer(b"")
-        key = stdlib.OpenSSLPrivateKey.from_buffer(b"")
+        cert = tlslib.Certificate.from_buffer(b"")
+        key = tlslib.PrivateKey.from_buffer(b"")
         tlslib.SigningChain((cert, key), None)
 
         with tempfile.NamedTemporaryFile(mode="wb") as empty_file:
-            cert = stdlib.OpenSSLCertificate.from_file(Path(empty_file.name))
-            key = stdlib.OpenSSLPrivateKey.from_file(Path(empty_file.name))
+            cert = tlslib.Certificate.from_file(Path(empty_file.name))
+            key = tlslib.PrivateKey.from_file(Path(empty_file.name))
             tlslib.SigningChain((cert, key), None)
+
+    def test_context_signingchain_path(self):
+        backend = stdlib.STDLIB_BACKEND
+        with tempfile.NamedTemporaryFile(mode="wb") as empty_file:
+            cert = tlslib.Certificate.from_file(Path(empty_file.name))
+            key = tlslib.PrivateKey.from_file(Path(empty_file.name))
+            sign_chain = tlslib.SigningChain((cert, key), (cert,))
+            server_config = backend.server_configuration(certificate_chain=(sign_chain,))
+            server_context = backend.server_context(server_config)
+            with self.assertRaises(tlslib.TLSError):
+                server_context.create_buffer()
 
 
 class TestNegative(TestBackend):
@@ -336,12 +348,52 @@ class TestNegative(TestBackend):
         backend = stdlib.STDLIB_BACKEND
 
         with self.assertRaises(NotImplementedError):
-            backend.trust_store.from_id(b"")
-        with self.assertRaises(NotImplementedError):
-            backend.certificate.from_id(b"")
+            trust_store = backend.trust_store.from_id(b"")
+            client_config = backend.client_configuration(trust_store=trust_store)
+            client_context = backend.client_context(client_config)
+            client_context.create_buffer("test")
 
         with self.assertRaises(NotImplementedError):
-            backend.private_key.from_id(b"")
+            certificate = backend.certificate.from_id(b"")
+            signing_chain = tlslib.SigningChain((certificate, None))
+            server_config = backend.server_configuration(certificate_chain=(signing_chain,))
+            server_context = backend.server_context(server_config)
+            server_context.create_buffer()
+
+        with self.assertRaises(NotImplementedError):
+            privkey = backend.private_key.from_id(b"")
+            certificate = backend.certificate.from_file(Path("/tmp/not-real"))
+            signing_chain = tlslib.SigningChain((certificate, privkey))
+            server_config = backend.server_configuration(certificate_chain=(signing_chain,))
+            server_context = backend.server_context(server_config)
+            server_context.create_buffer()
+
+    def test_empty_cert(self):
+        backend = stdlib.STDLIB_BACKEND
+        with self.assertRaises(ValueError):
+            certificate = backend.certificate.from_id(b"")
+            certificate._id = None
+            signing_chain = tlslib.SigningChain((certificate, None))
+            server_config = backend.server_configuration(certificate_chain=(signing_chain,))
+            server_context = backend.server_context(server_config)
+            server_context.create_buffer()
+
+        with self.assertRaises(NotImplementedError):
+            cert1 = backend.certificate.from_buffer(b"")
+            cert2 = backend.certificate.from_id(b"")
+            signing_chain = tlslib.SigningChain((cert1, None), (cert2,))
+            server_config = backend.server_configuration(certificate_chain=(signing_chain,))
+            server_context = backend.server_context(server_config)
+            server_context.create_buffer()
+
+        with self.assertRaises(ValueError):
+            cert1 = backend.certificate.from_buffer(b"")
+            cert2 = backend.certificate.from_id(b"")
+            cert2._id = None
+            signing_chain = tlslib.SigningChain((cert1, None), (cert2,))
+            server_config = backend.server_configuration(certificate_chain=(signing_chain,))
+            server_context = backend.server_context(server_config)
+            server_context.create_buffer()
 
 
 class TestClientAgainstSSL(TestBackend):
@@ -366,7 +418,7 @@ class TestClientAgainstSSL(TestBackend):
             self.assertEqual(client_sock.cipher(), tlslib.CipherSuite.TLS_AES_256_GCM_SHA384)
             self.assertEqual(client_sock.negotiated_protocol(), None)
             self.assertEqual(client_sock.getpeername(), server.socket.getsockname())
-            self.assertIsInstance(client_sock.getpeercert(), stdlib.OpenSSLCertificate)
+            self.assertIsInstance(client_sock.getpeercert(), tlslib.Certificate)
             self.assertIsInstance(client_sock.fileno(), int)
 
             client_sock.close(True)

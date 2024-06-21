@@ -46,25 +46,19 @@ class TestBackend(TestCase):
 class AbstractFunctions(TestBackend):
     def test_not_implemented(self):
         with self.assertRaises(NotImplementedError):
-            tlslib.Certificate.from_buffer(b"")
-
-        with self.assertRaises(NotImplementedError):
-            tlslib.Certificate.from_file("")
-
-        with self.assertRaises(NotImplementedError):
-            tlslib.Certificate.from_id(b"")
-
-        with self.assertRaises(NotImplementedError):
-            tlslib.PrivateKey.from_buffer(b"")
-
-        with self.assertRaises(NotImplementedError):
-            tlslib.PrivateKey.from_file("")
-
-        with self.assertRaises(NotImplementedError):
-            tlslib.PrivateKey.from_id(b"")
-
-        with self.assertRaises(NotImplementedError):
             tlslib.TLSSocket.fileno(tlslib.TLSSocket)
+
+    def test_pure_types(self):
+        self.assertIsInstance(tlslib.Certificate.from_buffer(b""), tlslib.Certificate)
+        self.assertIsInstance(tlslib.Certificate.from_file(""), tlslib.Certificate)
+        self.assertIsInstance(tlslib.Certificate.from_id(b""), tlslib.Certificate)
+        self.assertIsInstance(tlslib.PrivateKey.from_buffer(b""), tlslib.PrivateKey)
+        self.assertIsInstance(tlslib.PrivateKey.from_file(""), tlslib.PrivateKey)
+        self.assertIsInstance(tlslib.PrivateKey.from_id(b""), tlslib.PrivateKey)
+        with self.assertRaises(ValueError):
+            tlslib.Certificate()
+        with self.assertRaises(ValueError):
+            tlslib.PrivateKey()
 
     def test_empty_protocols(self):
         tlslib.TrustStore.from_buffer(b"")

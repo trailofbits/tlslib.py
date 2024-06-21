@@ -26,10 +26,29 @@ __all__ = [
 ]
 
 
-class TrustStore(Protocol):
+class TrustStore:
     """
     The trust store that is used to verify certificate validity.
     """
+
+    __slots__ = (
+        "_buffer",
+        "_path",
+        "_id",
+    )
+
+    def __init__(
+        self, buffer: bytes | None = None, path: os.PathLike | None = None, id: bytes | None = None
+    ):
+        """
+        Creates a TrustStore object from a path, buffer, or ID.
+
+        If none of these is given, the default system trust store is used.
+        """
+
+        self._buffer = buffer
+        self._path = path
+        self._id = id
 
     @classmethod
     def system(cls) -> TrustStore:
@@ -37,35 +56,57 @@ class TrustStore(Protocol):
         Returns a TrustStore object that represents the system trust
         database.
         """
-        ...
+        return cls()
 
     @classmethod
     def from_buffer(cls, buffer: bytes) -> TrustStore:
         """
         Initializes a trust store from a buffer of PEM-encoded certificates.
         """
-        ...
+        return cls(buffer=buffer)
 
     @classmethod
     def from_file(cls, path: os.PathLike) -> TrustStore:
         """
         Initializes a trust store from a single file containing PEMs.
         """
-        ...
+        return cls(path=path)
 
     @classmethod
     def from_id(cls, id: bytes) -> TrustStore:
         """
         Initializes a trust store from an arbitrary identifier.
         """
-        ...
+        return cls(id=id)
 
 
 _TrustStore = TypeVar("_TrustStore", bound=TrustStore)
 
 
-class Certificate(Protocol):
+class Certificate:
     """Object representing a certificate used in TLS."""
+
+    __slots__ = (
+        "_buffer",
+        "_path",
+        "_id",
+    )
+
+    def __init__(
+        self, buffer: bytes | None = None, path: os.PathLike | None = None, id: bytes | None = None
+    ):
+        """
+        Creates a Certificate object from a path, buffer, or ID.
+
+        If none of these is given, an exception is raised.
+        """
+
+        if buffer is None and path is None and id is None:
+            raise ValueError("Certificate cannot be empty.")
+
+        self._buffer = buffer
+        self._path = path
+        self._id = id
 
     @classmethod
     def from_buffer(cls, buffer: bytes) -> Certificate:
@@ -78,7 +119,7 @@ class Certificate(Protocol):
         implementation may assume that the certificate is DER-encoded
         instead.
         """
-        raise NotImplementedError("Certificates from buffers not supported")
+        return cls(buffer=buffer)
 
     @classmethod
     def from_file(cls, path: os.PathLike) -> Certificate:
@@ -89,7 +130,7 @@ class Certificate(Protocol):
         faster methods of loading certificates that do not involve Python
         code.
         """
-        raise NotImplementedError("Certificates from files not supported")
+        return cls(path=path)
 
     @classmethod
     def from_id(cls, id: bytes) -> Certificate:
@@ -97,15 +138,37 @@ class Certificate(Protocol):
         Creates a Certificate object from an arbitrary identifier. This may
         be useful for backends that rely on system certificate stores.
         """
-        raise NotImplementedError("Certificates from arbitrary identifiers not supported")
+        return cls(id=id)
 
 
 _Certificate = TypeVar("_Certificate", bound=Certificate)
 
 
-class PrivateKey(Protocol):
+class PrivateKey:
     """Object representing a private key corresponding to a public key
     for a certificate used in TLS."""
+
+    __slots__ = (
+        "_buffer",
+        "_path",
+        "_id",
+    )
+
+    def __init__(
+        self, buffer: bytes | None = None, path: os.PathLike | None = None, id: bytes | None = None
+    ):
+        """
+        Creates a PrivateKey object from a path, buffer, or ID.
+
+        If none of these is given, an exception is raised.
+        """
+
+        if buffer is None and path is None and id is None:
+            raise ValueError("PrivateKey cannot be empty.")
+
+        self._buffer = buffer
+        self._path = path
+        self._id = id
 
     @classmethod
     def from_buffer(cls, buffer: bytes) -> PrivateKey:
@@ -118,7 +181,7 @@ class PrivateKey(Protocol):
         implementation may assume that the certificate is DER-encoded
         instead.
         """
-        raise NotImplementedError("Private Keys from buffers not supported")
+        return cls(buffer=buffer)
 
     @classmethod
     def from_file(cls, path: os.PathLike) -> PrivateKey:
@@ -129,7 +192,7 @@ class PrivateKey(Protocol):
         faster methods of loading certificates that do not involve Python
         code.
         """
-        raise NotImplementedError("Private Keys from buffers not supported")
+        return cls(path=path)
 
     @classmethod
     def from_id(cls, id: bytes) -> PrivateKey:
@@ -137,7 +200,7 @@ class PrivateKey(Protocol):
         Creates a PrivateKey object from an arbitrary identifier. This may
         be useful for backends that rely on system private key stores.
         """
-        raise NotImplementedError("Private Keys from arbitrary identifiers not supported")
+        return cls(id=id)
 
 
 _PrivateKey = TypeVar("_PrivateKey", bound=PrivateKey)
