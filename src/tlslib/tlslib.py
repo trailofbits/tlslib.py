@@ -122,11 +122,13 @@ class Certificate:
     @classmethod
     def from_file(cls, path: os.PathLike) -> Certificate:
         """
-        Creates a Certificate object from a file on disk. This method may
-        be a convenience method that wraps ``open`` and ``from_buffer``,
-        but some TLS implementations may be able to provide more-secure or
-        faster methods of loading certificates that do not involve Python
-        code.
+        Creates a Certificate object from a file on disk. The file on disk
+        should contain a series of bytes corresponding to a certificate that
+        may be either PEM-encoded or DER-encoded. If the bytes are PEM encoded
+        it *must* begin with the standard PEM preamble (a series of dashes
+        followed by the ASCII bytes "BEGIN CERTIFICATE" and another series of
+        dashes). In the absence of that preamble, the implementation may
+        assume that the certificate is DER-encoded instead.
         """
         return cls(path=path)
 
@@ -173,7 +175,7 @@ class PrivateKey:
         encoded it *must* begin with the standard PEM preamble (a series of
         dashes followed by the ASCII bytes "BEGIN", the key type, and
         another series of dashes). In the absence of that preamble, the
-        implementation may assume that the certificate is DER-encoded
+        implementation may assume that the private key is DER-encoded
         instead.
         """
         return cls(buffer=buffer)
@@ -181,11 +183,13 @@ class PrivateKey:
     @classmethod
     def from_file(cls, path: os.PathLike) -> PrivateKey:
         """
-        Creates a PrivateKey object from a file on disk. This method may
-        be a convenience method that wraps ``open`` and ``from_buffer``,
-        but some TLS implementations may be able to provide more-secure or
-        faster methods of loading certificates that do not involve Python
-        code.
+        Creates a PrivateKey object from a file on disk. The file on disk
+        should contain a series of bytes corresponding to a certificate that
+        may be either PEM-encoded or DER-encoded. If the bytes are PEM encoded
+        it *must* begin with the standard PEM preamble (a series of dashes
+        followed by the ASCII bytes "BEGIN", the key type, and another series
+        of dashes). In the absence of that preamble, the implementation may
+        assume that the certificate is DER-encoded instead.
         """
         return cls(path=path)
 

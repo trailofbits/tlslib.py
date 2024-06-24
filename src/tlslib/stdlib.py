@@ -215,7 +215,10 @@ def _get_path_from_cert_or_priv(
         weakref.finalize(context, _remove_path, cert_or_priv)
         return cert_or_priv._path
     elif cert_or_priv._id is not None:
-        raise NotImplementedError("This backend does not support id-based certificates.")
+        raise NotImplementedError(
+            "This backend does not support id-based certificates \
+                                  or private keys."
+        )
     else:
         raise ValueError("Certificate or PrivateKey cannot be empty.")
 
@@ -244,7 +247,6 @@ def _configure_context_for_single_signing_chain(
 
     if cert_chain is not None:
         cert = cert_chain.leaf[0]
-        # assert isinstance(cert, OpenSSLCertificate)
 
         if len(cert_chain.chain) == 0:
             cert_path = _get_path_from_cert_or_priv(context, cert)
@@ -255,8 +257,6 @@ def _configure_context_for_single_signing_chain(
                 io.write(_get_bytes_from_cert(cert))
 
                 for cert in cert_chain.chain:
-                    # TODO: Typecheck this properly.
-                    # assert isinstance(cert, OpenSSLCertificate)
                     io.write(b"\n")
                     io.write(_get_bytes_from_cert(cert))
 
@@ -289,7 +289,6 @@ def _configure_context_for_sni(
     for sign_chain in cert_chain:
         # Parse leaf certificates to find server names
         cert = sign_chain.leaf[0]
-        # assert isinstance(cert, OpenSSLCertificate)
         cert_path = _get_path_from_cert_or_priv(context, cert)
         dec_cert = ssl._ssl._test_decode_cert(cert_path)  # type: ignore[attr-defined]
 
@@ -982,7 +981,10 @@ def _check_cert_or_priv(cert_or_priv: Certificate | PrivateKey) -> None:
     if cert_or_priv._path is not None or cert_or_priv._buffer is not None:
         return None
     elif cert_or_priv._id is not None:
-        raise NotImplementedError("This backend does not support id-based certificates.")
+        raise NotImplementedError(
+            "This backend does not support id-based certificates \
+                                  or private keys."
+        )
     else:
         raise ValueError("Certificate or PrivateKey cannot be empty.")
 
