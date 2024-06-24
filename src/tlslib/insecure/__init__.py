@@ -2,17 +2,15 @@
 
 import warnings
 from abc import abstractmethod
+from collections.abc import Callable
 from typing import Generic, Protocol, TypeVar
 
 from ..tlslib import (
     Backend,
-    Certificate,
     ClientContext,
-    PrivateKey,
     ServerContext,
     TLSClientConfiguration,
     TLSServerConfiguration,
-    TrustStore,
 )
 
 
@@ -126,9 +124,6 @@ class InsecureServerContext(ServerContext, Protocol):
         """The insecure configuration options that will make this context insecure."""
 
 
-_TrustStore = TypeVar("_TrustStore", bound=TrustStore)
-_Certificate = TypeVar("_Certificate", bound=Certificate)
-_PrivateKey = TypeVar("_PrivateKey", bound=PrivateKey)
 _ClientContext = TypeVar("_ClientContext", bound=ClientContext)
 _ServerContext = TypeVar("_ServerContext", bound=ServerContext)
 _InsecureClientContext = TypeVar("_InsecureClientContext", bound=InsecureClientContext)
@@ -146,26 +141,11 @@ class InsecureBackend(Backend, Generic[_InsecureClientContext, _InsecureServerCo
         "_insecure_server_context",
     )
 
-    @property
-    def insecure_configuration(
-        self,
-    ) -> type[InsecureConfiguration]:
-        """
-        Returns a type object for `InsecureConfiguration`.
-
-        This is identical to using `InsecureConfiguration` directly, and
-        is just here for consistency with the Generic-based TLSClientConfiguration
-        and TLSServerConfiguration in the regular Backend.
-        """
-        return InsecureConfiguration
-
     def __init__(
         self,
-        certificate: type[_Certificate],
         client_context: type[_ClientContext],
-        private_key: type[_PrivateKey],
         server_context: type[_ServerContext],
-        trust_store: type[_TrustStore],
+        validate_config: Callable[[TLSClientConfiguration | TLSServerConfiguration], None],
         insecure_client_context: type[_InsecureClientContext],
         insecure_server_context: type[_InsecureServerContext],
     ) -> None:
@@ -180,11 +160,9 @@ class InsecureBackend(Backend, Generic[_InsecureClientContext, _InsecureServerCo
         self._insecure_server_context = insecure_server_context
 
         super().__init__(
-            certificate=certificate,
             client_context=client_context,
-            private_key=private_key,
             server_context=server_context,
-            trust_store=trust_store,
+            validate_config=validate_config,
         )
 
     @property

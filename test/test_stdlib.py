@@ -30,7 +30,7 @@ class TestTrustStore(TestCase):
         system_store = tlslib.TrustStore()
         self.assertNotEqual(store, system_store)
 
-        system_store_explicit = tlslib.TrustStore(None)
+        system_store_explicit = tlslib.TrustStore(None, None, None)
         self.assertNotEqual(store, system_store_explicit)
 
         # Separate instantiations of the same store (even the system store)
@@ -55,15 +55,10 @@ class TestBackend(TestCase):
     def test_backend_types(self):
         backend = stdlib.STDLIB_BACKEND
 
-        self.assertIs(backend.certificate, tlslib.Certificate)
         self.assertIs(backend.client_context, stdlib.OpenSSLClientContext)
-        self.assertIs(backend.private_key, tlslib.PrivateKey)
         self.assertIs(backend.server_context, stdlib.OpenSSLServerContext)
-        self.assertIs(backend.trust_store, tlslib.TrustStore)
 
-        # invariant properties
-        self.assertIs(backend.client_configuration, tlslib.TLSClientConfiguration)
-        self.assertIs(backend.server_configuration, tlslib.TLSServerConfiguration)
+        self.assertIs(backend.validate_config, stdlib.validate_config)
 
 
 class TestBasic(TestBackend):
@@ -154,7 +149,7 @@ class TestConfig(TestBackend):
 
         system_store = None
 
-        client_config = backend.client_configuration(trust_store=system_store)
+        client_config = tlslib.TLSClientConfiguration(trust_store=system_store)
         client_context = backend.client_context(client_config)
         client_sock = client_context.connect(("www.python.org", 443))
         self.assertEqual(client_sock.context.configuration.trust_store, system_store)
@@ -195,6 +190,7 @@ class TestConfig(TestBackend):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
         truststore = tlslib.TrustStore()
         server = tweak_server_config(server, trust_store=truststore)
+        stdlib.STDLIB_BACKEND.validate_config(server.server_context.configuration)
 
         with server:
             client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
@@ -268,7 +264,7 @@ class TestConfig(TestBackend):
             cert = tlslib.Certificate.from_file(Path(empty_file.name))
             key = tlslib.PrivateKey.from_file(Path(empty_file.name))
             sign_chain = tlslib.SigningChain((cert, key), (cert,))
-            server_config = backend.server_configuration(certificate_chain=(sign_chain,))
+            server_config = tlslib.TLSServerConfiguration(certificate_chain=(sign_chain,))
             server_context = backend.server_context(server_config)
             with self.assertRaises(tlslib.TLSError):
                 server_context.create_buffer()
@@ -347,51 +343,81 @@ class TestNegative(TestBackend):
     def test_arbitrary_id_not_supported(self):
         backend = stdlib.STDLIB_BACKEND
 
+        # Trust store with arbitrary ID
+        trust_store = tlslib.TrustStore.from_id(b"")
+        client_config = tlslib.TLSClientConfiguration(trust_store=trust_store)
         with self.assertRaises(NotImplementedError):
-            trust_store = backend.trust_store.from_id(b"")
-            client_config = backend.client_configuration(trust_store=trust_store)
+            backend.validate_config(client_config)
+
+        with self.assertRaises(NotImplementedError):
             client_context = backend.client_context(client_config)
             client_context.create_buffer("test")
 
+        # Leaf certificate with arbitrary ID
+        certificate = tlslib.Certificate.from_id(b"")
+        signing_chain = tlslib.SigningChain((certificate, None))
+        server_config = tlslib.TLSServerConfiguration(certificate_chain=(signing_chain,))
+
         with self.assertRaises(NotImplementedError):
-            certificate = backend.certificate.from_id(b"")
-            signing_chain = tlslib.SigningChain((certificate, None))
-            server_config = backend.server_configuration(certificate_chain=(signing_chain,))
+            backend.validate_config(server_config)
+
+        with self.assertRaises(NotImplementedError):
             server_context = backend.server_context(server_config)
             server_context.create_buffer()
 
+        # Chain certificate with arbitrary ID
+        cert1 = tlslib.Certificate.from_buffer(b"")
+        cert2 = tlslib.Certificate.from_id(b"")
+        signing_chain = tlslib.SigningChain((cert1, None), (cert2,))
+        server_config = tlslib.TLSServerConfiguration(certificate_chain=(signing_chain,))
+
         with self.assertRaises(NotImplementedError):
-            privkey = backend.private_key.from_id(b"")
-            certificate = backend.certificate.from_file(Path("/tmp/not-real"))
-            signing_chain = tlslib.SigningChain((certificate, privkey))
-            server_config = backend.server_configuration(certificate_chain=(signing_chain,))
+            backend.validate_config(server_config)
+
+        with self.assertRaises(NotImplementedError):
+            server_context = backend.server_context(server_config)
+            server_context.create_buffer()
+
+        # Private Key with arbitrary ID
+        privkey = tlslib.PrivateKey.from_id(b"")
+        certificate = tlslib.Certificate.from_file(Path("/tmp/not-real"))
+        signing_chain = tlslib.SigningChain((certificate, privkey))
+        server_config = tlslib.TLSServerConfiguration(certificate_chain=(signing_chain,))
+
+        with self.assertRaises(NotImplementedError):
+            backend.validate_config(server_config)
+
+        with self.assertRaises(NotImplementedError):
             server_context = backend.server_context(server_config)
             server_context.create_buffer()
 
     def test_empty_cert(self):
         backend = stdlib.STDLIB_BACKEND
+
+        # Empty leaf certificate
+        certificate = tlslib.Certificate.from_id(b"")
+        certificate._id = None
+        signing_chain = tlslib.SigningChain((certificate, None))
+        server_config = tlslib.TLSServerConfiguration(certificate_chain=(signing_chain,))
+
         with self.assertRaises(ValueError):
-            certificate = backend.certificate.from_id(b"")
-            certificate._id = None
-            signing_chain = tlslib.SigningChain((certificate, None))
-            server_config = backend.server_configuration(certificate_chain=(signing_chain,))
+            backend.validate_config(server_config)
+
+        with self.assertRaises(ValueError):
             server_context = backend.server_context(server_config)
             server_context.create_buffer()
 
-        with self.assertRaises(NotImplementedError):
-            cert1 = backend.certificate.from_buffer(b"")
-            cert2 = backend.certificate.from_id(b"")
-            signing_chain = tlslib.SigningChain((cert1, None), (cert2,))
-            server_config = backend.server_configuration(certificate_chain=(signing_chain,))
-            server_context = backend.server_context(server_config)
-            server_context.create_buffer()
+        # Empty chain certificate
+        cert1 = tlslib.Certificate.from_buffer(b"")
+        cert2 = tlslib.Certificate.from_id(b"")
+        cert2._id = None
+        signing_chain = tlslib.SigningChain((cert1, None), (cert2,))
+        server_config = tlslib.TLSServerConfiguration(certificate_chain=(signing_chain,))
 
         with self.assertRaises(ValueError):
-            cert1 = backend.certificate.from_buffer(b"")
-            cert2 = backend.certificate.from_id(b"")
-            cert2._id = None
-            signing_chain = tlslib.SigningChain((cert1, None), (cert2,))
-            server_config = backend.server_configuration(certificate_chain=(signing_chain,))
+            backend.validate_config(server_config)
+
+        with self.assertRaises(ValueError):
             server_context = backend.server_context(server_config)
             server_context.create_buffer()
 
@@ -519,6 +545,8 @@ class TestClientAgainstSSL(TestBackend):
             "webpki::san::exact-localhost-ip-san", "rfc5280::nc::nc-permits-email-exact"
         )
 
+        stdlib.STDLIB_BACKEND.validate_config(client_config)
+
         with server:
             client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
             client_sock = client_context.connect(server.socket.getsockname())
@@ -645,7 +673,7 @@ class TestBuffer(TestBackend):
         assert read_buf[:read_len] == message
 
     def test_create_client_buffer(self):
-        client_config = stdlib.STDLIB_BACKEND.client_configuration()
+        client_config = tlslib.TLSClientConfiguration()
         client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
         client_buffer = client_context.create_buffer(None)
 

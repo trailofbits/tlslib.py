@@ -98,6 +98,7 @@ def _get_path_from_trust_store(
         # Store this path to prevent creation of multiple files for each trust store
         trust_store._path = Path(tmp_path.name)
         weakref.finalize(context, os.remove, tmp_path.name)
+        # Remove the path in case the trust store outlives the context
         weakref.finalize(context, _remove_path, trust_store)
         return trust_store._path
     elif trust_store._id is not None:
@@ -210,6 +211,7 @@ def _get_path_from_cert_or_priv(
         weakref.finalize(context, os.remove, tmp_path.name)
         # Store the path for future usage, preventing creation of multiple files
         cert_or_priv._path = Path(tmp_path.name)
+        # Remove the path in case the cert or priv outlives the context
         weakref.finalize(context, _remove_path, cert_or_priv)
         return cert_or_priv._path
     elif cert_or_priv._id is not None:
@@ -976,172 +978,54 @@ class OpenSSLServerContext:
         )
 
 
-# class OpenSSLTrustStore:
-#     """A handle to a trust store object, either on disk or the system trust store,
-#     that can be used to validate the certificates presented by a remote peer.
-#     """
-
-#     def __init__(self, path: os.PathLike | None = None):
-#         """
-#         Creates a TrustStore object from a path or representing the system trust store.
-
-#         If no path is given, the default system trust store is used.
-#         """
-
-#         self._trust_path = path
-
-#     @classmethod
-#     def system(cls) -> OpenSSLTrustStore:
-#         """
-#         Returns a TrustStore object that represents the system trust
-#         database. For the stdlib shim, this is represented by a trust store without a path.
-#         """
-
-#         return cls(path=None)
-
-#     @classmethod
-#     def from_buffer(cls, buf: bytes) -> OpenSSLTrustStore:
-#         """
-#         Initializes a trust store from a buffer of PEM-encoded certificates.
-#         """
-#         tmp_path = tempfile.NamedTemporaryFile(mode="w+b", delete=False, delete_on_close=False)
-#         tmp_path.write(buf)
-#         tmp_path.close()
-
-#         trust_store = cls.from_file(Path(tmp_path.name))
-#         weakref.finalize(trust_store, os.remove, tmp_path.name)
-#         return trust_store
-
-#     @classmethod
-#     def from_file(cls, path: os.PathLike) -> OpenSSLTrustStore:
-#         """
-#         Initializes a trust store from a single file containing PEMs.
-#         """
-
-#         return cls(path=Path(path))
-
-#     @classmethod
-#     def from_id(cls, id: bytes) -> OpenSSLTrustStore:
-#         """
-#         Initializes a trust store from an arbitrary identifier.
-#         """
-#         raise NotImplementedError("Trust store from arbitrary identifier not supported")
+def _check_cert_or_priv(cert_or_priv: Certificate | PrivateKey) -> None:
+    if cert_or_priv._path is not None or cert_or_priv._buffer is not None:
+        return None
+    elif cert_or_priv._id is not None:
+        raise NotImplementedError("This backend does not support id-based certificates.")
+    else:
+        raise ValueError("Certificate or PrivateKey cannot be empty.")
 
 
-# class OpenSSLCertificate:
-#     """A handle to a certificate object, either on disk or in a buffer, that can
-#     be used for either server or client connectivity.
-#     """
-
-#     def __init__(self, path: os.PathLike):
-#         """Creates a certificate object, storing a path to the (temp)file."""
-
-#         self._cert_path = path
-
-#     @classmethod
-#     def from_buffer(cls, buffer: bytes) -> OpenSSLCertificate:
-#         """
-#         Creates a Certificate object from a byte buffer. This byte buffer
-#         may be either PEM-encoded or DER-encoded. If the buffer is PEM
-#         encoded it *must* begin with the standard PEM preamble (a series of
-#         dashes followed by the ASCII bytes "BEGIN CERTIFICATE" and another
-#         series of dashes). In the absence of that preamble, the
-#         implementation may assume that the certificate is DER-encoded
-#         instead.
-#         """
-
-#         with tempfile.NamedTemporaryFile(mode="wb", delete=False) as io:
-#             io.write(buffer)
-
-#         cert = cls(path=Path(io.name))
-#         weakref.finalize(cert, os.remove, io.name)
-#         return cert
-
-#     @classmethod
-#     def from_file(cls, path: os.PathLike) -> OpenSSLCertificate:
-#         """
-#         Creates a Certificate object from a file on disk.
-#         """
-
-#         return cls(path=path)
-
-#     @classmethod
-#     def from_id(cls, id: bytes) -> OpenSSLCertificate:
-#         """
-#         Creates a Certificate object from an arbitrary identifier. This may
-#         be useful for backends that rely on system certificate stores.
-#         """
-#         raise NotImplementedError("Certificates from arbitrary identifiers not supported")
+def _check_trust_store(trust_store: TrustStore | None) -> None:
+    if trust_store is None or trust_store._path is not None or trust_store._buffer is not None:
+        return None
+    elif trust_store._id is not None:
+        raise NotImplementedError("This backend does not support id-based trust stores.")
+    else:
+        return None
 
 
-# class OpenSSLPrivateKey:
-#     """A handle to a private key object, either on disk or in a buffer, that can
-#     be used along with a certificate for either server or client connectivity.
-#     """
+def _check_sign_chain(sign_chain: SigningChain) -> None:
+    leaf = sign_chain.leaf
+    _check_cert_or_priv(leaf[0])
+    priv_key = leaf[1]
+    if priv_key is not None:
+        _check_cert_or_priv(priv_key)
+    for cert in sign_chain.chain:
+        _check_cert_or_priv(cert)
 
-#     def __init__(self, path: os.PathLike):
-#         """Creates a private key object, storing a path to the (temp)file."""
 
-#         self._key_path = path
+def validate_config(tls_config: TLSClientConfiguration | TLSServerConfiguration) -> None:
+    """Validates whether the OpenSSL backend supports this TLS configuration."""
+    _check_trust_store(tls_config.trust_store)
 
-#     @classmethod
-#     def from_buffer(cls, buffer: bytes) -> OpenSSLPrivateKey:
-#         """
-#         Creates a PrivateKey object from a byte buffer. This byte buffer
-#         may be either PEM-encoded or DER-encoded. If the buffer is PEM
-#         encoded it *must* begin with the standard PEM preamble (a series of
-#         dashes followed by the ASCII bytes "BEGIN", the key type, and
-#         another series of dashes). In the absence of that preamble, the
-#         implementation may assume that the certificate is DER-encoded
-#         instead.
-#         """
+    if isinstance(tls_config, TLSClientConfiguration):
+        sign_chain = tls_config.certificate_chain
+        if sign_chain is not None:
+            _check_sign_chain(sign_chain)
 
-#         with tempfile.NamedTemporaryFile(mode="wb", delete=False) as io:
-#             io.write(buffer)
-
-        # key = cls(path=Path(io.name))
-        # weakref.finalize(key, os.remove, io.name)
-        # return key
-
-#     @classmethod
-#     def from_file(cls, path: os.PathLike) -> OpenSSLPrivateKey:
-#         """
-#         Creates a PrivateKey object from a file on disk.
-#         """
-
-#         return cls(path=path)
-
-#     @classmethod
-#     def from_id(cls, id: bytes) -> OpenSSLPrivateKey:
-#         """
-#         Creates a PrivateKey object from an arbitrary identifier. This may
-#         be useful for backends that rely on system private key stores.
-#         """
-#         raise NotImplementedError("Private Keys from arbitrary identifiers not supported")
-
-    # @classmethod
-    # def from_id(cls, id: bytes) -> OpenSSLPrivateKey:
-    #     """
-    #     Creates a PrivateKey object from an arbitrary identifier. This may
-    #     be useful for backends that rely on system private key stores.
-    #     """
-
-#         return cls(path=path)
-
-#     @classmethod
-#     def from_id(cls, id: bytes) -> OpenSSLPrivateKey:
-#         """
-#         Creates a PrivateKey object from an arbitrary identifier. This may
-#         be useful for backends that rely on system private key stores.
-#         """
-#         raise NotImplementedError("Private Keys from arbitrary identifiers not supported")
+    else:
+        assert isinstance(tls_config, TLSServerConfiguration)
+        cert_chain = tls_config.certificate_chain
+        if cert_chain is not None:
+            for sign_chain in cert_chain:
+                _check_sign_chain(sign_chain)
 
 
 #: The stdlib ``Backend`` object.
 STDLIB_BACKEND = Backend(
-    certificate=Certificate,
     client_context=OpenSSLClientContext,
-    private_key=PrivateKey,
     server_context=OpenSSLServerContext,
-    trust_store=TrustStore,
+    validate_config=validate_config,
 )

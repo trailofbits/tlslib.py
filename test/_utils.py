@@ -123,7 +123,7 @@ class ThreadedEchoServer(threading.Thread):
         self.server_context: ServerContext | ssl.SSLContext
         if backend is not None:
             self.backend = backend
-            server_configuration = backend.server_configuration(
+            server_configuration = TLSServerConfiguration(
                 certificate_chain=cert_chain,
                 ciphers=ciphers,
                 inner_protocols=inner_protocols,
@@ -250,7 +250,7 @@ class ThreadedEchoServer(threading.Thread):
 def limbo_server(id: str) -> tuple[ThreadedEchoServer, TLSClientConfiguration]:
     """
     Return a `ThreadedServer` and a `TLSClientConfiguration` suitable for connecting to it,
-    both instantiated with an `sslib` backend and state from the given Limbo testcase.
+    both instantiated with an `tlslib` backend and state from the given Limbo testcase.
     """
 
     testcase = limbo_asset(id)
@@ -268,13 +268,13 @@ def limbo_server(id: str) -> tuple[ThreadedEchoServer, TLSClientConfiguration]:
     for pem in testcase["trusted_certs"]:
         trusted_certs.append(pem.encode())
 
-    client_config = STDLIB_BACKEND.client_configuration(
+    client_config = TLSClientConfiguration(
         certificate_chain=None,
         ciphers=DEFAULT_CIPHER_LIST,
         inner_protocols=None,
         lowest_supported_version=TLSVersion.MINIMUM_SUPPORTED,
         highest_supported_version=TLSVersion.MAXIMUM_SUPPORTED,
-        trust_store=STDLIB_BACKEND.trust_store.from_buffer(b"\n".join(trusted_certs)),
+        trust_store=TrustStore.from_buffer(b"\n".join(trusted_certs)),
     )
 
     server = ThreadedEchoServer(
@@ -379,8 +379,9 @@ def limbo_server_ssl(
     id: str, client_id: str | None = None
 ) -> tuple[ThreadedEchoServer, TLSClientConfiguration]:
     """
-    Return a `ThreadedServer` and a `TLSClientConfiguration` suitable for connecting to it,
-    both instantiated with an `sslib` backend and state from the given Limbo testcase.
+    Return a `ThreadedServer` with an `ssl` backend and a `TLSClientConfiguration`
+    suitable for connecting to it, both instantiated with a state from the given
+    Limbo testcase.
     """
 
     testcase = limbo_asset(id)
@@ -424,13 +425,13 @@ def limbo_server_ssl(
                 io_client.write(b"\n")
         server_trust_store = Path(io_client.name)
 
-    client_config = STDLIB_BACKEND.client_configuration(
+    client_config = TLSClientConfiguration(
         certificate_chain=sign_chain_client,
         ciphers=DEFAULT_CIPHER_LIST,
         inner_protocols=None,
         lowest_supported_version=TLSVersion.MINIMUM_SUPPORTED,
         highest_supported_version=TLSVersion.MAXIMUM_SUPPORTED,
-        trust_store=STDLIB_BACKEND.trust_store.from_buffer(b"\n".join(trusted_certs)),
+        trust_store=TrustStore.from_buffer(b"\n".join(trusted_certs)),
     )
 
     protocols = []

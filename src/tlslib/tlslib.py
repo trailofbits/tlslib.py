@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import os
 from abc import abstractmethod
-from collections.abc import Buffer, Sequence
+from collections.abc import Buffer, Callable, Sequence
 from enum import Enum, IntEnum
 from typing import Generic, Protocol, TypeVar
 
 __all__ = [
+    "TLSBuffer",
     "TLSServerConfiguration",
     "TLSClientConfiguration",
     "ClientContext",
@@ -79,16 +80,6 @@ class TrustStore:
         """
         return cls(id=id)
 
-    @classmethod
-    def from_id(cls, id: bytes) -> TrustStore:
-        """
-        Initializes a trust store from an arbitrary identifier.
-        """
-        ...
-
-
-_TrustStore = TypeVar("_TrustStore", bound=TrustStore)
-
 
 class Certificate:
     """Object representing a certificate used in TLS."""
@@ -146,17 +137,6 @@ class Certificate:
         be useful for backends that rely on system certificate stores.
         """
         return cls(id=id)
-
-    @classmethod
-    def from_id(cls, id: bytes) -> Certificate:
-        """
-        Creates a Certificate object from an arbitrary identifier. This may
-        be useful for backends that rely on system certificate stores.
-        """
-        raise NotImplementedError("Certificates from arbitrary identifiers not supported")
-
-
-_Certificate = TypeVar("_Certificate", bound=Certificate)
 
 
 class PrivateKey:
@@ -217,19 +197,8 @@ class PrivateKey:
         """
         return cls(id=id)
 
-    @classmethod
-    def from_id(cls, id: bytes) -> PrivateKey:
-        """
-        Creates a PrivateKey object from an arbitrary identifier. This may
-        be useful for backends that rely on system private key stores.
-        """
-        raise NotImplementedError("Private Keys from arbitrary identifiers not supported")
 
-
-_PrivateKey = TypeVar("_PrivateKey", bound=PrivateKey)
-
-
-class TLSClientConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
+class TLSClientConfiguration:
     """
     An immutable TLS Configuration object for a "client" socket, i.e. a socket
     making a connection to a server. This object has the following
@@ -274,12 +243,12 @@ class TLSClientConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
 
     def __init__(
         self,
-        certificate_chain: SigningChain[_Certificate, _PrivateKey] | None = None,
+        certificate_chain: SigningChain | None = None,
         ciphers: Sequence[CipherSuite] | None = None,
         inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
         highest_supported_version: TLSVersion | None = None,
-        trust_store: _TrustStore | None = None,
+        trust_store: TrustStore | None = None,
     ) -> None:
         """Initialize TLS client configuration."""
         if ciphers is None:
@@ -335,7 +304,7 @@ class TLSClientConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
         return self._highest_supported_version
 
     @property
-    def trust_store(self) -> _TrustStore | None:
+    def trust_store(self) -> TrustStore | None:
         """
         The trust store that connections using this configuration will use
         to validate certificates. None means that the system store is used.
@@ -343,7 +312,7 @@ class TLSClientConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
         return self._trust_store
 
 
-class TLSServerConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
+class TLSServerConfiguration:
     """
     An immutable TLS Configuration object for a "server" socket, i.e. a socket
     making one or more connections to clients. This object has the following
@@ -390,12 +359,12 @@ class TLSServerConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
 
     def __init__(
         self,
-        certificate_chain: Sequence[SigningChain[_Certificate, _PrivateKey]] | None = None,
+        certificate_chain: Sequence[SigningChain] | None = None,
         ciphers: Sequence[CipherSuite | int] | None = None,
         inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
         highest_supported_version: TLSVersion | None = None,
-        trust_store: _TrustStore | None = None,
+        trust_store: TrustStore | None = None,
     ) -> None:
         """Initialize TLS server configuration."""
         if ciphers is None:
@@ -453,7 +422,7 @@ class TLSServerConfiguration(Generic[_TrustStore, _Certificate, _PrivateKey]):
         return self._highest_supported_version
 
     @property
-    def trust_store(self) -> _TrustStore | None:
+    def trust_store(self) -> TrustStore | None:
         """
         The trust store that connections using this configuration will use
         to validate certificates. None means that the system store is used.
@@ -894,16 +863,16 @@ class RaggedEOF(TLSError):
     """
 
 
-class SigningChain(Generic[_Certificate, _PrivateKey]):
+class SigningChain:
     """Object representing a certificate chain used in TLS."""
 
-    leaf: tuple[_Certificate, _PrivateKey | None]
-    chain: list[_Certificate]
+    leaf: tuple[Certificate, PrivateKey | None]
+    chain: list[Certificate]
 
     def __init__(
         self,
-        leaf: tuple[_Certificate, _PrivateKey | None],
-        chain: Sequence[_Certificate] | None = None,
+        leaf: tuple[Certificate, PrivateKey | None],
+        chain: Sequence[Certificate] | None = None,
     ):
         """Initializes a SigningChain object."""
         self.leaf = leaf
@@ -912,70 +881,28 @@ class SigningChain(Generic[_Certificate, _PrivateKey]):
         self.chain = list(chain)
 
 
-class Backend(Generic[_TrustStore, _Certificate, _PrivateKey, _ClientContext, _ServerContext]):
+class Backend(Generic[_ClientContext, _ServerContext]):
     """An object representing the collection of classes that implement the
     PEP 543 abstract TLS API for a specific TLS implementation.
     """
 
     __slots__ = (
-        "_certificate",
         "_client_context",
-        "_private_key",
         "_server_context",
-        "_trust_store",
+        "_validate_config",
     )
-
-    @property
-    def client_configuration(
-        self,
-    ) -> type[TLSClientConfiguration[_TrustStore, _Certificate, _PrivateKey]]:
-        """
-        Returns a type object for `TLSClientConfiguration`.
-
-        This is identical to using `TLSClientConfiguration` directly, except
-        that this property defines generic annotations that bind the
-        created object to a specific backend's types. As such, you should
-        prefer it in type-checked code.
-        """
-        return TLSClientConfiguration
-
-    @property
-    def server_configuration(
-        self,
-    ) -> type[TLSServerConfiguration[_TrustStore, _Certificate, _PrivateKey]]:
-        """
-        Returns a type object for `TLSServerConfiguration`.
-
-        This is identical to using `TLSServerConfiguration` directly, except
-        that this property defines generic annotations that bind the
-        created object to a specific backend's types. As such, you should
-        prefer it in type-checked code.
-        """
-
-        return TLSServerConfiguration
 
     def __init__(
         self,
-        certificate: type[_Certificate],
         client_context: type[_ClientContext],
-        private_key: type[_PrivateKey],
         server_context: type[_ServerContext],
-        trust_store: type[_TrustStore],
+        validate_config: Callable[[TLSClientConfiguration | TLSServerConfiguration], None],
     ) -> None:
         """Initializes all attributes of the backend."""
 
-        self._certificate = certificate
         self._client_context = client_context
-        self._private_key = private_key
         self._server_context = server_context
-        self._trust_store = trust_store
-
-    @property
-    def certificate(self) -> type[_Certificate]:
-        """The concrete implementation of the PEP 543 Certificate object used
-        by this TLS backend.
-        """
-        return self._certificate
+        self._validate_config = validate_config
 
     @property
     def client_context(self) -> type[_ClientContext]:
@@ -985,13 +912,6 @@ class Backend(Generic[_TrustStore, _Certificate, _PrivateKey, _ClientContext, _S
         return self._client_context
 
     @property
-    def private_key(self) -> type[_PrivateKey]:
-        """The concrete implementation of the PEP 543 Private Key object used
-        by this TLS backend.
-        """
-        return self._private_key
-
-    @property
     def server_context(self) -> type[_ServerContext]:
         """The concrete implementation of the PEP 543 Server Context object,
         if this TLS backend supports being a server on a TLS connection.
@@ -999,8 +919,8 @@ class Backend(Generic[_TrustStore, _Certificate, _PrivateKey, _ClientContext, _S
         return self._server_context
 
     @property
-    def trust_store(self) -> type[_TrustStore]:
-        """The concrete implementation of the PEP 543 TrustStore object used
-        by this TLS backend.
+    def validate_config(self) -> Callable[[TLSClientConfiguration | TLSServerConfiguration], None]:
+        """A function that reveals whether this TLS backend supports a
+        particular TLS configuration.
         """
-        return self._trust_store
+        return self._validate_config

@@ -13,13 +13,11 @@ from ..stdlib import (
     _init_context_client,
     _init_context_server,
     _SSLContext,
+    validate_config,
 )
 from ..tlslib import (
-    Certificate,
-    PrivateKey,
     TLSClientConfiguration,
     TLSServerConfiguration,
-    TrustStore,
 )
 from . import (
     InsecureBackend,
@@ -177,11 +175,9 @@ class OpenSSLInsecureServerContext(OpenSSLServerContext):
 
 #: The stdlib ``InsecureBackend`` object.
 STDLIB_INSECURE_BACKEND = InsecureBackend(
-    certificate=Certificate,
     client_context=OpenSSLClientContext,
-    private_key=PrivateKey,
     server_context=OpenSSLServerContext,
-    trust_store=TrustStore,
+    validate_config=validate_config,
     insecure_client_context=OpenSSLInsecureClientContext,
     insecure_server_context=OpenSSLInsecureServerContext,
 )
