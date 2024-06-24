@@ -54,6 +54,13 @@ class TrustStore(Protocol):
         """
         ...
 
+    @classmethod
+    def from_id(cls, id: bytes) -> TrustStore:
+        """
+        Initializes a trust store from an arbitrary identifier.
+        """
+        ...
+
 
 _TrustStore = TypeVar("_TrustStore", bound=TrustStore)
 
@@ -84,6 +91,14 @@ class Certificate(Protocol):
         code.
         """
         raise NotImplementedError("Certificates from files not supported")
+
+    @classmethod
+    def from_id(cls, id: bytes) -> Certificate:
+        """
+        Creates a Certificate object from an arbitrary identifier. This may
+        be useful for backends that rely on system certificate stores.
+        """
+        raise NotImplementedError("Certificates from arbitrary identifiers not supported")
 
 
 _Certificate = TypeVar("_Certificate", bound=Certificate)
@@ -116,6 +131,14 @@ class PrivateKey(Protocol):
         code.
         """
         raise NotImplementedError("Private Keys from buffers not supported")
+
+    @classmethod
+    def from_id(cls, id: bytes) -> PrivateKey:
+        """
+        Creates a PrivateKey object from an arbitrary identifier. This may
+        be useful for backends that rely on system private key stores.
+        """
+        raise NotImplementedError("Private Keys from arbitrary identifiers not supported")
 
 
 _PrivateKey = TypeVar("_PrivateKey", bound=PrivateKey)
@@ -468,8 +491,11 @@ class TLSSocket(Protocol):
         """Return the local address to which the socket is connected."""
 
     @abstractmethod
-    def getpeercert(self) -> Certificate | None:
-        """Return the certificate provided by the peer during the handshake, if applicable."""
+    def getpeercert(self) -> bytes | None:
+        """
+        Return the raw DER bytes of the certificate provided by the peer
+        during the handshake, if applicable.
+        """
 
     @abstractmethod
     def getpeername(self) -> tuple[str | None, int]:
@@ -653,6 +679,13 @@ class TLSBuffer(Protocol):
     def outgoing_bytes_buffered(self) -> int:
         """
         Returns how many bytes are in the outgoing buffer waiting to be sent.
+        """
+
+    @abstractmethod
+    def getpeercert(self) -> bytes | None:
+        """
+        Return the raw DER bytes of the certificate provided by the peer
+        during the handshake, if applicable.
         """
 
 

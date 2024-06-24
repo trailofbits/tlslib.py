@@ -52,10 +52,16 @@ class AbstractFunctions(TestBackend):
             tlslib.Certificate.from_file("")
 
         with self.assertRaises(NotImplementedError):
+            tlslib.Certificate.from_id(b"")
+
+        with self.assertRaises(NotImplementedError):
             tlslib.PrivateKey.from_buffer(b"")
 
         with self.assertRaises(NotImplementedError):
             tlslib.PrivateKey.from_file("")
+
+        with self.assertRaises(NotImplementedError):
+            tlslib.PrivateKey.from_id(b"")
 
         with self.assertRaises(NotImplementedError):
             tlslib.TLSSocket.fileno(tlslib.TLSSocket)
@@ -63,6 +69,7 @@ class AbstractFunctions(TestBackend):
     def test_empty_protocols(self):
         tlslib.TrustStore.from_buffer(b"")
         tlslib.TrustStore.from_file("")
+        tlslib.TrustStore.from_id(b"")
         tlslib.TrustStore.system()
         tlslib.ClientContext.__init__(tlslib.ClientContext, tlslib.TLSClientConfiguration())
         tlslib.ServerContext.__init__(tlslib.ClientContext, tlslib.TLSServerConfiguration())

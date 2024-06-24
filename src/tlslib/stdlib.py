@@ -462,18 +462,19 @@ class OpenSSLTLSSocket:
         with _error_converter():
             return self._socket.getsockname()
 
-    def getpeercert(self) -> OpenSSLCertificate | None:
-        """Return the certificate provided by the peer during the handshake, if applicable."""
+    def getpeercert(self) -> bytes | None:
+        """
+        Return the raw DER bytes of the certificate provided by the peer
+        during the handshake, if applicable.
+        """
         # In order to return an OpenSSLCertificate, we must obtain the certificate in binary format
         # Obtaining the certificate as a dict is very specific to the ssl module and may be
         # difficult to implement for other backends, so this is not supported
 
         with _error_converter():
             cert = self._socket.getpeercert(True)
-        if cert is None:
-            return None
-        else:
-            return OpenSSLCertificate.from_buffer(cert)
+
+        return cert
 
     def getpeername(self) -> socket._RetAddress:
         """Return the remote address to which the socket is connected."""
@@ -820,17 +821,18 @@ class OpenSSLTLSBuffer:
         else:
             return TLSVersion(ossl_version)
 
-    def getpeercert(self) -> OpenSSLCertificate | None:
-        """Return the certificate provided by the peer during the handshake, if applicable."""
+    def getpeercert(self) -> bytes | None:
+        """
+        Return the raw DER bytes of the certificate provided by the peer
+        during the handshake, if applicable.
+        """
         # In order to return an OpenSSLCertificate, we must obtain the certificate in binary format
         # Obtaining the certificate as a dict is very specific to the ssl module and may be
         # difficult to implement for other backends, so this is not supported
         with _error_converter():
             cert = self._object.getpeercert(True)
-        if cert is None:
-            return None
-        else:
-            return OpenSSLCertificate.from_buffer(cert)
+
+        return cert
 
 
 class OpenSSLClientContext:
@@ -963,6 +965,13 @@ class OpenSSLTrustStore:
 
         return cls(path=Path(path))
 
+    @classmethod
+    def from_id(cls, id: bytes) -> OpenSSLTrustStore:
+        """
+        Initializes a trust store from an arbitrary identifier.
+        """
+        raise NotImplementedError("Trust store from arbitrary identifier not supported")
+
 
 class OpenSSLCertificate:
     """A handle to a certificate object, either on disk or in a buffer, that can
@@ -1001,6 +1010,14 @@ class OpenSSLCertificate:
 
         return cls(path=path)
 
+    @classmethod
+    def from_id(cls, id: bytes) -> OpenSSLCertificate:
+        """
+        Creates a Certificate object from an arbitrary identifier. This may
+        be useful for backends that rely on system certificate stores.
+        """
+        raise NotImplementedError("Certificates from arbitrary identifiers not supported")
+
 
 class OpenSSLPrivateKey:
     """A handle to a private key object, either on disk or in a buffer, that can
@@ -1038,6 +1055,14 @@ class OpenSSLPrivateKey:
         """
 
         return cls(path=path)
+
+    @classmethod
+    def from_id(cls, id: bytes) -> OpenSSLPrivateKey:
+        """
+        Creates a PrivateKey object from an arbitrary identifier. This may
+        be useful for backends that rely on system private key stores.
+        """
+        raise NotImplementedError("Private Keys from arbitrary identifiers not supported")
 
 
 #: The stdlib ``Backend`` object.

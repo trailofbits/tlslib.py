@@ -88,7 +88,7 @@ class TestBasic(TestBackend):
             self.assertEqual(client_sock.cipher(), tlslib.CipherSuite.TLS_AES_256_GCM_SHA384)
             self.assertEqual(client_sock.negotiated_protocol(), None)
             self.assertEqual(client_sock.getpeername(), server.socket.getsockname())
-            self.assertIsInstance(client_sock.getpeercert(), stdlib.OpenSSLCertificate)
+            self.assertIsInstance(client_sock.getpeercert(), bytes)
             self.assertIsInstance(client_sock.fileno(), int)
 
             while True:
@@ -332,6 +332,17 @@ class TestNegative(TestBackend):
             with self.assertRaises(tlslib.WantWriteError):
                 client_sock.send(b"a" * 10000000)
 
+    def test_arbitrary_id_not_supported(self):
+        backend = stdlib.STDLIB_BACKEND
+
+        with self.assertRaises(NotImplementedError):
+            backend.trust_store.from_id(b"")
+        with self.assertRaises(NotImplementedError):
+            backend.certificate.from_id(b"")
+
+        with self.assertRaises(NotImplementedError):
+            backend.private_key.from_id(b"")
+
 
 class TestClientAgainstSSL(TestBackend):
     def test_trivial_connection_ssl(self):
@@ -355,7 +366,7 @@ class TestClientAgainstSSL(TestBackend):
             self.assertEqual(client_sock.cipher(), tlslib.CipherSuite.TLS_AES_256_GCM_SHA384)
             self.assertEqual(client_sock.negotiated_protocol(), None)
             self.assertEqual(client_sock.getpeername(), server.socket.getsockname())
-            self.assertIsInstance(client_sock.getpeercert(), stdlib.OpenSSLCertificate)
+            self.assertIsInstance(client_sock.getpeercert(), bytes)
             self.assertIsInstance(client_sock.fileno(), int)
 
             client_sock.close(True)
