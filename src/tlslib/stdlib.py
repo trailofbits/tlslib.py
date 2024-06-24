@@ -990,12 +990,8 @@ def _check_cert_or_priv(cert_or_priv: Certificate | PrivateKey) -> None:
 
 
 def _check_trust_store(trust_store: TrustStore | None) -> None:
-    if trust_store is None or trust_store._path is not None or trust_store._buffer is not None:
-        return None
-    elif trust_store._id is not None:
+    if trust_store is not None and trust_store._id is not None:
         raise NotImplementedError("This backend does not support id-based trust stores.")
-    else:
-        return None
 
 
 def _check_sign_chain(sign_chain: SigningChain) -> None:
