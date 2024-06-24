@@ -9,6 +9,7 @@ from enum import Enum, IntEnum
 from typing import Generic, Protocol, TypeVar
 
 __all__ = [
+    "TLSBuffer",
     "TLSServerConfiguration",
     "TLSClientConfiguration",
     "ClientContext",
@@ -660,6 +661,12 @@ class TLSBuffer(Protocol):
         ``WantReadError`` and store no data. At this point, the user must
         call ``read`` to remove some data from the internal buffer
         before repeating this call.
+        """
+
+    @abstractmethod
+    def incoming_bytes_buffered(self) -> int:
+        """
+        Returns how many bytes are in the incoming buffer waiting to be processed.
         """
 
     @abstractmethod
