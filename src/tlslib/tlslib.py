@@ -248,13 +248,8 @@ class TLSClientConfiguration:
 
     def __init__(
         self,
-<<<<<<< jp/puretypes
         certificate_chain: SigningChain | None = None,
         ciphers: Sequence[CipherSuite] | None = None,
-=======
-        certificate_chain: SigningChain[_Certificate, _PrivateKey] | None = None,
-        ciphers: Sequence[CipherSuite | int] | None = None,
->>>>>>> main
         inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
         highest_supported_version: TLSVersion | None = None,
