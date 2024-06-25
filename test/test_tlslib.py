@@ -63,9 +63,6 @@ class AbstractFunctions(TestBackend):
         with self.assertRaises(NotImplementedError):
             tlslib.PrivateKey.from_id(b"")
 
-        with self.assertRaises(NotImplementedError):
-            tlslib.TLSSocket.fileno(tlslib.TLSSocket)
-
     def test_empty_protocols(self):
         tlslib.TrustStore.from_buffer(b"")
         tlslib.TrustStore.from_file("")

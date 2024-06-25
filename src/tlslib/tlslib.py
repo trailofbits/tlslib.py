@@ -501,11 +501,6 @@ class TLSSocket(Protocol):
     def getpeername(self) -> tuple[str | None, int]:
         """Return the remote address to which the socket is connected."""
 
-    def fileno(self) -> int:
-        """Return the socket’s file descriptor (a small integer), or -1 on failure."""
-
-        raise NotImplementedError("File descriptors from sockets not supported.")
-
     @property
     @abstractmethod
     def context(self) -> ClientContext | ServerContext:
