@@ -10,7 +10,7 @@ with warnings.catch_warnings():
         "ignore",
         message="Using an InsecureBackend is insecure. This should not be used in production.",
     )
-    from tlslib import insecure, tlslib
+    from tlslib import insecure, stdlib, tlslib
     from tlslib.insecure import SecurityWarning, stdlib_insecure
 
     from ._utils import (
@@ -28,9 +28,7 @@ class TestInsecureBackend(TestCase):
     def test_insecure_backend_types(self):
         insecure_backend = stdlib_insecure.STDLIB_INSECURE_BACKEND
 
-        self.assertIs(insecure_backend.certificate, stdlib_insecure.OpenSSLCertificate)
         self.assertIs(insecure_backend.client_context, stdlib_insecure.OpenSSLClientContext)
-        self.assertIs(insecure_backend.private_key, stdlib_insecure.OpenSSLPrivateKey)
         self.assertIs(insecure_backend.server_context, stdlib_insecure.OpenSSLServerContext)
         self.assertIs(
             insecure_backend.insecure_client_context, stdlib_insecure.OpenSSLInsecureClientContext
@@ -40,9 +38,7 @@ class TestInsecureBackend(TestCase):
         )
 
         # invariant properties
-        self.assertIs(insecure_backend.client_configuration, tlslib.TLSClientConfiguration)
-        self.assertIs(insecure_backend.server_configuration, tlslib.TLSServerConfiguration)
-        self.assertIs(insecure_backend.insecure_configuration, insecure.InsecureConfiguration)
+        self.assertIs(insecure_backend.validate_config, stdlib.validate_config)
 
 
 class TestBasic(TestInsecureBackend):
@@ -52,9 +48,7 @@ class TestBasic(TestInsecureBackend):
         # Overwrite client TrustStore to remove needed root certificate
         new_client_config = tweak_client_config(client_config, trust_store=None)
         with self.assertWarns(SecurityWarning):
-            insecure_config = stdlib_insecure.STDLIB_INSECURE_BACKEND.insecure_configuration(
-                True, True
-            )
+            insecure_config = insecure.InsecureConfiguration(True, True)
 
         with server:
             with self.assertWarns(SecurityWarning):
@@ -109,12 +103,10 @@ class TestBasic(TestInsecureBackend):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
 
         # Enable client auth by setting a TrustStore
-        truststore = stdlib_insecure.STDLIB_INSECURE_BACKEND.trust_store.system()
+        truststore = tlslib.TrustStore.system()
 
         with self.assertWarns(SecurityWarning):
-            insecure_config = stdlib_insecure.STDLIB_INSECURE_BACKEND.insecure_configuration(
-                True, True
-            )
+            insecure_config = insecure.InsecureConfiguration(True, True)
 
         with self.assertWarns(SecurityWarning):
             server = tweak_server_config(
@@ -141,7 +133,7 @@ class TestBasic(TestInsecureBackend):
     def test_invalid_insecure_config(self):
         with self.assertRaises(ValueError):
             with self.assertWarns(SecurityWarning):
-                _ = stdlib_insecure.STDLIB_INSECURE_BACKEND.insecure_configuration(False, True)
+                _ = insecure.InsecureConfiguration(False, True)
 
 
 class TestBuffer(TestInsecureBackend):
@@ -153,9 +145,7 @@ class TestBuffer(TestInsecureBackend):
         # Overwrite client TrustStore to remove needed root certificate
         new_client_config = tweak_client_config(client_config, trust_store=None)
         with self.assertWarns(SecurityWarning):
-            insecure_config = stdlib_insecure.STDLIB_INSECURE_BACKEND.insecure_configuration(
-                True, True
-            )
+            insecure_config = insecure.InsecureConfiguration(True, True)
 
         hostname = "localhost"
 
@@ -189,13 +179,11 @@ class TestBuffer(TestInsecureBackend):
         loop_until_success(client_buffer, server_buffer, "shutdown")
 
     def test_create_client_buffer_insecure(self):
-        client_config = stdlib_insecure.STDLIB_INSECURE_BACKEND.client_configuration()
+        client_config = tlslib.TLSClientConfiguration()
 
         for dhc, dv in ((True, True), (True, False), (False, False)):
             with self.assertWarns(SecurityWarning):
-                insecure_config = stdlib_insecure.STDLIB_INSECURE_BACKEND.insecure_configuration(
-                    dhc, dv
-                )
+                insecure_config = insecure.InsecureConfiguration(dhc, dv)
 
             with self.assertWarns(SecurityWarning):
                 insecure_client_context = (
@@ -208,13 +196,11 @@ class TestBuffer(TestInsecureBackend):
                 _ = insecure_client_context.create_buffer("localhost")
 
     def test_create_server_buffer_insecure(self):
-        server_config = stdlib_insecure.STDLIB_INSECURE_BACKEND.server_configuration()
+        server_config = tlslib.TLSServerConfiguration()
 
         for dhc, dv in ((True, True), (True, False), (False, False)):
             with self.assertWarns(SecurityWarning):
-                insecure_config = stdlib_insecure.STDLIB_INSECURE_BACKEND.insecure_configuration(
-                    dhc, dv
-                )
+                insecure_config = insecure.InsecureConfiguration(dhc, dv)
 
             with self.assertWarns(SecurityWarning):
                 insecure_server_context = (

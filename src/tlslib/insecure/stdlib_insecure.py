@@ -6,16 +6,14 @@ import ssl
 import warnings
 
 from ..stdlib import (
-    OpenSSLCertificate,
     OpenSSLClientContext,
-    OpenSSLPrivateKey,
     OpenSSLServerContext,
     OpenSSLTLSBuffer,
     OpenSSLTLSSocket,
-    OpenSSLTrustStore,
     _init_context_client,
     _init_context_server,
     _SSLContext,
+    validate_config,
 )
 from ..tlslib import (
     TLSClientConfiguration,
@@ -177,11 +175,9 @@ class OpenSSLInsecureServerContext(OpenSSLServerContext):
 
 #: The stdlib ``InsecureBackend`` object.
 STDLIB_INSECURE_BACKEND = InsecureBackend(
-    certificate=OpenSSLCertificate,
     client_context=OpenSSLClientContext,
-    private_key=OpenSSLPrivateKey,
     server_context=OpenSSLServerContext,
-    trust_store=OpenSSLTrustStore,
+    validate_config=validate_config,
     insecure_client_context=OpenSSLInsecureClientContext,
     insecure_server_context=OpenSSLInsecureServerContext,
 )

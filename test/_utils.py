@@ -17,17 +17,16 @@ from tlslib.insecure import InsecureConfiguration
 from tlslib.insecure.stdlib_insecure import STDLIB_INSECURE_BACKEND
 from tlslib.stdlib import (
     STDLIB_BACKEND,
-    OpenSSLCertificate,
-    OpenSSLPrivateKey,
-    OpenSSLTrustStore,
     TLSVersion,
 )
 from tlslib.tlslib import (
     DEFAULT_CIPHER_LIST,
     Backend,
+    Certificate,
     CipherSuite,
     ClientContext,
     NextProtocol,
+    PrivateKey,
     RaggedEOF,
     ServerContext,
     SigningChain,
@@ -36,6 +35,7 @@ from tlslib.tlslib import (
     TLSError,
     TLSServerConfiguration,
     TLSSocket,
+    TrustStore,
     WantReadError,
     WantWriteError,
 )
@@ -123,7 +123,7 @@ class ThreadedEchoServer(threading.Thread):
         self.server_context: ServerContext | ssl.SSLContext
         if backend is not None:
             self.backend = backend
-            server_configuration = backend.server_configuration(
+            server_configuration = TLSServerConfiguration(
                 certificate_chain=cert_chain,
                 ciphers=ciphers,
                 inner_protocols=inner_protocols,
@@ -250,31 +250,31 @@ class ThreadedEchoServer(threading.Thread):
 def limbo_server(id: str) -> tuple[ThreadedEchoServer, TLSClientConfiguration]:
     """
     Return a `ThreadedServer` and a `TLSClientConfiguration` suitable for connecting to it,
-    both instantiated with an `sslib` backend and state from the given Limbo testcase.
+    both instantiated with an `tlslib` backend and state from the given Limbo testcase.
     """
 
     testcase = limbo_asset(id)
 
-    peer_cert = OpenSSLCertificate.from_buffer(testcase["peer_certificate"].encode())
+    peer_cert = Certificate.from_buffer(testcase["peer_certificate"].encode())
     peer_cert_key = None
     if testcase["peer_certificate_key"] is not None:
-        peer_cert_key = OpenSSLPrivateKey.from_buffer(testcase["peer_certificate_key"].encode())
+        peer_cert_key = PrivateKey.from_buffer(testcase["peer_certificate_key"].encode())
     untrusted_intermediates = []
     for pem in testcase["untrusted_intermediates"]:
-        untrusted_intermediates.append(OpenSSLCertificate.from_buffer(pem.encode()))
+        untrusted_intermediates.append(Certificate.from_buffer(pem.encode()))
     signing_chain = SigningChain(leaf=(peer_cert, peer_cert_key), chain=untrusted_intermediates)
 
     trusted_certs = []
     for pem in testcase["trusted_certs"]:
         trusted_certs.append(pem.encode())
 
-    client_config = STDLIB_BACKEND.client_configuration(
+    client_config = TLSClientConfiguration(
         certificate_chain=None,
         ciphers=DEFAULT_CIPHER_LIST,
         inner_protocols=None,
         lowest_supported_version=TLSVersion.MINIMUM_SUPPORTED,
         highest_supported_version=TLSVersion.MAXIMUM_SUPPORTED,
-        trust_store=STDLIB_BACKEND.trust_store.from_buffer(b"\n".join(trusted_certs)),
+        trust_store=TrustStore.from_buffer(b"\n".join(trusted_certs)),
     )
 
     server = ThreadedEchoServer(
@@ -292,12 +292,12 @@ def limbo_server(id: str) -> tuple[ThreadedEchoServer, TLSClientConfiguration]:
 
 def tweak_client_config(
     old_config: TLSClientConfiguration,
-    certificate_chain: SigningChain[OpenSSLCertificate, OpenSSLPrivateKey] | None = None,
+    certificate_chain: SigningChain[Certificate, PrivateKey] | None = None,
     ciphers: Sequence[CipherSuite | int] | None = None,
     inner_protocols: Sequence[NextProtocol | bytes] | None = None,
     lowest_supported_version: TLSVersion | None = None,
     highest_supported_version: TLSVersion | None = None,
-    trust_store: OpenSSLTrustStore | None = None,
+    trust_store: TrustStore | None = None,
 ) -> TLSClientConfiguration:
     if certificate_chain is None:
         certificate_chain = old_config.certificate_chain
@@ -329,12 +329,12 @@ def tweak_client_config(
 
 def tweak_server_config(
     server: ThreadedEchoServer,
-    certificate_chain: Sequence[SigningChain[OpenSSLCertificate, OpenSSLPrivateKey]] | None = None,
+    certificate_chain: Sequence[SigningChain[Certificate, PrivateKey]] | None = None,
     ciphers: Sequence[CipherSuite | int] | None = None,
     inner_protocols: Sequence[NextProtocol | bytes] | None = None,
     lowest_supported_version: TLSVersion | None = None,
     highest_supported_version: TLSVersion | None = None,
-    trust_store: OpenSSLTrustStore | None = None,
+    trust_store: TrustStore | None = None,
     insecure_config: InsecureConfiguration | None = None,
 ) -> ThreadedEchoServer:
     old_config = server.server_context.configuration
@@ -379,8 +379,9 @@ def limbo_server_ssl(
     id: str, client_id: str | None = None
 ) -> tuple[ThreadedEchoServer, TLSClientConfiguration]:
     """
-    Return a `ThreadedServer` and a `TLSClientConfiguration` suitable for connecting to it,
-    both instantiated with an `sslib` backend and state from the given Limbo testcase.
+    Return a `ThreadedServer` with an `ssl` backend and a `TLSClientConfiguration`
+    suitable for connecting to it, both instantiated with a state from the given
+    Limbo testcase.
     """
 
     testcase = limbo_asset(id)
@@ -403,15 +404,13 @@ def limbo_server_ssl(
     server_trust_store = None
     if client_id is not None:
         testcase_client = limbo_asset(client_id)
-        peer_cert = OpenSSLCertificate.from_buffer(testcase_client["peer_certificate"].encode())
+        peer_cert = Certificate.from_buffer(testcase_client["peer_certificate"].encode())
         peer_cert_key = None
         if testcase_client["peer_certificate_key"] is not None:
-            peer_cert_key = OpenSSLPrivateKey.from_buffer(
-                testcase_client["peer_certificate_key"].encode()
-            )
+            peer_cert_key = PrivateKey.from_buffer(testcase_client["peer_certificate_key"].encode())
         untrusted_intermediates = []
         for pem in testcase_client["untrusted_intermediates"]:
-            untrusted_intermediates.append(OpenSSLCertificate.from_buffer(pem.encode()))
+            untrusted_intermediates.append(Certificate.from_buffer(pem.encode()))
         sign_chain_client = SigningChain(
             leaf=(peer_cert, peer_cert_key), chain=untrusted_intermediates
         )
@@ -426,13 +425,13 @@ def limbo_server_ssl(
                 io_client.write(b"\n")
         server_trust_store = Path(io_client.name)
 
-    client_config = STDLIB_BACKEND.client_configuration(
+    client_config = TLSClientConfiguration(
         certificate_chain=sign_chain_client,
         ciphers=DEFAULT_CIPHER_LIST,
         inner_protocols=None,
         lowest_supported_version=TLSVersion.MINIMUM_SUPPORTED,
         highest_supported_version=TLSVersion.MAXIMUM_SUPPORTED,
-        trust_store=STDLIB_BACKEND.trust_store.from_buffer(b"\n".join(trusted_certs)),
+        trust_store=TrustStore.from_buffer(b"\n".join(trusted_certs)),
     )
 
     protocols = []
