@@ -668,6 +668,12 @@ class TLSBuffer(Protocol):
         """
 
     @abstractmethod
+    def incoming_bytes_buffered(self) -> int:
+        """
+        Returns how many bytes are in the incoming buffer waiting to be processed.
+        """
+
+    @abstractmethod
     def process_outgoing(self, amount_bytes_for_network: int) -> bytes:
         """
         Returns the next ``amt`` bytes of data that should be written to
