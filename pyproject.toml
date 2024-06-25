@@ -25,7 +25,7 @@ lint = [
     "types-html5lib",
     "types-requests",
     "types-toml",
-    "interrogate",
+    "interrogate >= 1.7",
 ]
 dev = ["tlslib[doc,test,lint]", "twine", "wheel", "build"]
 
