@@ -283,9 +283,9 @@ def _configure_context_for_sni(
     sni_config: TLSServerConfiguration,
 ) -> ssl.SSLContext:
     # This is a mapping of concrete server names to the corresponding SigningChain
-    _name_to_chain_map: weakref.WeakValueDictionary[str, SigningChain] = (
-        weakref.WeakValueDictionary()
-    )
+    _name_to_chain_map: weakref.WeakValueDictionary[
+        str, SigningChain
+    ] = weakref.WeakValueDictionary()
 
     for sign_chain in cert_chain:
         # Parse leaf certificates to find server names
