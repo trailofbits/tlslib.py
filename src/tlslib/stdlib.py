@@ -15,6 +15,7 @@ from pathlib import Path
 import truststore
 
 from .tlslib import (
+    DEFAULT_CIPHER_LIST,
     Backend,
     CipherSuite,
     NextProtocol,
@@ -250,8 +251,12 @@ def _configure_context_for_ciphers(
 
     Returns the context.
     """
-    if ciphers is not None:
-        ossl_names = [_cipher_map[cipher] for cipher in ciphers if cipher in _cipher_map]
+    if ciphers is None:
+        # OpenSSL does not necessarily have system recommended settings
+        # The default cipher list is used here instead
+        ciphers = DEFAULT_CIPHER_LIST
+
+    ossl_names = [_cipher_map[cipher] for cipher in ciphers if cipher in _cipher_map]
     if not ossl_names:
         msg = "None of the provided ciphers are supported by the OpenSSL backend!"
         raise TLSError(msg)
@@ -293,9 +298,18 @@ def _init_context_common(
         config.inner_protocols,
     )
 
+    # In lieu of system recommended settings, we default to TLS v1.3
+    lowest_supported_version = config.lowest_supported_version
+    if lowest_supported_version is None:
+        lowest_supported_version = TLSVersion.TLSv1_3
+
+    highest_supported_version = config.highest_supported_version
+    if highest_supported_version is None:
+        highest_supported_version = TLSVersion.MAXIMUM_SUPPORTED
+
     try:
-        some_context.minimum_version = _TLSMinVersionOpts[config.lowest_supported_version]
-        some_context.maximum_version = _TLSMaxVersionOpts[config.highest_supported_version]
+        some_context.minimum_version = _TLSMinVersionOpts[lowest_supported_version]
+        some_context.maximum_version = _TLSMaxVersionOpts[highest_supported_version]
     except KeyError:
         raise TLSError("Bad maximum/minimum options")
 
