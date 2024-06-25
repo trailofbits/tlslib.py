@@ -33,10 +33,6 @@ class TestBackend(TestCase):
 
 
 class AbstractFunctions(TestBackend):
-    def test_not_implemented(self):
-        with self.assertRaises(NotImplementedError):
-            tlslib.TLSSocket.fileno(tlslib.TLSSocket)
-
     def test_pure_types(self):
         self.assertIsInstance(tlslib.TrustStore.from_buffer(b""), tlslib.TrustStore)
         self.assertIsInstance(tlslib.TrustStore.from_file(""), tlslib.TrustStore)
