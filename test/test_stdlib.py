@@ -346,10 +346,10 @@ class TestNegative(TestBackend):
         # Trust store with arbitrary ID
         trust_store = tlslib.TrustStore.from_id(b"")
         client_config = tlslib.TLSClientConfiguration(trust_store=trust_store)
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(tlslib.ConfigurationError):
             backend.validate_config(client_config)
 
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(tlslib.ConfigurationError):
             client_context = backend.client_context(client_config)
             client_context.create_buffer("test")
 
@@ -358,10 +358,10 @@ class TestNegative(TestBackend):
         signing_chain = tlslib.SigningChain((certificate, None))
         server_config = tlslib.TLSServerConfiguration(certificate_chain=(signing_chain,))
 
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(tlslib.ConfigurationError):
             backend.validate_config(server_config)
 
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(tlslib.ConfigurationError):
             server_context = backend.server_context(server_config)
             server_context.create_buffer()
 
@@ -371,10 +371,10 @@ class TestNegative(TestBackend):
         signing_chain = tlslib.SigningChain((cert1, None), (cert2,))
         server_config = tlslib.TLSServerConfiguration(certificate_chain=(signing_chain,))
 
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(tlslib.ConfigurationError):
             backend.validate_config(server_config)
 
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(tlslib.ConfigurationError):
             server_context = backend.server_context(server_config)
             server_context.create_buffer()
 
@@ -384,10 +384,10 @@ class TestNegative(TestBackend):
         signing_chain = tlslib.SigningChain((certificate, privkey))
         server_config = tlslib.TLSServerConfiguration(certificate_chain=(signing_chain,))
 
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(tlslib.ConfigurationError):
             backend.validate_config(server_config)
 
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(tlslib.ConfigurationError):
             server_context = backend.server_context(server_config)
             server_context.create_buffer()
 
@@ -400,10 +400,10 @@ class TestNegative(TestBackend):
         signing_chain = tlslib.SigningChain((certificate, None))
         server_config = tlslib.TLSServerConfiguration(certificate_chain=(signing_chain,))
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(tlslib.ConfigurationError):
             backend.validate_config(server_config)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(tlslib.ConfigurationError):
             server_context = backend.server_context(server_config)
             server_context.create_buffer()
 
@@ -414,10 +414,10 @@ class TestNegative(TestBackend):
         signing_chain = tlslib.SigningChain((cert1, None), (cert2,))
         server_config = tlslib.TLSServerConfiguration(certificate_chain=(signing_chain,))
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(tlslib.ConfigurationError):
             backend.validate_config(server_config)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(tlslib.ConfigurationError):
             server_context = backend.server_context(server_config)
             server_context.create_buffer()
 

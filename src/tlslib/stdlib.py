@@ -19,6 +19,7 @@ from .tlslib import (
     Backend,
     Certificate,
     CipherSuite,
+    ConfigurationError,
     NextProtocol,
     PrivateKey,
     RaggedEOF,
@@ -103,7 +104,7 @@ def _get_path_from_trust_store(
         weakref.finalize(context, _remove_path, trust_store)
         return trust_store._path
     elif trust_store._id is not None:
-        raise NotImplementedError("This backend does not support id-based trust stores.")
+        raise ConfigurationError("This backend does not support id-based trust stores.")
     else:
         return None
 
@@ -216,12 +217,12 @@ def _get_path_from_cert_or_priv(
         weakref.finalize(context, _remove_path, cert_or_priv)
         return cert_or_priv._path
     elif cert_or_priv._id is not None:
-        raise NotImplementedError(
+        raise ConfigurationError(
             "This backend does not support id-based certificates \
                                   or private keys."
         )
     else:
-        raise ValueError("Certificate or PrivateKey cannot be empty.")
+        raise ConfigurationError("Certificate or PrivateKey cannot be empty.")
 
 
 def _get_bytes_from_cert(cert: Certificate) -> bytes:
@@ -231,9 +232,9 @@ def _get_bytes_from_cert(cert: Certificate) -> bytes:
         # Do not save cert in memory
         return Path(cert._path).read_bytes()
     elif cert._id is not None:
-        raise NotImplementedError("This backend does not support id-based certificates.")
+        raise ConfigurationError("This backend does not support id-based certificates.")
     else:
-        raise ValueError("Certificate cannot be empty.")
+        raise ConfigurationError("Certificate cannot be empty.")
 
 
 def _configure_context_for_single_signing_chain(
@@ -283,9 +284,9 @@ def _configure_context_for_sni(
     sni_config: TLSServerConfiguration,
 ) -> ssl.SSLContext:
     # This is a mapping of concrete server names to the corresponding SigningChain
-    _name_to_chain_map: weakref.WeakValueDictionary[
-        str, SigningChain
-    ] = weakref.WeakValueDictionary()
+    _name_to_chain_map: weakref.WeakValueDictionary[str, SigningChain] = (
+        weakref.WeakValueDictionary()
+    )
 
     for sign_chain in cert_chain:
         # Parse leaf certificates to find server names
@@ -995,17 +996,17 @@ def _check_cert_or_priv(cert_or_priv: Certificate | PrivateKey) -> None:
     if cert_or_priv._path is not None or cert_or_priv._buffer is not None:
         return None
     elif cert_or_priv._id is not None:
-        raise NotImplementedError(
+        raise ConfigurationError(
             "This backend does not support id-based certificates \
                                   or private keys."
         )
     else:
-        raise ValueError("Certificate or PrivateKey cannot be empty.")
+        raise ConfigurationError("Certificate or PrivateKey cannot be empty.")
 
 
 def _check_trust_store(trust_store: TrustStore | None) -> None:
     if trust_store is not None and trust_store._id is not None:
-        raise NotImplementedError("This backend does not support id-based trust stores.")
+        raise ConfigurationError("This backend does not support id-based trust stores.")
 
 
 def _check_sign_chain(sign_chain: SigningChain) -> None:

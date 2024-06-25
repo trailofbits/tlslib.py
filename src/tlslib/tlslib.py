@@ -871,6 +871,11 @@ class RaggedEOF(TLSError):
     """
 
 
+class ConfigurationError(TLSError):
+    """An special exception that backends can use when the provided
+    configuration uses features not supported by that backend."""
+
+
 class SigningChain:
     """Object representing a certificate chain used in TLS."""
 
