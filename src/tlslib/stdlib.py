@@ -16,7 +16,6 @@ import truststore
 
 from .tlslib import (
     DEFAULT_CIPHER_LIST,
-    Backend,
     Certificate,
     CipherSuite,
     ConfigurationError,
@@ -26,6 +25,7 @@ from .tlslib import (
     SigningChain,
     TLSClientConfiguration,
     TLSError,
+    TLSImplementation,
     TLSServerConfiguration,
     TLSVersion,
     TrustStore,
@@ -104,7 +104,7 @@ def _get_path_from_trust_store(
         weakref.finalize(context, _remove_path, trust_store)
         return trust_store._path
     elif trust_store._id is not None:
-        raise ConfigurationError("This backend does not support id-based trust stores.")
+        raise ConfigurationError("This TLS implementation does not support id-based trust stores.")
     else:
         return None
 
@@ -218,7 +218,7 @@ def _get_path_from_cert_or_priv(
         return cert_or_priv._path
     elif cert_or_priv._id is not None:
         raise ConfigurationError(
-            "This backend does not support id-based certificates \
+            "This TLS implementation does not support id-based certificates \
                                   or private keys."
         )
     else:
@@ -232,7 +232,7 @@ def _get_bytes_from_cert(cert: Certificate) -> bytes:
         # Do not save cert in memory
         return Path(cert._path).read_bytes()
     elif cert._id is not None:
-        raise ConfigurationError("This backend does not support id-based certificates.")
+        raise ConfigurationError("This TLS implementation does not support id-based certificates.")
     else:
         raise ConfigurationError("Certificate cannot be empty.")
 
@@ -329,7 +329,7 @@ def _configure_context_for_ciphers(
 
     ossl_names = [_cipher_map[cipher] for cipher in ciphers if cipher in _cipher_map]
     if not ossl_names:
-        msg = "None of the provided ciphers are supported by the OpenSSL backend!"
+        msg = "None of the provided ciphers are supported by the OpenSSL TLS implementation!"
         raise TLSError(msg)
     with _error_converter():
         context.set_ciphers(":".join(ossl_names))
@@ -540,7 +540,7 @@ class OpenSSLTLSSocket:
         """
         # In order to return an OpenSSLCertificate, we must obtain the certificate in binary format
         # Obtaining the certificate as a dict is very specific to the ssl module and may be
-        # difficult to implement for other backends, so this is not supported
+        # difficult to implement for other TLS implementations, so this is not supported
 
         with _error_converter():
             cert = self._socket.getpeercert(True)
@@ -745,8 +745,8 @@ class OpenSSLTLSBuffer:
         operation would have caused data to be written or read. In either
         case, users should endeavour to resolve that situation and then
         re-call this method. When re-calling this method users *should*
-        re-use the exact same ``buf`` object, as some backends require that
-        the exact same buffer be used.
+        re-use the exact same ``buf`` object, as some TLS implementations
+        require that the exact same buffer be used.
 
         This operation may write "short": that is, fewer bytes may be
         written than were in the buffer.
@@ -899,7 +899,7 @@ class OpenSSLTLSBuffer:
         """
         # In order to return an OpenSSLCertificate, we must obtain the certificate in binary format
         # Obtaining the certificate as a dict is very specific to the ssl module and may be
-        # difficult to implement for other backends, so this is not supported
+        # difficult to implement for other implementation, so this is not supported
         with _error_converter():
             cert = self._object.getpeercert(True)
 
@@ -997,7 +997,7 @@ def _check_cert_or_priv(cert_or_priv: Certificate | PrivateKey) -> None:
         return None
     elif cert_or_priv._id is not None:
         raise ConfigurationError(
-            "This backend does not support id-based certificates \
+            "This TLS implementation does not support id-based certificates \
                                   or private keys."
         )
     else:
@@ -1006,7 +1006,7 @@ def _check_cert_or_priv(cert_or_priv: Certificate | PrivateKey) -> None:
 
 def _check_trust_store(trust_store: TrustStore | None) -> None:
     if trust_store is not None and trust_store._id is not None:
-        raise ConfigurationError("This backend does not support id-based trust stores.")
+        raise ConfigurationError("This TLS implementation does not support id-based trust stores.")
 
 
 def _check_sign_chain(sign_chain: SigningChain) -> None:
@@ -1020,7 +1020,7 @@ def _check_sign_chain(sign_chain: SigningChain) -> None:
 
 
 def validate_config(tls_config: TLSClientConfiguration | TLSServerConfiguration) -> None:
-    """Validates whether the OpenSSL backend supports this TLS configuration."""
+    """Validates whether the OpenSSL TLS implementation supports this TLS configuration."""
     _check_trust_store(tls_config.trust_store)
 
     if isinstance(tls_config, TLSClientConfiguration):
@@ -1036,8 +1036,8 @@ def validate_config(tls_config: TLSClientConfiguration | TLSServerConfiguration)
                 _check_sign_chain(sign_chain)
 
 
-#: The stdlib ``Backend`` object.
-STDLIB_BACKEND = Backend(
+#: The stdlib ``TLSImplementation`` object.
+STDLIB_IMPLEMENTATION = TLSImplementation(
     client_context=OpenSSLClientContext,
     server_context=OpenSSLServerContext,
     validate_config=validate_config,

@@ -6,10 +6,10 @@ from collections.abc import Callable
 from typing import Generic, Protocol, TypeVar
 
 from ..tlslib import (
-    Backend,
     ClientContext,
     ServerContext,
     TLSClientConfiguration,
+    TLSImplementation,
     TLSServerConfiguration,
 )
 
@@ -130,9 +130,11 @@ _InsecureClientContext = TypeVar("_InsecureClientContext", bound=InsecureClientC
 _InsecureServerContext = TypeVar("_InsecureServerContext", bound=InsecureServerContext)
 
 
-class InsecureBackend(Backend, Generic[_InsecureClientContext, _InsecureServerContext]):
+class InsecureTLSImplementation(
+    TLSImplementation, Generic[_InsecureClientContext, _InsecureServerContext]
+):
     """
-    An insecure version of a TLS API Backend that allows an implementation to make insecure
+    An insecure version of a TLS API implementation that allows a user to make insecure
     choices for testing purposes.
     """
 
@@ -149,10 +151,11 @@ class InsecureBackend(Backend, Generic[_InsecureClientContext, _InsecureServerCo
         insecure_client_context: type[_InsecureClientContext],
         insecure_server_context: type[_InsecureServerContext],
     ) -> None:
-        """Initializes all attributes of the backend."""
+        """Initializes all attributes of the implementation."""
 
         warnings.warn(
-            "Using an InsecureBackend is insecure. This should not be used in production.",
+            "Using an InsecureTLSImplementation is insecure. "
+            "This should not be used in production.",
             SecurityWarning,
         )
 
@@ -168,13 +171,13 @@ class InsecureBackend(Backend, Generic[_InsecureClientContext, _InsecureServerCo
     @property
     def insecure_client_context(self) -> type[_InsecureClientContext]:
         """The concrete implementation of the PEP 543 Insecure Client Context object used
-        by this TLS backend.
+        by this TLS implementation.
         """
         return self._insecure_client_context
 
     @property
     def insecure_server_context(self) -> type[_InsecureServerContext]:
         """The concrete implementation of the PEP 543 Insecure Server Context object used
-        by this TLS backend.
+        by this TLS implementation.
         """
         return self._insecure_server_context

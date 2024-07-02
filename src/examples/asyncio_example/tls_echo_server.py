@@ -7,7 +7,7 @@ from examples.asyncio_example.unix_events_tls import DefaultEventLoopPolicy
 from tlslib import stdlib as ossl
 from tlslib import tlslib as tls
 
-backend = ossl.STDLIB_BACKEND
+implementation = ossl.STDLIB_IMPLEMENTATION
 
 _CERT = Path(__file__).parent / "cert"
 
@@ -35,14 +35,14 @@ async def main():
     # Certs taken from x509-limbo webpki::san::exact-localhost-dns-san test case
     cert_chain = tls.SigningChain(
         leaf=(
-            backend.certificate.from_file(Path(__file__).parent / "cert/leaf.pem"),
-            backend.private_key.from_file(Path(__file__).parent / "cert/key.pem"),
+            implementation.certificate.from_file(Path(__file__).parent / "cert/leaf.pem"),
+            implementation.private_key.from_file(Path(__file__).parent / "cert/key.pem"),
         ),
         chain=(),
     )
 
     server_config = tls.TLSServerConfiguration(certificate_chain=(cert_chain,), trust_store=None)
-    server_ctx = backend.server_context(server_config)
+    server_ctx = implementation.server_context(server_config)
 
     server = await asyncio.start_server(handle_echo, "localhost", 8888, tls=server_ctx)
 

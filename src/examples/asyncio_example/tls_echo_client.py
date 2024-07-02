@@ -7,17 +7,17 @@ from examples.asyncio_example.unix_events_tls import DefaultEventLoopPolicy
 from tlslib import stdlib as ossl
 from tlslib import tlslib as tls
 
-backend = ossl.STDLIB_BACKEND
+implementation = ossl.STDLIB_IMPLEMENTATION
 
 
 async def tls_echo_client(message: str):
     """Echo client"""
 
     # Certs taken from x509-limbo webpki::san::exact-localhost-dns-san test case
-    trust_store = backend.trust_store.from_file(Path(__file__).parent / "cert/root.pem")
+    trust_store = implementation.trust_store.from_file(Path(__file__).parent / "cert/root.pem")
 
     client_config = tls.TLSClientConfiguration(trust_store=trust_store)
-    client_ctx = backend.client_context(client_config)
+    client_ctx = implementation.client_context(client_config)
 
     reader, writer = await asyncio.open_connection(
         "localhost", 8888, tls=client_ctx, server_hostname="localhost"

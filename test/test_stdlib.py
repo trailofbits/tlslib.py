@@ -51,22 +51,22 @@ class TestOpenSSLTLSSocket(TestCase):
             stdlib.OpenSSLTLSSocket()
 
 
-class TestBackend(TestCase):
-    def test_backend_types(self):
-        backend = stdlib.STDLIB_BACKEND
+class TestTLSImplementation(TestCase):
+    def test_implementation_types(self):
+        implementation = stdlib.STDLIB_IMPLEMENTATION
 
-        self.assertIs(backend.client_context, stdlib.OpenSSLClientContext)
-        self.assertIs(backend.server_context, stdlib.OpenSSLServerContext)
+        self.assertIs(implementation.client_context, stdlib.OpenSSLClientContext)
+        self.assertIs(implementation.server_context, stdlib.OpenSSLServerContext)
 
-        self.assertIs(backend.validate_config, stdlib.validate_config)
+        self.assertIs(implementation.validate_config, stdlib.validate_config)
 
 
-class TestBasic(TestBackend):
+class TestBasic(TestTLSImplementation):
     def test_trivial_connection(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
 
         with server:
-            client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
+            client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(client_config)
             client_sock = client_context.connect(server.socket.getsockname())
             client_sock.send(b"message 1")
             client_sock.send(b"message 2")
@@ -112,7 +112,7 @@ class TestBasic(TestBackend):
         server = tweak_server_config(server, inner_protocols=(tlslib.NextProtocol.H2,))
 
         with server:
-            client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
+            client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(new_client_config)
             client_sock = client_context.connect(server.socket.getsockname())
             self.assertEqual(client_sock.negotiated_protocol(), tlslib.NextProtocol.H2)
             client_sock.close(True)
@@ -124,7 +124,7 @@ class TestBasic(TestBackend):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
 
         with server:
-            client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
+            client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(client_config)
             client_sock = client_context.connect(server.socket.getsockname())
             client_sock.send(b"message 1")
             client_sock.send(b"message 2")
@@ -143,14 +143,14 @@ class TestBasic(TestBackend):
                     continue
 
 
-class TestConfig(TestBackend):
+class TestConfig(TestTLSImplementation):
     def test_config_system_trust_store_client(self):
-        backend = stdlib.STDLIB_BACKEND
+        implementation = stdlib.STDLIB_IMPLEMENTATION
 
         system_store = None
 
         client_config = tlslib.TLSClientConfiguration(trust_store=system_store)
-        client_context = backend.client_context(client_config)
+        client_context = implementation.client_context(client_config)
         client_sock = client_context.connect(("www.python.org", 443))
         self.assertEqual(client_sock.context.configuration.trust_store, system_store)
         client_sock.close(True)
@@ -159,7 +159,7 @@ class TestConfig(TestBackend):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
 
         with server:
-            client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
+            client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(client_config)
             client_sock = client_context.connect(server.socket.getsockname())
             self.assertEqual(
                 client_sock.context.configuration.trust_store, client_config.trust_store
@@ -177,7 +177,7 @@ class TestConfig(TestBackend):
         server = tweak_server_config(server, trust_store=truststore)
 
         with server:
-            client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
+            client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(client_config)
             client_sock = client_context.connect(server.socket.getsockname())
             for attempt in retry_loop(max_attempts=3, wait=0.5):
                 with attempt:
@@ -190,10 +190,10 @@ class TestConfig(TestBackend):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
         truststore = tlslib.TrustStore()
         server = tweak_server_config(server, trust_store=truststore)
-        stdlib.STDLIB_BACKEND.validate_config(server.server_context.configuration)
+        stdlib.STDLIB_IMPLEMENTATION.validate_config(server.server_context.configuration)
 
         with server:
-            client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
+            client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(client_config)
             client_sock = client_context.connect(server.socket.getsockname())
             for attempt in retry_loop(max_attempts=3, wait=0.5):
                 with attempt:
@@ -217,7 +217,7 @@ class TestConfig(TestBackend):
         )
 
         with server:
-            client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
+            client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(new_client_config)
             client_sock = client_context.connect(server.socket.getsockname())
             self.assertEqual(client_sock.cipher(), 49245)
             client_sock.close(True)
@@ -230,7 +230,7 @@ class TestConfig(TestBackend):
         server = tweak_server_config(server, inner_protocols=(b"bla",))
 
         with server:
-            client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
+            client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(new_client_config)
             client_sock = client_context.connect(server.socket.getsockname())
             self.assertEqual(client_sock.negotiated_protocol(), b"bla")
             client_sock.close(True)
@@ -243,7 +243,7 @@ class TestConfig(TestBackend):
         server = tweak_server_config(server, certificate_chain=[])
 
         with server:
-            client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
+            client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(client_config)
             with self.assertRaises(tlslib.TLSError):
                 client_sock = client_context.connect(server.socket.getsockname())
                 client_sock.close(True)
@@ -259,18 +259,18 @@ class TestConfig(TestBackend):
             tlslib.SigningChain((cert, key), None)
 
     def test_context_signingchain_path(self):
-        backend = stdlib.STDLIB_BACKEND
+        implementation = stdlib.STDLIB_IMPLEMENTATION
         with tempfile.NamedTemporaryFile(mode="wb") as empty_file:
             cert = tlslib.Certificate.from_file(Path(empty_file.name))
             key = tlslib.PrivateKey.from_file(Path(empty_file.name))
             sign_chain = tlslib.SigningChain((cert, key), (cert,))
             server_config = tlslib.TLSServerConfiguration(certificate_chain=(sign_chain,))
-            server_context = backend.server_context(server_config)
+            server_context = implementation.server_context(server_config)
             with self.assertRaises(tlslib.TLSError):
                 server_context.create_buffer()
 
 
-class TestNegative(TestBackend):
+class TestNegative(TestTLSImplementation):
     def test_no_client_ciphers(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
 
@@ -280,7 +280,7 @@ class TestNegative(TestBackend):
         )
 
         with server:
-            client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
+            client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(new_client_config)
             with self.assertRaises(tlslib.TLSError):
                 client_sock = client_context.connect(server.socket.getsockname())
                 client_sock.close(True)
@@ -295,7 +295,7 @@ class TestNegative(TestBackend):
         )
 
         with server:
-            client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
+            client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(new_client_config)
             with self.assertRaises(tlslib.TLSError):
                 client_sock = client_context.connect(server.socket.getsockname())
                 client_sock.close(True)
@@ -308,7 +308,7 @@ class TestNegative(TestBackend):
         )
 
         with server:
-            client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
+            client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(new_client_config)
             with self.assertRaises(tlslib.TLSError):
                 client_sock = client_context.connect(server.socket.getsockname())
                 client_sock.close(True)
@@ -326,7 +326,7 @@ class TestNegative(TestBackend):
         )
 
         with server:
-            client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
+            client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(new_client_config)
             with self.assertRaises(tlslib.TLSError):
                 client_sock = client_context.connect(server.socket.getsockname())
                 client_sock.close(True)
@@ -335,22 +335,22 @@ class TestNegative(TestBackend):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
 
         with server:
-            client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
+            client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(client_config)
             client_sock = client_context.connect(server.socket.getsockname())
             with self.assertRaises(tlslib.WantWriteError):
                 client_sock.send(b"a" * 10000000)
 
     def test_arbitrary_id_not_supported(self):
-        backend = stdlib.STDLIB_BACKEND
+        implementation = stdlib.STDLIB_IMPLEMENTATION
 
         # Trust store with arbitrary ID
         trust_store = tlslib.TrustStore.from_id(b"")
         client_config = tlslib.TLSClientConfiguration(trust_store=trust_store)
         with self.assertRaises(tlslib.ConfigurationError):
-            backend.validate_config(client_config)
+            implementation.validate_config(client_config)
 
         with self.assertRaises(tlslib.ConfigurationError):
-            client_context = backend.client_context(client_config)
+            client_context = implementation.client_context(client_config)
             client_context.create_buffer("test")
 
         # Leaf certificate with arbitrary ID
@@ -359,10 +359,10 @@ class TestNegative(TestBackend):
         server_config = tlslib.TLSServerConfiguration(certificate_chain=(signing_chain,))
 
         with self.assertRaises(tlslib.ConfigurationError):
-            backend.validate_config(server_config)
+            implementation.validate_config(server_config)
 
         with self.assertRaises(tlslib.ConfigurationError):
-            server_context = backend.server_context(server_config)
+            server_context = implementation.server_context(server_config)
             server_context.create_buffer()
 
         # Chain certificate with arbitrary ID
@@ -372,10 +372,10 @@ class TestNegative(TestBackend):
         server_config = tlslib.TLSServerConfiguration(certificate_chain=(signing_chain,))
 
         with self.assertRaises(tlslib.ConfigurationError):
-            backend.validate_config(server_config)
+            implementation.validate_config(server_config)
 
         with self.assertRaises(tlslib.ConfigurationError):
-            server_context = backend.server_context(server_config)
+            server_context = implementation.server_context(server_config)
             server_context.create_buffer()
 
         # Private Key with arbitrary ID
@@ -385,14 +385,14 @@ class TestNegative(TestBackend):
         server_config = tlslib.TLSServerConfiguration(certificate_chain=(signing_chain,))
 
         with self.assertRaises(tlslib.ConfigurationError):
-            backend.validate_config(server_config)
+            implementation.validate_config(server_config)
 
         with self.assertRaises(tlslib.ConfigurationError):
-            server_context = backend.server_context(server_config)
+            server_context = implementation.server_context(server_config)
             server_context.create_buffer()
 
     def test_empty_cert(self):
-        backend = stdlib.STDLIB_BACKEND
+        implementation = stdlib.STDLIB_IMPLEMENTATION
 
         # Empty leaf certificate
         certificate = tlslib.Certificate.from_id(b"")
@@ -401,10 +401,10 @@ class TestNegative(TestBackend):
         server_config = tlslib.TLSServerConfiguration(certificate_chain=(signing_chain,))
 
         with self.assertRaises(tlslib.ConfigurationError):
-            backend.validate_config(server_config)
+            implementation.validate_config(server_config)
 
         with self.assertRaises(tlslib.ConfigurationError):
-            server_context = backend.server_context(server_config)
+            server_context = implementation.server_context(server_config)
             server_context.create_buffer()
 
         # Empty chain certificate
@@ -415,19 +415,19 @@ class TestNegative(TestBackend):
         server_config = tlslib.TLSServerConfiguration(certificate_chain=(signing_chain,))
 
         with self.assertRaises(tlslib.ConfigurationError):
-            backend.validate_config(server_config)
+            implementation.validate_config(server_config)
 
         with self.assertRaises(tlslib.ConfigurationError):
-            server_context = backend.server_context(server_config)
+            server_context = implementation.server_context(server_config)
             server_context.create_buffer()
 
 
-class TestClientAgainstSSL(TestBackend):
+class TestClientAgainstSSL(TestTLSImplementation):
     def test_trivial_connection_ssl(self):
         server, client_config = limbo_server_ssl("webpki::san::exact-localhost-ip-san")
 
         with server:
-            client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
+            client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(client_config)
             client_sock = client_context.connect(server.socket.getsockname())
             client_sock.send(b"message 1")
             client_sock.send(b"message 2")
@@ -475,7 +475,7 @@ class TestClientAgainstSSL(TestBackend):
                         highest_supported_version=tlsversion,
                     )
 
-                    client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
+                    client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(new_client_config)
                     client_sock = client_context.connect(server.socket.getsockname())
                     self.assertEqual(client_sock.negotiated_tls_version, tlsversion)
                     self.assertEqual(client_sock.negotiated_protocol(), None)
@@ -503,7 +503,7 @@ class TestClientAgainstSSL(TestBackend):
                         ciphers=(cipher,),
                         highest_supported_version=tlslib.TLSVersion.TLSv1_2,
                     )
-                    client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
+                    client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(new_client_config)
                     try:
                         client_sock = client_context.connect(server.socket.getsockname())
                     except tlslib.TLSError:
@@ -530,7 +530,7 @@ class TestClientAgainstSSL(TestBackend):
                 with self.subTest(np=np):
                     new_client_config = tweak_client_config(client_config, inner_protocols=(np,))
 
-                    client_context = stdlib.STDLIB_BACKEND.client_context(new_client_config)
+                    client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(new_client_config)
                     client_sock = client_context.connect(server.socket.getsockname())
                     self.assertEqual(client_sock.negotiated_protocol(), np)
                     client_sock.close(True)
@@ -545,10 +545,10 @@ class TestClientAgainstSSL(TestBackend):
             "webpki::san::exact-localhost-ip-san", "rfc5280::nc::nc-permits-email-exact"
         )
 
-        stdlib.STDLIB_BACKEND.validate_config(client_config)
+        stdlib.STDLIB_IMPLEMENTATION.validate_config(client_config)
 
         with server:
-            client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
+            client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(client_config)
             client_sock = client_context.connect(server.socket.getsockname())
             self.assertEqual(client_sock.negotiated_tls_version, tlslib.TLSVersion.TLSv1_3)
 
@@ -558,7 +558,7 @@ class TestClientAgainstSSL(TestBackend):
             client_sock.close(True)
 
 
-class TestSNI(TestBackend):
+class TestSNI(TestTLSImplementation):
     def test_trivial_connection_sni(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-dns-san")
         server_example_com, _ = limbo_server("webpki::san::exact-dns-san")
@@ -573,7 +573,7 @@ class TestSNI(TestBackend):
         )
 
         with server:
-            client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
+            client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(client_config)
             # Manually set the socket address to localhost instead of 127.0.0.1, so that the
             # certificate is valid
             client_sock = client_context.connect(("localhost", server.socket.getsockname()[1]))
@@ -592,7 +592,7 @@ class TestSNI(TestBackend):
         )
 
         with server:
-            client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
+            client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(client_config)
             with self.assertRaises(tlslib.TLSError):
                 client_sock = client_context.connect(server.socket.getsockname())
                 client_sock.close(True)
@@ -610,7 +610,7 @@ class TestSNI(TestBackend):
         )
 
         with server:
-            client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
+            client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(client_config)
             # Manually set the socket address to localhost instead of 127.0.0.1, so that the
             # certificate is valid
             client_sock = client_context.connect(("localhost", server.socket.getsockname()[1]))
@@ -624,16 +624,16 @@ class TestOpenSSLTLSBuffer(TestCase):
             stdlib.OpenSSLTLSBuffer()
 
 
-class TestBuffer(TestBackend):
+class TestBuffer(TestTLSImplementation):
     def test_trivial_connection_buffer(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-dns-san")
         server_config = server.server_context.configuration
-        backend = server.backend
+        implementation = server.implementation
 
         hostname = "localhost"
 
-        client_context = backend.client_context(client_config)
-        server_context = backend.server_context(server_config)
+        client_context = implementation.client_context(client_config)
+        server_context = implementation.server_context(server_config)
 
         client_buffer, server_buffer = handshake_buffers(client_context, server_context, hostname)
 
@@ -658,12 +658,12 @@ class TestBuffer(TestBackend):
     def test_read_into_buffer(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-dns-san")
         server_config = server.server_context.configuration
-        backend = server.backend
+        implementation = server.implementation
 
         hostname = "localhost"
 
-        client_context = backend.client_context(client_config)
-        server_context = backend.server_context(server_config)
+        client_context = implementation.client_context(client_config)
+        server_context = implementation.server_context(server_config)
         client_buffer, server_buffer = handshake_buffers(client_context, server_context, hostname)
 
         message = b"message 1"
@@ -674,7 +674,7 @@ class TestBuffer(TestBackend):
 
     def test_create_client_buffer(self):
         client_config = tlslib.TLSClientConfiguration()
-        client_context = stdlib.STDLIB_BACKEND.client_context(client_config)
+        client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(client_config)
         client_buffer = client_context.create_buffer(None)
 
         self.assertEqual(client_buffer.context, client_context)
@@ -698,12 +698,12 @@ class TestBuffer(TestBackend):
         )
 
         server_config = server.server_context.configuration
-        backend = server.backend
+        implementation = server.implementation
 
         hostname = "localhost"
 
-        client_context = backend.client_context(new_client_config)
-        server_context = backend.server_context(server_config)
+        client_context = implementation.client_context(new_client_config)
+        server_context = implementation.server_context(server_config)
         client_buffer, server_buffer = handshake_buffers(client_context, server_context, hostname)
 
         self.assertEqual(client_buffer.cipher(), 49245)
@@ -719,12 +719,12 @@ class TestBuffer(TestBackend):
         server = tweak_server_config(server, inner_protocols=(tlslib.NextProtocol.H2,))
 
         server_config = server.server_context.configuration
-        backend = server.backend
+        implementation = server.implementation
 
         hostname = "localhost"
 
-        client_context = backend.client_context(new_client_config)
-        server_context = backend.server_context(server_config)
+        client_context = implementation.client_context(new_client_config)
+        server_context = implementation.server_context(server_config)
         client_buffer, server_buffer = handshake_buffers(client_context, server_context, hostname)
 
         self.assertEqual(client_buffer.negotiated_protocol(), tlslib.NextProtocol.H2)
@@ -740,12 +740,12 @@ class TestBuffer(TestBackend):
         server = tweak_server_config(server, inner_protocols=(protocol,))
 
         server_config = server.server_context.configuration
-        backend = server.backend
+        implementation = server.implementation
 
         hostname = "localhost"
 
-        client_context = backend.client_context(new_client_config)
-        server_context = backend.server_context(server_config)
+        client_context = implementation.client_context(new_client_config)
+        server_context = implementation.server_context(server_config)
         client_buffer, server_buffer = handshake_buffers(client_context, server_context, hostname)
 
         self.assertEqual(client_buffer.negotiated_protocol(), protocol)
@@ -754,12 +754,12 @@ class TestBuffer(TestBackend):
     def test_zero_return(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-dns-san")
         server_config = server.server_context.configuration
-        backend = server.backend
+        implementation = server.implementation
 
         hostname = "localhost"
 
-        client_context = backend.client_context(client_config)
-        server_context = backend.server_context(server_config)
+        client_context = implementation.client_context(client_config)
+        server_context = implementation.server_context(server_config)
 
         client_buffer, server_buffer = handshake_buffers(client_context, server_context, hostname)
 
