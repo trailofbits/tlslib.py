@@ -23,7 +23,7 @@ __all__ = [
     "RaggedEOF",
     "Certificate",
     "PrivateKey",
-    "Backend",
+    "TLSImplementation",
 ]
 
 
@@ -136,7 +136,7 @@ class Certificate:
     def from_id(cls, id: bytes) -> Certificate:
         """
         Creates a Certificate object from an arbitrary identifier. This may
-        be useful for backends that rely on system certificate stores.
+        be useful for implementations that rely on system certificate stores.
         """
         return cls(id=id)
 
@@ -197,7 +197,7 @@ class PrivateKey:
     def from_id(cls, id: bytes) -> PrivateKey:
         """
         Creates a PrivateKey object from an arbitrary identifier. This may
-        be useful for backends that rely on system private key stores.
+        be useful for implementations that rely on system private key stores.
         """
         return cls(id=id)
 
@@ -215,7 +215,7 @@ class TLSClientConfiguration:
 
     :param ciphers Sequence[CipherSuite | int] | None:
         The available ciphers for TLS connections created with this
-        configuration, in priority order. If None is provided, the backend
+        configuration, in priority order. If None is provided, the implementation
         will choose a suitable default value (such as system recommended settings).
 
     :param inner_protocols Sequence[NextProtocol | bytes]:
@@ -332,7 +332,7 @@ class TLSServerConfiguration:
 
     :param ciphers Sequence[CipherSuite | int] | None:
         The available ciphers for TLS connections created with this
-        configuration, in priority order. If None is provided, the backend
+        configuration, in priority order. If None is provided, the implementation
         will choose a suitable default value (such as system recommended settings).
 
     :param inner_protocols Sequence[NextProtocol | bytes]:
@@ -506,7 +506,7 @@ class TLSSocket(Protocol):
     @abstractmethod
     def __init__(self, *args: tuple, **kwargs: tuple) -> None:
         """TLSSockets should not be constructed by the user.
-        The backend should implement a method to construct a TLSSocket
+        The implementation should implement a method to construct a TLSSocket
         object and call it in ClientContext.connect() and
         ServerContext.connect()."""
 
@@ -641,7 +641,7 @@ class TLSBuffer(Protocol):
         operation would have caused data to be written or read. In either
         case, users should endeavour to resolve that situation and then
         re-call this method. When re-calling this method users *should*
-        re-use the exact same ``buf`` object, as some backends require that
+        re-use the exact same ``buf`` object, as some implementations require that
         the exact same buffer be used.
 
         This operation may write "short": that is, fewer bytes may be
@@ -819,10 +819,10 @@ class TLSVersion(Enum):
 
 class TLSError(Exception):
     """
-    The base exception for all TLS related errors from any backend.
+    The base exception for all TLS related errors from any implementation.
 
     Catching this error should be sufficient to catch *all* TLS errors,
-    regardless of what backend is used.
+    regardless of what implementation is used.
     """
 
 
@@ -873,8 +873,8 @@ class RaggedEOF(TLSError):
 
 
 class ConfigurationError(TLSError):
-    """An special exception that backends can use when the provided
-    configuration uses features not supported by that backend."""
+    """An special exception that implementations can use when the provided
+    configuration uses features not supported by that implementation."""
 
 
 class SigningChain:
@@ -895,7 +895,7 @@ class SigningChain:
         self.chain = list(chain)
 
 
-class Backend(Generic[_ClientContext, _ServerContext]):
+class TLSImplementation(Generic[_ClientContext, _ServerContext]):
     """An object representing the collection of classes that implement the
     PEP 543 abstract TLS API for a specific TLS implementation.
     """
@@ -912,7 +912,7 @@ class Backend(Generic[_ClientContext, _ServerContext]):
         server_context: type[_ServerContext],
         validate_config: Callable[[TLSClientConfiguration | TLSServerConfiguration], None],
     ) -> None:
-        """Initializes all attributes of the backend."""
+        """Initializes all attributes of the implementation."""
 
         self._client_context = client_context
         self._server_context = server_context
@@ -921,20 +921,20 @@ class Backend(Generic[_ClientContext, _ServerContext]):
     @property
     def client_context(self) -> type[_ClientContext]:
         """The concrete implementation of the PEP 543 Client Context object,
-        if this TLS backend supports being the client on a TLS connection.
+        if this TLS implementation supports being the client on a TLS connection.
         """
         return self._client_context
 
     @property
     def server_context(self) -> type[_ServerContext]:
         """The concrete implementation of the PEP 543 Server Context object,
-        if this TLS backend supports being a server on a TLS connection.
+        if this TLS implementation supports being a server on a TLS connection.
         """
         return self._server_context
 
     @property
     def validate_config(self) -> Callable[[TLSClientConfiguration | TLSServerConfiguration], None]:
-        """A function that reveals whether this TLS backend supports a
+        """A function that reveals whether this TLS implementation supports a
         particular TLS configuration.
         """
         return self._validate_config

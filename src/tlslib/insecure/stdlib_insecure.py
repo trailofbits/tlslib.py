@@ -20,8 +20,8 @@ from ..tlslib import (
     TLSServerConfiguration,
 )
 from . import (
-    InsecureBackend,
     InsecureConfiguration,
+    InsecureTLSImplementation,
     SecurityWarning,
 )
 
@@ -40,7 +40,7 @@ def _apply_insecure_config(
 
 class OpenSSLInsecureClientContext(OpenSSLClientContext):
     """
-    Class allowing users to make insecure choices using the stdlib OpenSSL-based backend.
+    Class allowing users to make insecure choices using the stdlib OpenSSL-based implementation.
     """
 
     def __init__(
@@ -108,7 +108,7 @@ class OpenSSLInsecureClientContext(OpenSSLClientContext):
 
 class OpenSSLInsecureServerContext(OpenSSLServerContext):
     """
-    Class allowing users to make insecure choices using the stdlib OpenSSL-based backend.
+    Class allowing users to make insecure choices using the stdlib OpenSSL-based implementation.
     """
 
     def __init__(
@@ -173,8 +173,8 @@ class OpenSSLInsecureServerContext(OpenSSLServerContext):
         return self._insecure_config
 
 
-#: The stdlib ``InsecureBackend`` object.
-STDLIB_INSECURE_BACKEND = InsecureBackend(
+#: The stdlib ``InsecureTLSImplementation`` object.
+STDLIB_INSECURE_IMPLEMENTATION = InsecureTLSImplementation(
     client_context=OpenSSLClientContext,
     server_context=OpenSSLServerContext,
     validate_config=validate_config,

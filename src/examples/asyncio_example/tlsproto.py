@@ -12,10 +12,10 @@ import warnings
 
 try:
     import tlslib.tlslib as tls
-    from tlslib.stdlib import STDLIB_BACKEND as backend
+    from tlslib.stdlib import STDLIB_IMPLEMENTATION as implementation
 except ImportError:  # pragma: no cover
     tls = None
-    backend = None
+    implementation = None
 
 from asyncio import constants, exceptions, protocols, transports
 from asyncio.log import logger
@@ -61,7 +61,7 @@ def _create_transport_context(server_side):
     # context; in that case the tlscontext passed is None.
     # The default is secure for client connections.
 
-    tlscontext = backend.client_context(tls.TLSClientConfiguration())
+    tlscontext = implementation.client_context(tls.TLSClientConfiguration())
 
     return tlscontext
 

@@ -7,8 +7,8 @@ from unittest import TestCase
 from tlslib import tlslib
 
 
-class TestBackend(TestCase):
-    def test_backend_types(self):
+class TestTLSImplementation(TestCase):
+    def test_implementation_types(self):
         class ClientContext:
             pass
 
@@ -20,19 +20,19 @@ class TestBackend(TestCase):
         ) -> None:
             return None
 
-        backend = tlslib.Backend(
+        implementation = tlslib.TLSImplementation(
             client_context=ClientContext,
             server_context=ServerContext,
             validate_config=validate_config,
         )
 
-        self.assertIs(backend.client_context, ClientContext)
-        self.assertIs(backend.server_context, ServerContext)
+        self.assertIs(implementation.client_context, ClientContext)
+        self.assertIs(implementation.server_context, ServerContext)
 
-        self.assertIs(backend.validate_config, validate_config)
+        self.assertIs(implementation.validate_config, validate_config)
 
 
-class AbstractFunctions(TestBackend):
+class AbstractFunctions(TestTLSImplementation):
     def test_pure_types(self):
         self.assertIsInstance(tlslib.TrustStore.from_buffer(b""), tlslib.TrustStore)
         self.assertIsInstance(tlslib.TrustStore.from_file(""), tlslib.TrustStore)

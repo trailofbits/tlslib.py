@@ -8,7 +8,8 @@ from unittest import TestCase
 with warnings.catch_warnings():
     warnings.filterwarnings(
         "ignore",
-        message="Using an InsecureBackend is insecure. This should not be used in production.",
+        message="Using an InsecureTLSImplementation is insecure. "
+        "This should not be used in production.",
     )
     from tlslib import insecure, stdlib, tlslib
     from tlslib.insecure import SecurityWarning, stdlib_insecure
@@ -24,24 +25,26 @@ with warnings.catch_warnings():
     )
 
 
-class TestInsecureBackend(TestCase):
-    def test_insecure_backend_types(self):
-        insecure_backend = stdlib_insecure.STDLIB_INSECURE_BACKEND
+class TestInsecureImplementation(TestCase):
+    def test_insecure_implementation_types(self):
+        insecure_implementation = stdlib_insecure.STDLIB_INSECURE_IMPLEMENTATION
 
-        self.assertIs(insecure_backend.client_context, stdlib_insecure.OpenSSLClientContext)
-        self.assertIs(insecure_backend.server_context, stdlib_insecure.OpenSSLServerContext)
+        self.assertIs(insecure_implementation.client_context, stdlib_insecure.OpenSSLClientContext)
+        self.assertIs(insecure_implementation.server_context, stdlib_insecure.OpenSSLServerContext)
         self.assertIs(
-            insecure_backend.insecure_client_context, stdlib_insecure.OpenSSLInsecureClientContext
+            insecure_implementation.insecure_client_context,
+            stdlib_insecure.OpenSSLInsecureClientContext,
         )
         self.assertIs(
-            insecure_backend.insecure_server_context, stdlib_insecure.OpenSSLInsecureServerContext
+            insecure_implementation.insecure_server_context,
+            stdlib_insecure.OpenSSLInsecureServerContext,
         )
 
         # invariant properties
-        self.assertIs(insecure_backend.validate_config, stdlib.validate_config)
+        self.assertIs(insecure_implementation.validate_config, stdlib.validate_config)
 
 
-class TestBasic(TestInsecureBackend):
+class TestBasic(TestInsecureImplementation):
     def test_trivial_connection_insecure(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
 
@@ -53,7 +56,7 @@ class TestBasic(TestInsecureBackend):
         with server:
             with self.assertWarns(SecurityWarning):
                 insecure_client_context = (
-                    stdlib_insecure.STDLIB_INSECURE_BACKEND.insecure_client_context(
+                    stdlib_insecure.STDLIB_INSECURE_IMPLEMENTATION.insecure_client_context(
                         new_client_config, insecure_config
                     )
                 )
@@ -114,7 +117,7 @@ class TestBasic(TestInsecureBackend):
             )
         with self.assertWarns(SecurityWarning):
             with server:
-                client_context = stdlib_insecure.STDLIB_INSECURE_BACKEND.client_context(
+                client_context = stdlib_insecure.STDLIB_INSECURE_IMPLEMENTATION.client_context(
                     client_config
                 )
 
@@ -136,11 +139,11 @@ class TestBasic(TestInsecureBackend):
                 _ = insecure.InsecureConfiguration(False, True)
 
 
-class TestBuffer(TestInsecureBackend):
+class TestBuffer(TestInsecureImplementation):
     def test_trivial_connection_buffer_insecure(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-dns-san")
         server_config = server.server_context.configuration
-        backend = server.backend
+        implementation = server.implementation
 
         # Overwrite client TrustStore to remove needed root certificate
         new_client_config = tweak_client_config(client_config, trust_store=None)
@@ -150,10 +153,10 @@ class TestBuffer(TestInsecureBackend):
         hostname = "localhost"
 
         with self.assertWarns(SecurityWarning):
-            client_context = stdlib_insecure.STDLIB_INSECURE_BACKEND.insecure_client_context(
+            client_context = stdlib_insecure.STDLIB_INSECURE_IMPLEMENTATION.insecure_client_context(
                 new_client_config, insecure_config
             )
-        server_context = backend.server_context(server_config)
+        server_context = implementation.server_context(server_config)
 
         with self.assertWarns(SecurityWarning):
             client_buffer, server_buffer = handshake_buffers(
@@ -187,7 +190,7 @@ class TestBuffer(TestInsecureBackend):
 
             with self.assertWarns(SecurityWarning):
                 insecure_client_context = (
-                    stdlib_insecure.STDLIB_INSECURE_BACKEND.insecure_client_context(
+                    stdlib_insecure.STDLIB_INSECURE_IMPLEMENTATION.insecure_client_context(
                         client_config, insecure_config
                     )
                 )
@@ -204,7 +207,7 @@ class TestBuffer(TestInsecureBackend):
 
             with self.assertWarns(SecurityWarning):
                 insecure_server_context = (
-                    stdlib_insecure.STDLIB_INSECURE_BACKEND.insecure_server_context(
+                    stdlib_insecure.STDLIB_INSECURE_IMPLEMENTATION.insecure_server_context(
                         server_config, insecure_config
                     )
                 )

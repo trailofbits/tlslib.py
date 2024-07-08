@@ -14,14 +14,13 @@ from pathlib import Path
 from typing import Any
 
 from tlslib.insecure import InsecureConfiguration
-from tlslib.insecure.stdlib_insecure import STDLIB_INSECURE_BACKEND
+from tlslib.insecure.stdlib_insecure import STDLIB_INSECURE_IMPLEMENTATION
 from tlslib.stdlib import (
-    STDLIB_BACKEND,
+    STDLIB_IMPLEMENTATION,
     TLSVersion,
 )
 from tlslib.tlslib import (
     DEFAULT_CIPHER_LIST,
-    Backend,
     Certificate,
     CipherSuite,
     ClientContext,
@@ -33,6 +32,7 @@ from tlslib.tlslib import (
     TLSBuffer,
     TLSClientConfiguration,
     TLSError,
+    TLSImplementation,
     TLSServerConfiguration,
     TLSSocket,
     TrustStore,
@@ -112,7 +112,7 @@ class ThreadedEchoServer(threading.Thread):
 
     def __init__(
         self,
-        backend: Backend | None,
+        implementation: TLSImplementation | None,
         cert_chain,
         min_tls_version,
         max_tls_version,
@@ -121,8 +121,8 @@ class ThreadedEchoServer(threading.Thread):
         trust_store,
     ):
         self.server_context: ServerContext | ssl.SSLContext
-        if backend is not None:
-            self.backend = backend
+        if implementation is not None:
+            self.implementation = implementation
             server_configuration = TLSServerConfiguration(
                 certificate_chain=cert_chain,
                 ciphers=ciphers,
@@ -131,9 +131,9 @@ class ThreadedEchoServer(threading.Thread):
                 highest_supported_version=max_tls_version,
                 trust_store=trust_store,
             )
-            self.server_context = backend.server_context(server_configuration)
+            self.server_context = implementation.server_context(server_configuration)
         else:
-            self.backend = None
+            self.implementation = None
             server_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
             server_context.minimum_version = min_tls_version
             server_context.maximum_version = max_tls_version
@@ -175,7 +175,7 @@ class ThreadedEchoServer(threading.Thread):
 
     def start(self, flag=None) -> None:
         self.flag = flag
-        if self.backend is not None:
+        if self.implementation is not None:
             self.socket = self.server_context.connect(("127.0.0.1", 0))
         else:
             sock = socket.create_server(("127.0.0.1", 0))
@@ -194,7 +194,7 @@ class ThreadedEchoServer(threading.Thread):
                 newconn, connaddr = self.socket.accept()
                 self.peer_cert = newconn.getpeercert()
                 prot = None
-                if self.backend is not None:
+                if self.implementation is not None:
                     prot = newconn.negotiated_protocol()
                 else:
                     newconn.setblocking(False)
@@ -250,7 +250,7 @@ class ThreadedEchoServer(threading.Thread):
 def limbo_server(id: str) -> tuple[ThreadedEchoServer, TLSClientConfiguration]:
     """
     Return a `ThreadedServer` and a `TLSClientConfiguration` suitable for connecting to it,
-    both instantiated with an `tlslib` backend and state from the given Limbo testcase.
+    both instantiated with an `tlslib` implementation and state from the given Limbo testcase.
     """
 
     testcase = limbo_asset(id)
@@ -278,7 +278,7 @@ def limbo_server(id: str) -> tuple[ThreadedEchoServer, TLSClientConfiguration]:
     )
 
     server = ThreadedEchoServer(
-        STDLIB_BACKEND,
+        STDLIB_IMPLEMENTATION,
         (signing_chain,),
         TLSVersion.MINIMUM_SUPPORTED,
         TLSVersion.MAXIMUM_SUPPORTED,
@@ -367,10 +367,12 @@ def tweak_server_config(
     )
 
     if insecure_config is not None:
-        server.backend = STDLIB_INSECURE_BACKEND
-        server.server_context = server.backend.insecure_server_context(new_config, insecure_config)
+        server.implementation = STDLIB_INSECURE_IMPLEMENTATION
+        server.server_context = server.implementation.insecure_server_context(
+            new_config, insecure_config
+        )
     else:
-        server.server_context = server.backend.server_context(new_config)
+        server.server_context = server.implementation.server_context(new_config)
 
     return server
 
@@ -379,7 +381,7 @@ def limbo_server_ssl(
     id: str, client_id: str | None = None
 ) -> tuple[ThreadedEchoServer, TLSClientConfiguration]:
     """
-    Return a `ThreadedServer` with an `ssl` backend and a `TLSClientConfiguration`
+    Return a `ThreadedServer` with an `ssl` implementation and a `TLSClientConfiguration`
     suitable for connecting to it, both instantiated with a state from the given
     Limbo testcase.
     """
