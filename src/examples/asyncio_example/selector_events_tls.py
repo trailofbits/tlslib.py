@@ -155,9 +155,7 @@ class BaseSelectorEventLoopTLS(base_events_tls.BaseEventLoopTLS):
             csock.send(b"\0")
         except OSError:
             if self._debug:
-                logger.debug(
-                    "Fail to write a null byte into the " "self-pipe socket", exc_info=True
-                )
+                logger.debug("Fail to write a null byte into the self-pipe socket", exc_info=True)
 
     def _start_serving(
         self,
@@ -315,7 +313,7 @@ class BaseSelectorEventLoopTLS(base_events_tls.BaseEventLoopTLS):
             pass
         else:
             if not transport.is_closing():
-                raise RuntimeError(f"File descriptor {fd!r} is used by transport " f"{transport!r}")
+                raise RuntimeError(f"File descriptor {fd!r} is used by transport {transport!r}")
 
     def _add_reader(self, fd, callback, *args):
         self._check_closed()
@@ -1076,7 +1074,7 @@ class _SelectorSocketTransport(_SelectorTransport):
     def write(self, data):
         if not isinstance(data, bytes | bytearray | memoryview):
             raise TypeError(
-                f"data argument must be a bytes-like object, " f"not {type(data).__name__!r}"
+                f"data argument must be a bytes-like object, not {type(data).__name__!r}"
             )
         if self._eof:
             raise RuntimeError("Cannot call write() after write_eof()")
@@ -1267,7 +1265,7 @@ class _SelectorDatagramTransport(_SelectorTransport, transports.DatagramTranspor
     def sendto(self, data, addr=None):
         if not isinstance(data, bytes | bytearray | memoryview):
             raise TypeError(
-                f"data argument must be a bytes-like object, " f"not {type(data).__name__!r}"
+                f"data argument must be a bytes-like object, not {type(data).__name__!r}"
             )
         if not data:
             return

@@ -127,7 +127,7 @@ class _TLSProtocolTransport(transports._FlowControlMixin, transports.Transport):
         if not self._closed:
             self._closed = True
             _warnings.warn(
-                "unclosed transport <asyncio._TLSProtocolTransport " "object>", ResourceWarning
+                "unclosed transport <asyncio._TLSProtocolTransport object>", ResourceWarning
             )
 
     def is_reading(self):
@@ -221,7 +221,7 @@ class _TLSProtocolTransport(transports._FlowControlMixin, transports.Transport):
         to be sent out asynchronously.
         """
         if not isinstance(data, bytes | bytearray | memoryview):
-            raise TypeError(f"data: expecting a bytes-like instance, " f"got {type(data).__name__}")
+            raise TypeError(f"data: expecting a bytes-like instance, got {type(data).__name__}")
         if not data:
             return
         self._tls_protocol._write_appdata((data,))
@@ -297,14 +297,13 @@ class TLSProtocol(protocols.BufferedProtocol):
             tls_handshake_timeout = constants.SSL_HANDSHAKE_TIMEOUT
         elif tls_handshake_timeout <= 0:
             raise ValueError(
-                f"tls_handshake_timeout should be a positive number, "
-                f"got {tls_handshake_timeout}"
+                f"tls_handshake_timeout should be a positive number, got {tls_handshake_timeout}"
             )
         if tls_shutdown_timeout is None:
             tls_shutdown_timeout = constants.SSL_SHUTDOWN_TIMEOUT
         elif tls_shutdown_timeout <= 0:
             raise ValueError(
-                f"tls_shutdown_timeout should be a positive number, " f"got {tls_shutdown_timeout}"
+                f"tls_shutdown_timeout should be a positive number, got {tls_shutdown_timeout}"
             )
 
         if not tlscontext:
@@ -805,7 +804,7 @@ class TLSProtocol(protocols.BufferedProtocol):
                 keep_open = self._app_protocol.eof_received()
                 if keep_open:
                     logger.warning(
-                        "returning true from eof_received() " "has no effect when using TLS"
+                        "returning true from eof_received() has no effect when using TLS"
                     )
         except (KeyboardInterrupt, SystemExit):
             raise

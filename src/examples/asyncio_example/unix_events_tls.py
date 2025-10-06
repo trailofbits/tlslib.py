@@ -101,7 +101,7 @@ class _UnixSelectorEventLoop(selector_events_tls.BaseSelectorEventLoopTLS):
         Raise RuntimeError if there is a problem setting up the handler.
         """
         if coroutines.iscoroutine(callback) or coroutines.iscoroutinefunction(callback):
-            raise TypeError("coroutines cannot be used " "with add_signal_handler()")
+            raise TypeError("coroutines cannot be used with add_signal_handler()")
         self._check_signal(sig)
         self._check_closed()
         try:
@@ -333,7 +333,7 @@ class _UnixSelectorEventLoop(selector_events_tls.BaseSelectorEventLoopTLS):
                     pass
                 except OSError as err:
                     # Directory may have permissions only to create socket.
-                    logger.error("Unable to check or remove stale UNIX socket " "%r: %r", path, err)
+                    logger.error("Unable to check or remove stale UNIX socket %r: %r", path, err)
 
             try:
                 sock.bind(path)
@@ -659,7 +659,7 @@ class _UnixWritePipeTransport(transports._FlowControlMixin, transports.WriteTran
             self._pipe = None
             self._fileno = None
             self._protocol = None
-            raise ValueError("Pipe transport is only for " "pipes, sockets and character devices")
+            raise ValueError("Pipe transport is only for pipes, sockets and character devices")
 
         os.set_blocking(self._fileno, False)
         self._loop.call_soon(self._protocol.connection_made, self)
@@ -721,7 +721,7 @@ class _UnixWritePipeTransport(transports._FlowControlMixin, transports.WriteTran
 
         if self._conn_lost or self._closing:
             if self._conn_lost >= constants.LOG_THRESHOLD_FOR_CONNLOST_WRITES:
-                logger.warning("pipe closed by peer or " "os.write(pipe, data) raised exception.")
+                logger.warning("pipe closed by peer or os.write(pipe, data) raised exception.")
             self._conn_lost += 1
             return
 
@@ -899,8 +899,7 @@ class AbstractChildWatcher:
         if cls.__module__ != __name__:
             warnings._deprecated(
                 "AbstractChildWatcher",
-                "{name!r} is deprecated as of Python 3.12 and will be "
-                "removed in Python {remove}.",
+                "{name!r} is deprecated as of Python 3.12 and will be removed in Python {remove}.",
                 remove=(3, 14),
             )
 
@@ -1002,7 +1001,7 @@ class PidfdChildWatcher(AbstractChildWatcher):
             # (may happen if waitpid() is called elsewhere).
             returncode = 255
             logger.warning(
-                "child process pid %d exit status already read: " " will report returncode 255", pid
+                "child process pid %d exit status already read:  will report returncode 255", pid
             )
         else:
             returncode = waitstatus_to_exitcode(status)
@@ -1039,7 +1038,7 @@ class BaseChildWatcher(AbstractChildWatcher):
 
         if self._loop is not None and loop is None and self._callbacks:
             warnings.warn(
-                "A loop is being detached " "from a child watcher with pending handlers",
+                "A loop is being detached from a child watcher with pending handlers",
                 RuntimeWarning,
             )
 
@@ -1086,7 +1085,7 @@ class SafeChildWatcher(BaseChildWatcher):
         super().__init__()
         warnings._deprecated(
             "SafeChildWatcher",
-            "{name!r} is deprecated as of Python 3.12 and will be " "removed in Python {remove}.",
+            "{name!r} is deprecated as of Python 3.12 and will be removed in Python {remove}.",
             remove=(3, 14),
         )
 
@@ -1166,7 +1165,7 @@ class FastChildWatcher(BaseChildWatcher):
         self._forks = 0
         warnings._deprecated(
             "FastChildWatcher",
-            "{name!r} is deprecated as of Python 3.12 and will be " "removed in Python {remove}.",
+            "{name!r} is deprecated as of Python 3.12 and will be removed in Python {remove}.",
             remove=(3, 14),
         )
 
@@ -1240,7 +1239,7 @@ class FastChildWatcher(BaseChildWatcher):
                         self._zombies[pid] = returncode
                         if self._loop.get_debug():
                             logger.debug(
-                                "unknown process %s exited " "with returncode %s", pid, returncode
+                                "unknown process %s exited with returncode %s", pid, returncode
                             )
                         continue
                     callback = None
@@ -1250,7 +1249,7 @@ class FastChildWatcher(BaseChildWatcher):
 
             if callback is None:
                 logger.warning(
-                    "Caught subprocess termination from unknown pid: " "%d -> %d", pid, returncode
+                    "Caught subprocess termination from unknown pid: %d -> %d", pid, returncode
                 )
             else:
                 callback(pid, returncode, *args)
@@ -1280,7 +1279,7 @@ class MultiLoopChildWatcher(AbstractChildWatcher):
         self._saved_sighandler = None
         warnings._deprecated(
             "MultiLoopChildWatcher",
-            "{name!r} is deprecated as of Python 3.12 and will be " "removed in Python {remove}.",
+            "{name!r} is deprecated as of Python 3.12 and will be removed in Python {remove}.",
             remove=(3, 14),
         )
 
@@ -1518,7 +1517,7 @@ class _UnixDefaultEventLoopPolicy(events.BaseDefaultEventLoopPolicy):
 
         warnings._deprecated(
             "get_child_watcher",
-            "{name!r} is deprecated as of Python 3.12 and will be " "removed in Python {remove}.",
+            "{name!r} is deprecated as of Python 3.12 and will be removed in Python {remove}.",
             remove=(3, 14),
         )
         return self._watcher
@@ -1534,7 +1533,7 @@ class _UnixDefaultEventLoopPolicy(events.BaseDefaultEventLoopPolicy):
         self._watcher = watcher
         warnings._deprecated(
             "set_child_watcher",
-            "{name!r} is deprecated as of Python 3.12 and will be " "removed in Python {remove}.",
+            "{name!r} is deprecated as of Python 3.12 and will be removed in Python {remove}.",
             remove=(3, 14),
         )
 
