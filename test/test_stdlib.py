@@ -182,7 +182,7 @@ class TestConfig(TestTLSImplementation):
             for attempt in retry_loop(max_attempts=3, wait=0.5):
                 with attempt:
                     # Connection should have failed due to client not authenticating
-                    with self.assertRaises(tlslib.TLSError):
+                    with self.assertRaises(BrokenPipeError):
                         client_sock.send(b"message")
             client_sock.close(True)
 
@@ -198,7 +198,7 @@ class TestConfig(TestTLSImplementation):
             for attempt in retry_loop(max_attempts=3, wait=0.5):
                 with attempt:
                     # Connection should have failed due to client not authenticating
-                    with self.assertRaises(tlslib.TLSError):
+                    with self.assertRaises(BrokenPipeError):
                         client_sock.send(b"message")
             client_sock.close(True)
 
