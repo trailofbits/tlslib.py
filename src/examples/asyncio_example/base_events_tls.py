@@ -241,7 +241,7 @@ class _SendfileFallbackProtocol(protocols.Protocol):
         await fut
 
     def connection_made(self, transport):
-        raise RuntimeError("Invalid state: " "connection should have been established already.")
+        raise RuntimeError("Invalid state: connection should have been established already.")
 
     def connection_lost(self, exc):
         if self._write_ready_fut is not None:
@@ -626,7 +626,7 @@ class BaseEventLoopTLS(events.AbstractEventLoop):
                 await future
         except TimeoutError:
             warnings.warn(
-                "The executor did not finishing joining " f"its threads within {timeout} seconds.",
+                f"The executor did not finishing joining its threads within {timeout} seconds.",
                 RuntimeWarning,
                 stacklevel=2,
             )
@@ -830,7 +830,7 @@ class BaseEventLoopTLS(events.AbstractEventLoop):
         if coroutines.iscoroutine(callback) or coroutines.iscoroutinefunction(callback):
             raise TypeError(f"coroutines cannot be used with {method}()")
         if not callable(callback):
-            raise TypeError(f"a callable object was expected by {method}(), " f"got {callback!r}")
+            raise TypeError(f"a callable object was expected by {method}(), got {callback!r}")
 
     def _call_soon(self, callback, args, context):
         handle = events.Handle(callback, args, self, context)
@@ -853,7 +853,7 @@ class BaseEventLoopTLS(events.AbstractEventLoop):
         thread_id = threading.get_ident()
         if thread_id != self._thread_id:
             raise RuntimeError(
-                "Non-thread-safe operation invoked on an event loop other " "than the current one"
+                "Non-thread-safe operation invoked on an event loop other than the current one"
             )
 
     def call_soon_threadsafe(self, callback, *args, context=None):
@@ -938,8 +938,7 @@ class BaseEventLoopTLS(events.AbstractEventLoop):
         # NB: sendfile syscall is not supported for TLS sockets and
         # non-mmap files even if sendfile is supported by OS
         raise exceptions.SendfileNotAvailableError(
-            f"syscall sendfile is not available for socket {sock!r} "
-            f"and file {file!r} combination"
+            f"syscall sendfile is not available for socket {sock!r} and file {file!r} combination"
         )
 
     async def _sock_sendfile_fallback(self, sock, file, offset, count):
@@ -1073,7 +1072,7 @@ class BaseEventLoopTLS(events.AbstractEventLoop):
             # create a certificate for a specific IP address, so we
             # don't judge it here.)
             if not host:
-                raise ValueError("You must set server_hostname " "when using tls without a host")
+                raise ValueError("You must set server_hostname when using tls without a host")
             server_hostname = host
 
         if tls_handshake_timeout is not None and not tls:
@@ -1418,7 +1417,7 @@ class BaseEventLoopTLS(events.AbstractEventLoop):
                     except OSError as err:
                         # Directory may have permissions only to create socket.
                         logger.error(
-                            "Unable to check or remove stale UNIX " "socket %r: %r", local_addr, err
+                            "Unable to check or remove stale UNIX socket %r: %r", local_addr, err
                         )
 
                 addr_pairs_info = (((family, proto), (local_addr, remote_addr)),)
@@ -1498,7 +1497,7 @@ class BaseEventLoopTLS(events.AbstractEventLoop):
         if self._debug:
             if local_addr:
                 logger.info(
-                    "Datagram endpoint local_addr=%r remote_addr=%r " "created: (%r, %r)",
+                    "Datagram endpoint local_addr=%r remote_addr=%r created: (%r, %r)",
                     local_addr,
                     remote_addr,
                     transport,
@@ -1506,7 +1505,7 @@ class BaseEventLoopTLS(events.AbstractEventLoop):
                 )
             else:
                 logger.debug(
-                    "Datagram endpoint remote_addr=%r created: " "(%r, %r)",
+                    "Datagram endpoint remote_addr=%r created: (%r, %r)",
                     remote_addr,
                     transport,
                     protocol,
@@ -1616,7 +1615,7 @@ class BaseEventLoopTLS(events.AbstractEventLoop):
                         # Assume it's a bad family/type/protocol combination.
                         if self._debug:
                             logger.warning(
-                                "create_server() failed to create " "socket.socket(%r, %r, %r)",
+                                "create_server() failed to create socket.socket(%r, %r, %r)",
                                 af,
                                 socktype,
                                 proto,
@@ -1874,7 +1873,7 @@ class BaseEventLoopTLS(events.AbstractEventLoop):
         documentation for details about context).
         """
         if handler is not None and not callable(handler):
-            raise TypeError(f"A callable object or None is expected, " f"got {handler!r}")
+            raise TypeError(f"A callable object or None is expected, got {handler!r}")
         self._exception_handler = handler
 
     def default_exception_handler(self, context):
