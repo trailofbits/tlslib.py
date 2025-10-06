@@ -18,6 +18,7 @@ __all__ = [
     "NextProtocol",
     "TLSVersion",
     "TLSError",
+    "TrustStore",
     "WantWriteError",
     "WantReadError",
     "RaggedEOF",
