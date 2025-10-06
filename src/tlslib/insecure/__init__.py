@@ -3,7 +3,7 @@
 import warnings
 from abc import abstractmethod
 from collections.abc import Callable
-from typing import Generic, Protocol, TypeVar
+from typing import Protocol, TypeVar
 
 from ..tlslib import (
     ClientContext,
@@ -124,15 +124,16 @@ class InsecureServerContext(ServerContext, Protocol):
         """The insecure configuration options that will make this context insecure."""
 
 
-_ClientContext = TypeVar("_ClientContext", bound=ClientContext)
-_ServerContext = TypeVar("_ServerContext", bound=ServerContext)
-_InsecureClientContext = TypeVar("_InsecureClientContext", bound=InsecureClientContext)
-_InsecureServerContext = TypeVar("_InsecureServerContext", bound=InsecureServerContext)
+GenericClientContext = TypeVar("GenericClientContext", bound=ClientContext)
+GenericServerContext = TypeVar("GenericServerContext", bound=ServerContext)
+GenericInsecureClientContext = TypeVar("GenericInsecureClientContext", bound=InsecureClientContext)
+GenericInsecureServerContext = TypeVar("GenericInsecureServerContext", bound=InsecureServerContext)
 
 
-class InsecureTLSImplementation(
-    TLSImplementation, Generic[_InsecureClientContext, _InsecureServerContext]
-):
+class InsecureTLSImplementation[
+    GenericInsecureClientContext: InsecureClientContext,
+    GenericInsecureServerContext: InsecureServerContext,
+](TLSImplementation):
     """
     An insecure version of a TLS API implementation that allows a user to make insecure
     choices for testing purposes.
@@ -145,11 +146,11 @@ class InsecureTLSImplementation(
 
     def __init__(
         self,
-        client_context: type[_ClientContext],
-        server_context: type[_ServerContext],
+        client_context: type[GenericClientContext],
+        server_context: type[GenericServerContext],
         validate_config: Callable[[TLSClientConfiguration | TLSServerConfiguration], None],
-        insecure_client_context: type[_InsecureClientContext],
-        insecure_server_context: type[_InsecureServerContext],
+        insecure_client_context: type[GenericInsecureClientContext],
+        insecure_server_context: type[GenericInsecureServerContext],
     ) -> None:
         """Initializes all attributes of the implementation."""
 
@@ -169,14 +170,14 @@ class InsecureTLSImplementation(
         )
 
     @property
-    def insecure_client_context(self) -> type[_InsecureClientContext]:
+    def insecure_client_context(self) -> type[GenericInsecureClientContext]:
         """The concrete implementation of the PEP 543 Insecure Client Context object used
         by this TLS implementation.
         """
         return self._insecure_client_context
 
     @property
-    def insecure_server_context(self) -> type[_InsecureServerContext]:
+    def insecure_server_context(self) -> type[GenericInsecureServerContext]:
         """The concrete implementation of the PEP 543 Insecure Server Context object used
         by this TLS implementation.
         """

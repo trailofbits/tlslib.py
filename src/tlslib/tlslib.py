@@ -6,7 +6,7 @@ import os
 from abc import abstractmethod
 from collections.abc import Buffer, Callable, Sequence
 from enum import Enum, IntEnum
-from typing import Generic, Protocol, TypeVar
+from typing import Protocol, TypeVar
 
 __all__ = [
     "TLSBuffer",
@@ -466,7 +466,7 @@ class ClientContext(Protocol):
         (cipher, negotiated_protocol, negotiated_tls_version, etc.)."""
 
 
-_ClientContext = TypeVar("_ClientContext", bound=ClientContext)
+GenericClientContext = TypeVar("GenericClientContext", bound=ClientContext)
 
 
 class ServerContext(Protocol):
@@ -496,7 +496,7 @@ class ServerContext(Protocol):
         (cipher, negotiated_protocol, negotiated_tls_version, etc.)."""
 
 
-_ServerContext = TypeVar("_ServerContext", bound=ServerContext)
+GenericServerContext = TypeVar("GenericServerContext", bound=ServerContext)
 
 
 class TLSSocket(Protocol):
@@ -896,7 +896,7 @@ class SigningChain:
         self.chain = list(chain)
 
 
-class TLSImplementation(Generic[_ClientContext, _ServerContext]):
+class TLSImplementation[GenericClientContext: ClientContext, GenericServerContext: ServerContext]:
     """An object representing the collection of classes that implement the
     PEP 543 abstract TLS API for a specific TLS implementation.
     """
@@ -909,8 +909,8 @@ class TLSImplementation(Generic[_ClientContext, _ServerContext]):
 
     def __init__(
         self,
-        client_context: type[_ClientContext],
-        server_context: type[_ServerContext],
+        client_context: type[GenericClientContext],
+        server_context: type[GenericServerContext],
         validate_config: Callable[[TLSClientConfiguration | TLSServerConfiguration], None],
     ) -> None:
         """Initializes all attributes of the implementation."""
@@ -920,14 +920,14 @@ class TLSImplementation(Generic[_ClientContext, _ServerContext]):
         self._validate_config = validate_config
 
     @property
-    def client_context(self) -> type[_ClientContext]:
+    def client_context(self) -> type[GenericClientContext]:
         """The concrete implementation of the PEP 543 Client Context object,
         if this TLS implementation supports being the client on a TLS connection.
         """
         return self._client_context
 
     @property
-    def server_context(self) -> type[_ServerContext]:
+    def server_context(self) -> type[GenericServerContext]:
         """The concrete implementation of the PEP 543 Server Context object,
         if this TLS implementation supports being a server on a TLS connection.
         """
