@@ -447,7 +447,8 @@ class OpenSSLTLSSocket:
         self._ssl_context = ssl_context
 
         if server_side is True:
-            sock = socket.create_server(address)
+            family = socket.getaddrinfo(address[0], address[1], type=socket.SOCK_STREAM)[0][0]
+            sock = socket.create_server(address, family=family)
             with _error_converter():
                 self._socket = ssl_context.wrap_socket(
                     sock, server_side=server_side, server_hostname=None
