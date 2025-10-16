@@ -329,7 +329,7 @@ class TLSServerConfiguration:
         where each signing chain comprises a leaf certificate including
         its corresponding private key and optionally a list of intermediate
         certificates. These certificates will be offered to the client during
-        the handshake if required.
+        the handshake.
 
     :param ciphers Sequence[CipherSuite | int] | None:
         The available ciphers for TLS connections created with this
@@ -367,7 +367,7 @@ class TLSServerConfiguration:
 
     def __init__(
         self,
-        certificate_chain: Sequence[SigningChain] | None = None,
+        certificate_chain: Sequence[SigningChain],
         ciphers: Sequence[CipherSuite | int] | None = None,
         inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
@@ -378,6 +378,10 @@ class TLSServerConfiguration:
 
         if inner_protocols is None:
             inner_protocols = []
+
+        if not certificate_chain:
+            e = "certificate_chain cannot be empty"
+            raise ValueError(e)
 
         self._certificate_chain = certificate_chain
         self._ciphers = ciphers
