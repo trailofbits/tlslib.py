@@ -60,6 +60,9 @@ class TrustStore:
         """
         return cls()
 
+    def is_system(self):
+        return self._buffer is None and self._path is None and self._id is None
+
     @classmethod
     def from_buffer(cls, buffer: bytes) -> TrustStore:
         """
@@ -235,7 +238,7 @@ class TLSClientConfiguration:
 
     :param trust_store TrustStore:
         The trust store that connections using this configuration will use
-        to validate certificates. None means that the system store is used.
+        to validate certificates.
     """
 
     __slots__ = (
@@ -254,7 +257,7 @@ class TLSClientConfiguration:
         inner_protocols: Sequence[NextProtocol | bytes] | None = None,
         lowest_supported_version: TLSVersion | None = None,
         highest_supported_version: TLSVersion | None = None,
-        trust_store: TrustStore | None = None,
+        trust_store: TrustStore = TrustStore.system(),
     ) -> None:
         """Initialize TLS client configuration."""
 
@@ -311,7 +314,7 @@ class TLSClientConfiguration:
         return self._highest_supported_version
 
     @property
-    def trust_store(self) -> TrustStore | None:
+    def trust_store(self) -> TrustStore:
         """
         The trust store that connections using this configuration will use
         to validate certificates. None means that the system store is used.
