@@ -104,7 +104,7 @@ class TestBasic(TestTLSImplementation):
 
     def test_trivial_ipv6_server(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
-        server.server_context.connect(('::1', 0)).close()
+        server.server_context.connect(("::1", 0)).close()
 
     def test_protocol_negotiation(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
