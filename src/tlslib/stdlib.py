@@ -731,7 +731,7 @@ class OpenSSLTLSBuffer:
         with _error_converter():
             try:
                 # MyPy insists that buffer must be a bytearray
-                return self._object.read(amt, buffer)  # type: ignore[arg-type]
+                return self._object.read(amt, buffer)
             except ssl.SSLZeroReturnError:
                 return b""
 
