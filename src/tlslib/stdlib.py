@@ -81,15 +81,7 @@ def _remove_path(ts_cert_priv: TrustStore | Certificate | PrivateKey) -> None:
     ts_cert_priv._path = None
 
 
-def _is_system_trust_store(trust_store: TrustStore | None) -> bool:
-    return trust_store is None or (
-        trust_store._path is None and trust_store._buffer is None and trust_store._id is None
-    )
-
-
-def _get_path_from_trust_store(
-    context: _SSLContext, trust_store: TrustStore | None
-) -> os.PathLike | None:
+def _get_path_from_trust_store(context: _SSLContext, trust_store: TrustStore) -> os.PathLike | None:
     assert trust_store is not None
     if trust_store._path is not None:
         return trust_store._path
@@ -109,10 +101,10 @@ def _get_path_from_trust_store(
         return None
 
 
-def _create_client_context_with_trust_store(trust_store: TrustStore | None) -> _SSLContext:
+def _create_client_context_with_trust_store(trust_store: TrustStore) -> _SSLContext:
     some_context: _SSLContext
 
-    if _is_system_trust_store(trust_store):
+    if trust_store.is_system():
         some_context = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     else:
         some_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
