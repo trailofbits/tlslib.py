@@ -679,7 +679,7 @@ class TestBuffer(TestTLSImplementation):
     def test_create_client_buffer(self):
         client_config = tlslib.TLSClientConfiguration()
         client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(client_config)
-        client_buffer = client_context.create_buffer(None)
+        client_buffer = client_context.create_buffer("localhost")
 
         self.assertEqual(client_buffer.context, client_context)
         self.assertIsNone(client_buffer.cipher())
