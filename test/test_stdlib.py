@@ -2,9 +2,12 @@
 Tests for `tlslib.stdlib`.
 """
 
+import ssl
 import tempfile
+import time
 from pathlib import Path
 from unittest import TestCase
+from unittest.mock import patch
 
 from tlslib import stdlib, tlslib
 
@@ -49,6 +52,30 @@ class TestOpenSSLTLSSocket(TestCase):
     def test_socket_init(self):
         with self.assertRaises(TypeError):
             stdlib.OpenSSLTLSSocket()
+
+    def test_send_ragged_eof(self):
+        server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
+
+        with server:
+            client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(client_config)
+            client_sock = client_context.connect(server.socket.getsockname())
+            self.addCleanup(client_sock._socket.close)
+            # OpenSSL versions differ in whether a failed write raises SSLEOFError.
+            with patch.object(ssl.SSLSocket, "send", side_effect=ssl.SSLEOFError("Unexpected EOF")):
+                with self.assertRaises(tlslib.RaggedEOF):
+                    client_sock.send(b"message")
+            client_sock.close(True)
+
+    def test_close_after_transport_error(self):
+        server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
+
+        with server:
+            client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(client_config)
+            client_sock = client_context.connect(server.socket.getsockname())
+            self.addCleanup(client_sock._socket.close)
+            with patch.object(ssl.SSLSocket, "shutdown", side_effect=ConnectionResetError):
+                client_sock.close(True)
+            self.assertEqual(client_sock.fileno(), -1)
 
 
 class TestTLSImplementation(TestCase):
@@ -183,12 +210,21 @@ class TestConfig(TestTLSImplementation):
         with server:
             client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(client_config)
             client_sock = client_context.connect(server.socket.getsockname())
-            for attempt in retry_loop(max_attempts=3, wait=0.5):
-                with attempt:
-                    # Connection should have failed due to client not authenticating
-                    with self.assertRaises(tlslib.TLSError):
-                        client_sock.send(b"message")
-            client_sock.close(True)
+            # A fatal TLS alert precludes a graceful TLS shutdown.
+            self.addCleanup(client_sock._socket.close)
+            deadline = time.monotonic() + 2
+            while True:
+                try:
+                    client_sock.recv(1024)
+                except tlslib.WantReadError:
+                    if time.monotonic() >= deadline:
+                        self.fail("Timed out waiting for client certificate rejection")
+                    time.sleep(0.01)
+                except tlslib.TLSError as exc:
+                    self.assertIn("TLSV13_ALERT_CERTIFICATE_REQUIRED", str(exc))
+                    break
+                else:
+                    self.fail("Expected client certificate rejection")
 
     def test_config_explicit_system_trust_store_server(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
@@ -199,12 +235,21 @@ class TestConfig(TestTLSImplementation):
         with server:
             client_context = stdlib.STDLIB_IMPLEMENTATION.client_context(client_config)
             client_sock = client_context.connect(server.socket.getsockname())
-            for attempt in retry_loop(max_attempts=3, wait=0.5):
-                with attempt:
-                    # Connection should have failed due to client not authenticating
-                    with self.assertRaises(tlslib.TLSError):
-                        client_sock.send(b"message")
-            client_sock.close(True)
+            # A fatal TLS alert precludes a graceful TLS shutdown.
+            self.addCleanup(client_sock._socket.close)
+            deadline = time.monotonic() + 2
+            while True:
+                try:
+                    client_sock.recv(1024)
+                except tlslib.WantReadError:
+                    if time.monotonic() >= deadline:
+                        self.fail("Timed out waiting for client certificate rejection")
+                    time.sleep(0.01)
+                except tlslib.TLSError as exc:
+                    self.assertIn("TLSV13_ALERT_CERTIFICATE_REQUIRED", str(exc))
+                    break
+                else:
+                    self.fail("Expected client certificate rejection")
 
     def test_config_weird_cipher_id(self):
         server, client_config = limbo_server("webpki::san::exact-localhost-ip-san")
